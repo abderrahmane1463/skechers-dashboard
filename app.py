@@ -163,6 +163,10 @@ def get_fb_posts(days, start=None, end=None):
 def get_fb_conversations():
     return api.fetch_fb_conversations(25)
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_fb_demographics():
+    return api.fetch_fb_demographics()
+
 @st.cache_data(ttl=900, show_spinner=False)
 def get_ig_profile(days, start=None, end=None):
     return api.fetch_ig_profile(days, start, end)
@@ -609,6 +613,152 @@ if platform == "Facebook":
         else:
             st.info("No audience data available for this period.")
 
+        # ── Demographics Chart ───────────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Header
+        dh1, dh2 = st.columns([1, 1])
+        with dh1:
+            st.markdown(
+                '<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;'
+                'color:#fff;margin:0;">DONNÉES DÉMOGRAPHIQUES</p>'
+                f'<p style="font-size:0.85rem;color:rgba(255,255,255,0.45);margin:2px 0 0;">'
+                f'Followers (Lifetime): <strong style="color:#FF6B35;">{total_fans:,}</strong></p>',
+                unsafe_allow_html=True
+            )
+        with dh2:
+            st.markdown(
+                '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">'
+                '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#1877F2">'
+                '<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>'
+                '</svg>'
+                '<span style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.6);">FACEBOOK PERFORMANCE</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        demo = get_fb_demographics()
+        age_brackets   = demo["age_brackets"]
+        men_pcts       = demo["men"]
+        women_pcts     = demo["women"]
+        total_men_pct  = demo["total_men_pct"]
+        total_women_pct = demo["total_women_pct"]
+
+        if any(v > 0 for v in men_pcts + women_pcts):
+            fig_demo = go.Figure()
+            fig_demo.add_trace(go.Bar(
+                name="Men",
+                x=age_brackets,
+                y=men_pcts,
+                marker_color="#7EC8E3",
+                text=[f"{v}%" for v in men_pcts],
+                textposition="outside",
+                textfont=dict(size=11, color="rgba(255,255,255,0.6)"),
+            ))
+            fig_demo.add_trace(go.Bar(
+                name="Women",
+                x=age_brackets,
+                y=women_pcts,
+                marker_color="#1C4E80",
+                text=[f"{v}%" for v in women_pcts],
+                textposition="outside",
+                textfont=dict(size=11, color="rgba(255,255,255,0.6)"),
+            ))
+            demo_layout = {
+                **CHART_LAYOUT,
+                "barmode": "group",
+                "yaxis": dict(
+                    gridcolor="rgba(255,255,255,0.06)",
+                    showline=False,
+                    ticksuffix="%",
+                    range=[0, 35],
+                ),
+                "xaxis": dict(
+                    gridcolor="rgba(255,255,255,0.06)",
+                    showline=False,
+                ),
+                "showlegend": False,
+                "margin": dict(l=0, r=0, t=20, b=40),
+                "height": 320,
+            }
+            fig_demo.update_layout(**demo_layout)
+            st.plotly_chart(fig_demo, width="stretch")
+
+            # Legend + gender totals
+            st.markdown(
+                f'<div style="display:flex;justify-content:center;align-items:center;gap:2rem;margin-top:-8px;">'
+                f'<div style="display:flex;align-items:center;gap:6px;">'
+                f'<div style="width:24px;height:12px;background:#7EC8E3;border-radius:3px;"></div>'
+                f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Men — <strong>{total_men_pct}%</strong></span>'
+                f'</div>'
+                f'<div style="display:flex;align-items:center;gap:6px;">'
+                f'<div style="width:24px;height:12px;background:#1C4E80;border-radius:3px;"></div>'
+                f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Women — <strong>{total_women_pct}%</strong></span>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                '<div style="background:rgba(232,66,10,0.08);border:1px solid rgba(232,66,10,0.25);'
+                'border-radius:16px;padding:1.5rem 2rem;text-align:center;">'
+                '<p style="font-size:1.1rem;font-weight:700;color:#FF6B35;margin:0 0 0.5rem;">📊 Données non disponibles via API</p>'
+                '<p style="font-size:0.85rem;color:rgba(255,255,255,0.6);margin:0 0 1rem;">'
+                'Meta a supprimé l\'accès aux données démographiques (âge/genre) via l\'API Graph pour les '
+                'pages "New Page Experience". Ces données sont uniquement accessibles dans Meta Business Suite.'
+                '</p>'
+                '<a href="https://business.facebook.com/insights/" target="_blank" '
+                'style="display:inline-block;background:linear-gradient(90deg,#E8420A,#C1320A);'
+                'color:#fff;text-decoration:none;padding:0.5rem 1.2rem;border-radius:8px;'
+                'font-size:0.85rem;font-weight:600;">🔗 Ouvrir Meta Business Suite</a>'
+                '</div>',
+                unsafe_allow_html=True
+            )
+
+        # ── Geographic Demographics ──────────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        gh1, gh2 = st.columns([1, 1])
+        with gh1:
+            st.markdown(
+                '<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;color:#fff;margin:0;">'
+                'DONN\u00c9ES D\u00c9MOGRAPHIQUES</p>'
+                '<p style="font-size:0.8rem;color:rgba(255,255,255,0.4);margin:2px 0 0;">Top villes &amp; pays</p>',
+                unsafe_allow_html=True
+            )
+        with gh2:
+            st.markdown(
+                '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">'
+                '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#1877F2">'
+                '<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 '
+                '10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 '
+                '2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 '
+                '3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>'
+                '<span style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.6);">FACEBOOK PERFORMANCE</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        gcol1, gcol2 = st.columns(2)
+        _geo_card = (
+            '<div style="background:rgba(232,66,10,0.08);border:1px solid rgba(232,66,10,0.2);'
+            'border-radius:16px;padding:1.5rem;text-align:center;">'
+            '<p style="font-size:1rem;font-weight:700;color:#FF6B35;margin:0 0 0.4rem;">{icon} {title}</p>'
+            '<p style="font-size:0.78rem;color:rgba(255,255,255,0.5);margin:0 0 1rem;">'
+            'Donn\u00e9es non disponibles via API<br>'
+            '<span style="font-size:0.7rem;">(Restriction Meta \u2014 New Page Experience)</span></p>'
+            '<a href="https://business.facebook.com/insights/" target="_blank" '
+            'style="background:linear-gradient(90deg,#E8420A,#C1320A);color:#fff;'
+            'text-decoration:none;padding:0.4rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:600;">'
+            '\U0001f517 Business Suite</a></div>'
+        )
+        with gcol1:
+            st.markdown(_geo_card.format(icon="\U0001f3d9\ufe0f", title="Top Villes"), unsafe_allow_html=True)
+        with gcol2:
+            st.markdown(_geo_card.format(icon="\U0001f30d", title="Top Pays"), unsafe_allow_html=True)
+
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
     with tab2:
         st.markdown('<div class="section-header">Reactions, Comments & Shares</div>', unsafe_allow_html=True)
@@ -761,28 +911,71 @@ else:
         ig_eng = get_ig_engagement(days, start_date, end_date)
         ig_posts = get_ig_posts(days, start_date, end_date)
 
-    followers = ig_profile.get("followers_count") or 0
-    total_ig_reach = safe_sum(ig_profile.get("reach", []))
+    followers            = ig_profile.get("followers_count") or 0
+    follower_additions   = ig_profile.get("follower_additions", [])
+    total_ig_reach       = safe_sum(ig_profile.get("reach", []))
     total_ig_impressions = safe_sum(ig_profile.get("impressions", []))
-    total_ig_views = safe_sum(ig_profile.get("profile_views", []))
-    total_ig_likes = ig_eng.get("likes", 0)
-    total_ig_comments = ig_eng.get("comments", 0)
-    total_ig_interactions = total_ig_likes + total_ig_comments
-    ig_eng_rate = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
+    total_ig_views       = safe_sum(ig_profile.get("profile_views", []))
+
+    # Aggregate engagement from posts (account-level API blocked for IG)
+    total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
+    total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
+    total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
+    total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
+    total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
+
+    # Impressions: sum from posts if account-level is 0
+    if total_ig_impressions == 0:
+        total_ig_impressions = sum(p.get("impressions", 0) for p in ig_posts)
+
+    # New followers = sum of daily additions from follower_count metric
+    ig_new_followers = sum(v["value"] for v in follower_additions if v["value"] > 0)
+    ig_unfollows     = 0   # Instagram API does not expose unfollows
+
+    ig_eng_rate     = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
+    ig_eng_per_post = round(total_ig_interactions / len(ig_posts), 1) if ig_posts else 0.0
 
     log_refresh(
-        platform, 
-        period_label, 
-        "✅ Data Loaded", 
+        platform,
+        period_label,
+        "✅ Data Loaded",
         f"Followers: {followers}, Posts: {len(ig_posts)}, Reach: {total_ig_reach}"
     )
 
-    # KPI Row
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("👥 Followers", f"{followers:,}")
-    k2.metric("❤️ Likes + Comments", f"{total_ig_interactions:,}", delta=f"{ig_eng_rate}% rate")
-    k3.metric("📡 Reach", f"{total_ig_reach:,}")
-    k4.metric("👁️ Profile Views", f"{total_ig_views:,}")
+    # ── Instagram KPI Grid ────────────────────────────────────────────────────
+    def _ig_kpi(icon, label, value, color="#ffffff"):
+        return (
+            f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
+            f'padding:0.9rem 1rem;text-align:center;">'
+            f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+            f'margin-bottom:0.25rem;">{icon} {label}</div>'
+            f'<div style="font-size:1.35rem;font-weight:800;color:{color};'
+            f'white-space:nowrap;">{value}</div>'
+            f'</div>'
+        )
+
+    ig_kpi_html = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
+  {_ig_kpi("👥", "Followers",            f"{followers:,}")}
+  {_ig_kpi("➕", "Nouveaux Followers",   f"+{ig_new_followers:,}", "#4ade80")}
+  {_ig_kpi("➖", "Désabonnements",       f"-{ig_unfollows:,}",    "#f87171")}
+  {_ig_kpi("📊", "Taux d'engagement",    f"{ig_eng_rate}%",       "#facc15")}
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
+  {_ig_kpi("👁️", "Couvertures",          f"{total_ig_reach:,}")}
+  {_ig_kpi("📢", "Impressions",          f"{total_ig_impressions:,}")}
+  {_ig_kpi("📝", "Publications",         str(len(ig_posts)))}
+  {_ig_kpi("⚡", "Engagement / Publi.",   f"{ig_eng_per_post:,}")}
+</div>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_ig_kpi("🔥", "Total interactions",  f"{total_ig_interactions:,}", "#FF6B35")}
+  {_ig_kpi("❤️", "Réactions",           f"{total_ig_likes:,}",        "#f87171")}
+  {_ig_kpi("💬", "Commentaires",        f"{total_ig_comments:,}",     "#a78bfa")}
+  {_ig_kpi("↗️", "Partages",            f"{total_ig_shares:,}",       "#34d399")}
+  {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}",        "#60a5fa")}
+</div>
+"""
+    st.markdown(ig_kpi_html, unsafe_allow_html=True)
 
     st.divider()
 

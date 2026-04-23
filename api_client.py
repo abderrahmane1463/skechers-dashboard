@@ -226,6 +226,70 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     return result
 
 
+# ─── Facebook — Demographics ──────────────────────────────────────────────────
+def fetch_fb_demographics() -> dict:
+    """
+    Returns lifetime page fans broken down by gender and age bracket.
+    Uses the page_fans_gender_age lifetime insight metric.
+    Returns {
+        "age_brackets": ["18-24","25-34",...],
+        "men":   [pct, pct, ...],
+        "women": [pct, pct, ...],
+        "total_men_pct":   float,
+        "total_women_pct": float,
+    }
+    """
+    age_order = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
+    result = {
+        "age_brackets": age_order,
+        "men":   [0] * len(age_order),
+        "women": [0] * len(age_order),
+        "total_men_pct":   0.0,
+        "total_women_pct": 0.0,
+    }
+    try:
+        data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_fans_gender_age",
+            "period": "lifetime",
+        })
+        entries = data.get("data", [])
+        if not entries:
+            return result
+
+        raw = entries[0].get("values", [{}])[-1].get("value", {})
+        if not raw:
+            return result
+
+        # Aggregate totals
+        totals = {bracket: {"M": 0, "F": 0} for bracket in age_order}
+        grand_total = 0
+        for key, count in raw.items():
+            parts = key.split(".")
+            if len(parts) != 2:
+                continue
+            gender, age = parts[0], parts[1]
+            # Normalise 65+ key variants
+            if age.startswith("65"):
+                age = "65+"
+            if age in totals and gender in ("M", "F"):
+                totals[age][gender] += count
+                grand_total += count
+
+        if grand_total == 0:
+            return result
+
+        men_total   = sum(v["M"] for v in totals.values())
+        women_total = sum(v["F"] for v in totals.values())
+
+        result["men"]   = [round(totals[b]["M"] / grand_total * 100, 1) for b in age_order]
+        result["women"] = [round(totals[b]["F"] / grand_total * 100, 1) for b in age_order]
+        result["total_men_pct"]   = round(men_total   / grand_total * 100, 1)
+        result["total_women_pct"] = round(women_total / grand_total * 100, 1)
+    except Exception as e:
+        print(f"DEBUG demographics error: {e}")
+    return result
+
+
 # ─── Facebook — Posts ─────────────────────────────────────────────────────────
 def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: int = 100) -> list[dict]:
     """
@@ -242,12 +306,11 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
         posts = data.get("data", [])
         parsed = []
         for p in posts:
-            # Extract basic interactions from fields
             reacs = p.get("reactions", {}).get("summary", {}).get("total_count", 0)
-            comm = p.get("comments", {}).get("summary", {}).get("total_count", 0)
-            shar = p.get("shares", {}).get("count", 0)
+            comm  = p.get("comments",  {}).get("summary", {}).get("total_count", 0)
+            shar  = p.get("shares",    {}).get("count", 0)
 
-            # Fetch per-post reach (impressions_unique)
+            # Fetch per-post reach (organic unique impressions)
             reach = 0
             try:
                 ins = _get(f"{p['id']}/insights", {"metric": "post_impressions_unique"})
@@ -258,14 +321,14 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
                 pass
 
             parsed.append({
-                "id": p.get("id", ""),
-                "text": p.get("message", p.get("story", ""))[:120],
-                "created_time": p.get("created_time", "")[:10],
-                "thumbnail": p.get("full_picture", ""),
-                "reach": reach,
-                "reactions": reacs,
-                "comments": comm,
-                "shares": shar,
+                "id":               p.get("id", ""),
+                "text":             p.get("message", p.get("story", ""))[:120],
+                "created_time":     p.get("created_time", "")[:10],
+                "thumbnail":        p.get("full_picture", ""),
+                "reach":            reach,
+                "reactions":        reacs,
+                "comments":         comm,
+                "shares":           shar,
                 "total_interactions": reacs + comm + shar,
             })
         return parsed
@@ -344,6 +407,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "impressions": [],
         "profile_views": [],
         "follower_series": [],
+        "follower_additions": [],
     }
 
     # Followers count (current snapshot)
@@ -358,10 +422,8 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
 
     # Daily insights
     metric_map = {
-        "impressions": "impressions",
         "reach": "reach",
         "profile_views": "profile_views",
-        "follower_count": "follower_series",
     }
     for metric, key in metric_map.items():
         try:
@@ -378,6 +440,23 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
             ]
         except Exception:
             pass
+
+    # follower_count daily = daily additions (not cumulative)
+    try:
+        data = _get(f"{INSTAGRAM_USER_ID}/insights", {
+            "metric": "follower_count",
+            "period": "day",
+            "since": since,
+            "until": until,
+        })
+        values = data.get("data", [{}])[0].get("values", [])
+        result["follower_additions"] = [
+            {"date": v["end_time"][:10], "value": v["value"]}
+            for v in values
+        ]
+        result["follower_series"] = result["follower_additions"]
+    except Exception:
+        pass
 
     return result
 
@@ -444,8 +523,16 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             except Exception:
                 pass
 
-            likes = p.get("like_count", 0)
+            likes    = p.get("like_count", 0)
             comments = p.get("comments_count", 0)
+            saves    = 0
+            try:
+                ins2 = _get(f"{p['id']}/insights", {"metric": "saved"})
+                for item in ins2.get("data", []):
+                    if item["name"] == "saved":
+                        saves = item["values"][0]["value"] if item.get("values") else 0
+            except Exception:
+                pass
             parsed.append({
                 "id": p.get("id", ""),
                 "text": p.get("caption", "")[:120] if p.get("caption") else "",
@@ -456,8 +543,9 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "impressions": impressions,
                 "reactions": likes,
                 "comments": comments,
+                "saves": saves,
                 "shares": 0,
-                "total_interactions": likes + comments,
+                "total_interactions": likes + comments + saves,
             })
         return parsed
     except Exception:
