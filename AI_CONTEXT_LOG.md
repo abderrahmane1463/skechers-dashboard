@@ -1,0 +1,373 @@
+# AI_CONTEXT_LOG.md
+## Footland Dashboard — Rolling AI Context & Change Log
+
+> This file is **automatically appended** by `log_refresh()` in `app.py` every time the data refresh logic runs.  
+> It serves as a handoff document for AI context continuity across sessions.
+
+---
+
+## Session Log
+
+---
+
+### [2026-04-23 10:36] — Initial Project Scaffold
+
+**Agent:** Antigravity (Full-Stack Data Engineer)  
+**Action:** Project initialization  
+
+**Files Created:**
+| File | Status | Notes |
+|------|--------|-------|
+| `PROJECT_OVERSIGHT.md` | ✅ Created | Scope, metrics, constraints |
+| `APP_STRUCTURE.md` | ✅ Created | Full UI layout + data-flow spec |
+| `AI_CONTEXT_LOG.md` | ✅ Created | This file |
+| `config.py` | ✅ Created | Credentials + constants |
+| `api_client.py` | ✅ Created | Meta Graph API client |
+| `app.py` | ✅ Created | Main Streamlit application |
+| `requirements.txt` | ✅ Created | Python dependencies |
+
+**API Endpoints Targeted:**
+| Endpoint | Platform | Status |
+|----------|----------|--------|
+| `/{page-id}/insights` | Facebook | 🟡 Pending first run |
+| `/{page-id}/posts` | Facebook | 🟡 Pending first run |
+| `/{page-id}/conversations` | Facebook | 🟡 Pending first run |
+| `/{ig-user-id}/insights` | Instagram | 🟡 Pending first run |
+| `/{ig-user-id}/media` | Instagram | 🟡 Pending first run |
+
+**UI Components Status:**
+| Component | Status |
+|-----------|--------|
+| Sidebar (platform + date selector) | ✅ Built |
+| KPI Header Row | ✅ Built |
+| Tab: Audience | ✅ Built |
+| Tab: Engagement | ✅ Built |
+| Tab: Visibility | ✅ Built |
+| Tab: Top Content | ✅ Built |
+| Tab: Community Management | ✅ Built |
+
+**Known Constraints Applied:**
+- Ad Account `act_765947885726761` is blocklisted in `api_client.py`
+- All benchmark/paid endpoints are excluded
+- `log_refresh()` function wired to auto-append this file on every data refresh
+
+**Next Step for Handoff:**
+1. Run `pip install -r requirements.txt`
+2. Run `streamlit run app.py`
+3. Verify API token returns `200 OK` on the health-check endpoint
+4. If any metric returns `403`, check token permissions: `pages_read_engagement`, `instagram_basic`, `instagram_manage_insights`, `pages_show_list`
+5. Update this log with first successful API response summary
+
+---
+<!-- AUTO-APPENDED ENTRIES BELOW THIS LINE -->
+
+### [2026-04-23 09:46 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+---
+
+### [2026-04-23 09:46 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+---
+
+### [2026-04-23 09:48 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+---
+
+### [2026-04-23 09:50 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+---
+
+### [2026-04-23 09:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 20580850
+---
+
+### [2026-04-23 09:56 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 0
+---
+
+### [2026-04-23 10:01 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 10:05 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226393, Posts: 20, Reach: 13036530
+---
+
+### [2026-04-23 10:07 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 20580850
+---
+
+### [2026-04-23 10:11 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 20580850
+---
+
+### [2026-04-23 10:12 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 20580850
+---
+
+### [2026-04-23 10:12 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 20580850
+---
+
+### [2026-04-23 10:14 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500072, Posts: 0, Reach: 20580850
+---
+
+### [2026-04-23 10:21 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 10:23 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500073, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:27 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500073, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500073, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 10:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 10:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 10:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500074, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:37 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500075, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:44 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500075, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:48 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500075, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:58 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500075, Posts: 20, Reach: 20580948
+---
+
+### [2026-04-23 10:59 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500075, Posts: 20, Reach: 20308090
+---
+
+### [2026-04-23 11:20 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500077, Posts: 43, Reach: 20581934
+---
+
+### [2026-04-23 11:20 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 11:21 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500077, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 11:27 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500078, Posts: 43, Reach: 20581934
+---
+
+### [2026-04-23 11:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500077, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 11:33 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 11:35 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500079, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 11:38 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 11:39 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500079, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 11:44 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 11:45 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500080, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 11:58 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 11:59 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500080, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 12:43 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 12:44 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500085, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 13:08 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 13:09 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500086, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 13:11 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 13:12 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500086, Posts: 29, Reach: 20308090
+---
+
+### [2026-04-23 13:13 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-23 13:15 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500086, Posts: 29, Reach: 20308090
+---
