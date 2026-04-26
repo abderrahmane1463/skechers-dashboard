@@ -284,10 +284,16 @@ if platform == "Facebook":
     total_fans = aud.get("fans_total") or 0
     total_adds = safe_sum(aud.get("fans_adds", []))
     total_removes = safe_sum(aud.get("fans_removes", []))
-    total_reach = safe_sum(vis.get("reach", []))
+    total_reach = vis.get("period_reach", 0) or safe_sum(vis.get("reach", []))
     total_impressions = safe_sum(vis.get("impressions", []))
     total_views = safe_sum(vis.get("page_views", []))
-    total_engagements = safe_sum(eng.get("engagements", []))
+
+    # Aggregate interactions from posts to exclude clicks (page_post_engagements includes clicks)
+    total_reacs = sum(p.get("reactions", 0) for p in posts)
+    total_comms = sum(p.get("comments", 0) for p in posts)
+    total_shars = sum(p.get("shares", 0) for p in posts)
+    total_engagements = total_reacs + total_comms + total_shars
+
     eng_rate = round(total_engagements / total_reach * 100, 2) if total_reach else 0.0
 
     log_refresh(
@@ -297,10 +303,7 @@ if platform == "Facebook":
         f"Followers: {total_fans}, Posts: {len(posts)}, Reach: {total_reach}"
     )
 
-    # ── Interaction Breakdown Row ────────────────────────────────────────────
-    total_reacs = sum(p.get("reactions", 0) for p in posts)
-    total_comm = sum(p.get("comments", 0) for p in posts)
-    total_shar = sum(p.get("shares", 0) for p in posts)
+    # Total interactions (total_reacs, total_comms, total_shars calculated above)
 
     def _kpi(icon, label, value, color="#ffffff"):
         return (
@@ -329,8 +332,8 @@ if platform == "Facebook":
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_kpi("🔥", "Total interactions",   f"{total_engagements:,}", "#FF6B35")}
   {_kpi("❤️", "Réactions",            f"{total_reacs:,}")}
-  {_kpi("💬", "Commentaires",         f"{total_comm:,}")}
-  {_kpi("🔁", "Partages",             f"{total_shar:,}")}
+  {_kpi("💬", "Commentaires",         f"{total_comms:,}")}
+  {_kpi("🔁", "Partages",             f"{total_shars:,}")}
 </div>
 """
     st.markdown(kpi_html, unsafe_allow_html=True)
@@ -913,7 +916,7 @@ else:
 
     followers            = ig_profile.get("followers_count") or 0
     follower_additions   = ig_profile.get("follower_additions", [])
-    total_ig_reach       = safe_sum(ig_profile.get("reach", []))
+    total_ig_reach       = ig_profile.get("period_reach", 0) or safe_sum(ig_profile.get("reach", []))
     total_ig_impressions = safe_sum(ig_profile.get("impressions", []))
     total_ig_views       = safe_sum(ig_profile.get("profile_views", []))
 
@@ -978,6 +981,148 @@ else:
     st.markdown(ig_kpi_html, unsafe_allow_html=True)
 
     st.divider()
+
+    # ── Instagram Top Publications by Visibility ───────────────────────────
+    if ig_posts:
+        st.markdown(
+            '<div style="text-align:center; font-size:1.1rem; font-weight:700; '
+            'letter-spacing:0.1em; color:rgba(255,255,255,0.6); margin-bottom:1.2rem;">'
+            '🏆 TOP PUBLICATIONS PAR VISIBILITÉ</div>',
+            unsafe_allow_html=True
+        )
+
+        ig_sorted_posts = sorted(ig_posts, key=lambda p: p.get("reach", 0), reverse=True)[:6]
+        ig_cols = st.columns(3)
+        for idx, post in enumerate(ig_sorted_posts):
+            col = ig_cols[idx % 3]
+            with col:
+                thumbnail = post.get("thumbnail", "")
+                text = post.get("text", "")[:100] or "*(No caption)*"
+                date = post.get("created_time", "")
+                reacs = post.get("reactions", 0)
+                comms = post.get("comments", 0)
+                saves = post.get("saves", 0)
+                total = post.get("total_interactions", 0)
+                permalink = post.get("permalink", "#")
+
+                if thumbnail:
+                    st.image(thumbnail, use_container_width=True)
+                else:
+                    st.markdown(
+                        '<div style="height:160px;background:rgba(255,255,255,0.05);'
+                        'border-radius:12px;display:flex;align-items:center;'
+                        'justify-content:center;color:rgba(255,255,255,0.3);">📷 No image</div>',
+                        unsafe_allow_html=True
+                    )
+
+                st.markdown(
+                    f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
+                    f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
+                    unsafe_allow_html=True
+                )
+
+                reach_val = post.get('reach', 0)
+                st.markdown(f"""
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">👁️ Spectateurs</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{reach_val:,}</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">❤️ Réactions</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{reacs:,}</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">💬 Commentaires</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{comms:,}</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">🔖 Enregistrements</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{saves:,}</div>
+  </div>
+</div>
+<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.6rem;margin-bottom:0.5rem;">
+  <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>
+  <div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>
+</div>
+<a href="{permalink}" target="_blank"
+   style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">
+  🔗 Voir la publication
+</a><br><br>
+""", unsafe_allow_html=True)
+
+        st.divider()
+
+    # ── Instagram Top Publications by Engagement ───────────────────────────
+    if ig_posts:
+        st.markdown(
+            '<div style="text-align:center; font-size:1.1rem; font-weight:700; '
+            'letter-spacing:0.1em; color:rgba(255,255,255,0.6); margin-bottom:1.2rem;">'
+            '⚡ TOP PUBLICATIONS PAR ENGAGEMENT</div>',
+            unsafe_allow_html=True
+        )
+
+        ig_eng_sorted = sorted(ig_posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:6]
+        ig_eng_cols = st.columns(3)
+        for idx, post in enumerate(ig_eng_sorted):
+            col = ig_eng_cols[idx % 3]
+            with col:
+                thumbnail = post.get("thumbnail", "")
+                text = post.get("text", "")[:100] or "*(No caption)*"
+                date = post.get("created_time", "")
+                reacs = post.get("reactions", 0)
+                comms = post.get("comments", 0)
+                saves = post.get("saves", 0)
+                total = post.get("total_interactions", 0)
+                permalink = post.get("permalink", "#")
+
+                if thumbnail:
+                    st.image(thumbnail, use_container_width=True)
+                else:
+                    st.markdown(
+                        '<div style="height:160px;background:rgba(255,255,255,0.05);'
+                        'border-radius:12px;display:flex;align-items:center;'
+                        'justify-content:center;color:rgba(255,255,255,0.3);">📷 No image</div>',
+                        unsafe_allow_html=True
+                    )
+
+                st.markdown(
+                    f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
+                    f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
+                    unsafe_allow_html=True
+                )
+
+                reach_val = post.get('reach', 0)
+                st.markdown(f"""
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">👁️ Spectateurs</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{reach_val:,}</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">❤️ Réactions</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{reacs:,}</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">💬 Commentaires</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{comms:,}</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">🔖 Enregistrements</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{saves:,}</div>
+  </div>
+</div>
+<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.6rem;margin-bottom:0.5rem;">
+  <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>
+  <div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>
+</div>
+<a href="{permalink}" target="_blank"
+   style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">
+  🔗 Voir la publication
+</a><br><br>
+""", unsafe_allow_html=True)
+
+        st.divider()
 
     tab1, tab2, tab3, tab4 = st.tabs([
         "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content"

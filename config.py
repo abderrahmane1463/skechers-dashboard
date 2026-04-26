@@ -73,7 +73,7 @@ IG_ENGAGEMENT_METRICS = [
 
 # Fields for Instagram media
 IG_MEDIA_FIELDS = (
-    "id,caption,media_type,thumbnail_url,media_url,"
+    "id,caption,media_type,thumbnail_url,media_url,permalink,"
     "timestamp,like_count,comments_count"
 )
 

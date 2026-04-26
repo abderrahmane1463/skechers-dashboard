@@ -193,19 +193,20 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
 # ─── Facebook — Visibility / Reach ────────────────────────────────────────────
 def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     """
-    Returns daily reach (unique), impressions, and page views.
+    Returns daily reach (unique), impressions, and page views,
+    plus a deduplicated total reach for the period.
     """
     since, until = _date_range(days, start, end)
-    result = {"reach": [], "impressions": [], "page_views": []}
-    # New Page Experience metrics mapping
+    result = {"reach": [], "impressions": [], "page_views": [], "period_reach": 0}
+    
+    # 1. Fetch daily metrics (for charts)
     mapping = {
         "page_impressions_unique": "reach",
         "page_posts_impressions": "impressions",
         "page_views_total": "page_views",
     }
-
-    # Fetch metrics using the preferred /insights?metric=... format
     metrics_str = ",".join(mapping.keys())
+    
     try:
         data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
             "metric": metrics_str,
@@ -221,7 +222,27 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
                     for v in m["values"]
                 ]
     except Exception as e:
-        print(f"DEBUG: visibility insights error: {e}")
+        print(f"DEBUG: visibility daily insights error: {e}")
+
+    # 2. Fetch deduplicated reach (Period Total)
+    # Meta provides 'week' (7 days) or 'days_28' (28 days) deduplicated reach.
+    # We choose the best fit based on the requested range.
+    best_period = "days_28" if days > 7 else "week"
+    try:
+        data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_unique",
+            "period": best_period,
+            "since": since,
+            "until": until,
+        })
+        # The latest value in the range represents the deduplicated reach for that window
+        for m in data_p.get("data", []):
+            if m["name"] == "page_impressions_unique":
+                vals = m.get("values", [])
+                if vals:
+                    result["period_reach"] = vals[-1]["value"]
+    except Exception as e:
+        print(f"DEBUG: visibility period reach error: {e}")
 
     return result
 
@@ -299,7 +320,12 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
     if days or (start and end):
         since, until = _date_range(days or 30, start, end)
         params["since"] = since
-        params["until"] = until
+        # Make end date inclusive by adding 1 day
+        try:
+            until_dt = dateparser.parse(until)
+            params["until"] = str((until_dt + timedelta(days=1)).date())
+        except:
+            params["until"] = until
 
     try:
         data = _get(f"{FACEBOOK_PAGE_ID}/posts", params)
@@ -408,6 +434,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "profile_views": [],
         "follower_series": [],
         "follower_additions": [],
+        "period_reach": 0,
     }
 
     # Followers count (current snapshot)
@@ -420,7 +447,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
     except Exception:
         pass
 
-    # Daily insights
+    # 1. Daily insights
     metric_map = {
         "reach": "reach",
         "profile_views": "profile_views",
@@ -440,6 +467,23 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
             ]
         except Exception:
             pass
+
+    # 2. Deduplicated reach (Period Total)
+    best_period = "days_28" if days > 7 else "week"
+    try:
+        data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
+            "metric": "reach",
+            "period": best_period,
+            "since": since,
+            "until": until,
+        })
+        for m in data_p.get("data", []):
+            if m["name"] == "reach":
+                vals = m.get("values", [])
+                if vals:
+                    result["period_reach"] = vals[-1]["value"]
+    except Exception:
+        pass
 
     # follower_count daily = daily additions (not cumulative)
     try:
@@ -500,7 +544,12 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
     if days or (start and end):
         since, until = _date_range(days or 30, start, end)
         params["since"] = since
-        params["until"] = until
+        # Make end date inclusive by adding 1 day
+        try:
+            until_dt = dateparser.parse(until)
+            params["until"] = str((until_dt + timedelta(days=1)).date())
+        except:
+            params["until"] = until
 
     try:
         data = _get(f"{INSTAGRAM_USER_ID}/media", params)
@@ -539,6 +588,7 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "created_time": p.get("timestamp", "")[:10],
                 "media_type": p.get("media_type", ""),
                 "thumbnail": p.get("thumbnail_url") or p.get("media_url", ""),
+                "permalink": p.get("permalink", ""),
                 "reach": reach,
                 "impressions": impressions,
                 "reactions": likes,
