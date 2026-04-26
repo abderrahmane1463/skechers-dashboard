@@ -720,3 +720,474 @@
 - **Status:** ✅ Data Loaded
 - **Notes:** Followers: 500223, Posts: 31, Reach: 6291846
 ---
+
+### [2026-04-26 08:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 08:54 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500221, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:01 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500222, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:05 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:06 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500222, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:10 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500222, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:10 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:15 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:20 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500223, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:24 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 41, Reach: 5673004
+---
+
+### [2026-04-26 09:25 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500223, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:27 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 29, Reach: 6291846
+---
+
+### [2026-04-26 09:33 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 29, Reach: 6291846
+---
+
+### [2026-04-26 09:33 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:34 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:36 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:37 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 27, Reach: 5507025
+---
+
+### [2026-04-26 09:38 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 27, Reach: 5507025
+---
+
+### [2026-04-26 09:38 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:45 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:46 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:48 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 09:48 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500224, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:48 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 09:54 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 09:56 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226426, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 09:57 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500226, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 09:57 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226426, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 10:00 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 10:02 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226426, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 10:03 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500226, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 10:03 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226426, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 10:10 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 10:13 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 10:22 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 10:24 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226428, Posts: 29, Reach: 3019512
+---
+
+### [2026-04-26 10:29 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 10:31 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226428, Posts: 27, Reach: 2391146
+---
+
+### [2026-04-26 10:34 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 10:36 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 10:40 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 10:57 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 11:01 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226424, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 11:01 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 11:04 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226425, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 11:13 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 11:16 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226425, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 11:26 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 11:30 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226425, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 11:47 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 11:51 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226425, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 11:51 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500231, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 12:01 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226425, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:01 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:04 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226425, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:31 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:33 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226426, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:35 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:37 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226426, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:40 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:42 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226428, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:47 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500240, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 12:48 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226428, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:48 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:50 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226428, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:54 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:56 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 12:58 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 12:59 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226427, Posts: 31, Reach: 3039846
+---
