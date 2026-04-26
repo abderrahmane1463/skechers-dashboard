@@ -226,7 +226,7 @@ with st.sidebar:
         st.markdown('<div class="brand-header">⚽ Footland</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-sub">Organic Analytics Dashboard</div>', unsafe_allow_html=True)
 
-    platform = st.radio("Platform", ["📘 Facebook", "📷 Instagram"], label_visibility="collapsed")
+    platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram"], label_visibility="collapsed")
     platform = "Facebook" if "Facebook" in platform else "Instagram"
 
     period_options = list(PERIOD_DAYS.keys()) + ["Custom Range"]
@@ -263,7 +263,7 @@ with st.sidebar:
 # ─── Page Title ───────────────────────────────────────────────────────────────
 col_t1, col_t2 = st.columns([3, 1])
 with col_t1:
-    st.markdown(f"## {'📘 Facebook' if platform == 'Facebook' else '📷 Instagram'} — {period_label}")
+    st.markdown(f"## {'🔵 Facebook' if platform == 'Facebook' else '📸 Instagram'} — {period_label}")
 with col_t2:
     st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
 
@@ -991,7 +991,7 @@ else:
             unsafe_allow_html=True
         )
 
-        ig_sorted_posts = sorted(ig_posts, key=lambda p: p.get("reach", 0), reverse=True)[:6]
+        ig_sorted_posts = sorted(ig_posts, key=lambda p: p.get("impressions", 0), reverse=True)[:6]
         ig_cols = st.columns(3)
         for idx, post in enumerate(ig_sorted_posts):
             col = ig_cols[idx % 3]
@@ -1021,12 +1021,12 @@ else:
                     unsafe_allow_html=True
                 )
 
-                reach_val = post.get('reach', 0)
+                imp_val = post.get('impressions', 0)
                 st.markdown(f"""
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">
   <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">👁️ Spectateurs</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{reach_val:,}</div>
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">📢 Impressions</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{imp_val:,}</div>
   </div>
   <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
     <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">❤️ Réactions</div>
@@ -1092,12 +1092,12 @@ else:
                     unsafe_allow_html=True
                 )
 
-                reach_val = post.get('reach', 0)
+                imp_val = post.get('impressions', 0)
                 st.markdown(f"""
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">
   <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">👁️ Spectateurs</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{reach_val:,}</div>
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">📢 Impressions</div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;">{imp_val:,}</div>
   </div>
   <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
     <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">❤️ Réactions</div>
