@@ -1278,3 +1278,477 @@
 - **Status:** ✅ Data Loaded
 - **Notes:** Followers: 500244, Posts: 31, Reach: 6291846
 ---
+
+### [2026-04-26 13:45 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 13:46 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500244, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 13:57 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500244, Posts: 64, Reach: 5675279
+---
+
+### [2026-04-26 13:58 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500244, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 14:00 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226430, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-26 14:07 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500244, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 15:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500248, Posts: 41, Reach: 5675279
+---
+
+### [2026-04-26 15:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500248, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 16:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500248, Posts: 41, Reach: 5675279
+---
+
+### [2026-04-26 16:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500248, Posts: 41, Reach: 5675279
+---
+
+### [2026-04-26 16:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500248, Posts: 64, Reach: 5675279
+---
+
+### [2026-04-26 16:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500248, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 16:05 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 16:06 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500249, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-26 16:09 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-26 16:10 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500249, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 22:58 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-27 23:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500719, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:13 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500719, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:13 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500729, Posts: 41, Reach: 5841400
+---
+
+### [2026-04-27 23:14 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500729, Posts: 66, Reach: 5841400
+---
+
+### [2026-04-27 23:14 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500719, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:14 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-27 23:14 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-27 23:15 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500729, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:23 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500729, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:24 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-27 23:31 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 41, Reach: 5841400
+---
+
+### [2026-04-27 23:31 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 41, Reach: 5841400
+---
+
+### [2026-04-27 23:32 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500731, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:44 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500738, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-27 23:44 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500738, Posts: 41, Reach: 5841400
+---
+
+### [2026-04-28 07:40 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 07:40 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 07:41 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 07:47 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 07:48 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 07:49 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 07:49 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 07:51 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 07:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 07:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 07:53 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 07:54 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226513, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-28 08:02 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 08:08 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 08:09 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500772, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 08:15 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 08:17 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 08:18 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 08:18 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 08:21 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 08:24 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226512, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-28 08:25 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226512, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-28 08:25 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 08:27 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 226512, Posts: 31, Reach: 3039846
+---
+
+### [2026-04-28 08:30 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 08:46 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 08:49 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500771, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 09:03 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 09:07 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500772, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 09:11 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 09:13 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500772, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 09:27 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 09:29 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500772, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 09:34 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 09:35 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500772, Posts: 0, Reach: 6291846
+---
+
+### [2026-04-28 09:42 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 09:43 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500772, Posts: 31, Reach: 6291846
+---
+
+### [2026-04-28 09:49 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-04-28 09:50 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Custom Range
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 500773, Posts: 31, Reach: 6291846
+---
