@@ -45,9 +45,14 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     if total_ig_impressions == 0:
         total_ig_impressions = sum(p.get("impressions", 0) for p in ig_posts)
 
-    # New followers = sum of daily additions from follower_count metric
-    ig_new_followers = sum(v["value"] for v in follower_additions if v["value"] > 0)
-    ig_unfollows     = 0   # Instagram API does not expose unfollows
+    # New followers = net change: last daily cumulative value - first daily cumulative value
+    # (follower_count returns cumulative totals per day, NOT daily additions)
+    if len(follower_additions) >= 2:
+        ig_new_followers = follower_additions[-1]["value"] - follower_additions[0]["value"]
+    elif len(follower_additions) == 1:
+        ig_new_followers = 0
+    else:
+        ig_new_followers = None  # API returned no data
 
     ig_eng_rate     = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
     ig_eng_per_post = round(total_ig_interactions / len(ig_posts), 1) if ig_posts else 0.0
@@ -71,25 +76,32 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             f'</div>'
         )
 
+    # Format new followers display
+    if ig_new_followers is None:
+        _new_followers_str = "N/A"
+    elif ig_new_followers >= 0:
+        _new_followers_str = f"+{ig_new_followers:,}"
+    else:
+        _new_followers_str = f"{ig_new_followers:,}"
+
     ig_kpi_html = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👥", "Followers",            f"{followers:,}")}
-  {_ig_kpi("➕", "Nouveaux Followers",   f"+{ig_new_followers:,}", "#4ade80")}
-  {_ig_kpi("➖", "Désabonnements",       f"-{ig_unfollows:,}",    "#f87171")}
+  {_ig_kpi("➕", "Nouveaux Followers",   _new_followers_str, "#4ade80")}
+  {_ig_kpi("📝", "Publications",         str(len(ig_posts)))}
   {_ig_kpi("📊", "Taux d'engagement",    f"{ig_eng_rate}%",       "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👁️", "Couvertures",          f"{total_ig_reach:,}")}
   {_ig_kpi("📢", "Impressions",          f"{total_ig_impressions:,}")}
-  {_ig_kpi("📝", "Publications",         str(len(ig_posts)))}
+  {_ig_kpi("🔖", "Enregistrements",      f"{total_ig_saves:,}",        "#60a5fa")}
   {_ig_kpi("⚡", "Engagement / Publi.",   f"{ig_eng_per_post:,}")}
 </div>
-<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;margin-bottom:1rem;">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_ig_kpi("🔥", "Total interactions",  f"{total_ig_interactions:,}", "#FF6B35")}
   {_ig_kpi("❤️", "Réactions",           f"{total_ig_likes:,}",        "#f87171")}
   {_ig_kpi("💬", "Commentaires",        f"{total_ig_comments:,}",     "#a78bfa")}
   {_ig_kpi("↗️", "Partages",            f"{total_ig_shares:,}",       "#34d399")}
-  {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}",        "#60a5fa")}
 </div>
 """
     st.markdown(ig_kpi_html, unsafe_allow_html=True)

@@ -187,14 +187,13 @@ def fetch_boost_insights(
     }])
 
     # ── 2. Account-level deduplicated reach (Footland only) ───────────────────
-    # Summing per-campaign reach double-counts people who saw multiple campaigns.
-    # A single account-level call with campaign filtering gives true unique reach.
     try:
+        # Use a more explicit time_range parameter for account insights
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
-            "level":      "account",
-            "fields":     "reach",
-            "filtering":  _FILTERING,
-            "time_range": time_range,
+            "level":         "account",
+            "fields":        "reach",
+            "filtering":     _FILTERING,
+            "time_range":    time_range,
         })
         rows_acc = resp.get("data", [])
         if rows_acc:
@@ -204,12 +203,13 @@ def fetch_boost_insights(
 
     # ── 3. Campaign-level insights (Footland only) ────────────────────────────
     try:
+        # Ensure the time_range is strictly passed to prevent lifetime defaults
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "campaign",
             "fields":     _FIELDS,
             "filtering":  _FILTERING,
             "time_range": time_range,
-            "limit":      200,
+            "limit":      500,
         })
         rows = resp.get("data", [])
 
