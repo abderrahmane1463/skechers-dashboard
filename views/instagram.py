@@ -4,7 +4,7 @@ import plotly.express as px
 import streamlit as st
 
 import api_client as api
-from components.charts import CHART_LAYOUT, series_to_df, safe_sum
+from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -299,25 +299,19 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── TAB 4: Top Content ────────────────────────────────────────────────────
     with tab4:
-        st.markdown('<div class="section-header">Top 3 Instagram Posts</div>', unsafe_allow_html=True)
         if ig_posts:
-            df_p = pd.DataFrame(ig_posts)
-            top_r = df_p.nlargest(3, "reach")
-            top_e = df_p.nlargest(3, "total_interactions")
-
-            c_l, c_r = st.columns(2)
-            for col, df_top, label in [(c_l, top_r, "🏆 Top by Reach"), (c_r, top_e, "🔥 Top by Engagement")]:
-                col.markdown(f"**{label}**")
-                for _, row in df_top.iterrows():
-                    col.markdown(f"""
-<div class="post-card">
-  <div style="font-size:12px;color:rgba(255,255,255,0.5);">{row['created_time']} • {row.get('media_type','')}</div>
-  <div style="margin:6px 0;font-size:14px;">{row['text'] or '(No caption)'}</div>
-  <div style="display:flex;gap:16px;font-size:13px;">
-    <span>🎯 {row['reach']:,} reach</span>
-    <span>❤️ {row['reactions']:,}</span>
-    <span>💬 {row['comments']:,}</span>
-  </div>
-</div>""", unsafe_allow_html=True)
+            render_top3_podium(
+                ig_posts,
+                sort_key="reach",
+                title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
+                view_label="Vues",
+            )
+            st.divider()
+            render_top3_podium(
+                ig_posts,
+                sort_key="total_interactions",
+                title="TOP #3 PUBLICATIONS PAR ENGAGEMENTS",
+                view_label="Vues",
+            )
         else:
             st.info("No post data available.")

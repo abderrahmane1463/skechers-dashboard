@@ -15,10 +15,7 @@ TODO: replace `empty_boost_data()` calls in views/facebook.py with
 
 from __future__ import annotations
 
-import plotly.graph_objects as go
 import streamlit as st
-
-from components.charts import CHART_LAYOUT
 
 
 # ─── Placeholder data structure ───────────────────────────────────────────────
@@ -128,24 +125,24 @@ def _section_header(title: str):
 # ─── Section renderers ─────────────────────────────────────────────────────────
 def _render_global_kpis(totals: dict):
     """Top-level ad account KPI row."""
-    _section_header("📊 Performance globale — tous campaigns")
+    _section_header("📊 STATISTIQUES DU BOOST")
 
     no_data = totals.get("campaigns_count", 0) == 0
 
     row1 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("📁", "Campagnes actives",  _fmt_int(totals.get("campaigns_count", 0)))}
-  {_kpi_card("🖱️", "Link clicks",        _fmt_int(totals.get("link_clicks", 0)))}
-  {_kpi_card("👁️", "Portée (comptes)",   _fmt_int(totals.get("reach", 0)))}
+  {_kpi_card("📁", "Total des campagnes", _fmt_int(totals.get("campaigns_count", 0)))}
+  {_kpi_card("🖱️", "Clics sur le lien",  _fmt_int(totals.get("link_clicks", 0)))}
+  {_kpi_card("👁️", "Comptes touchés",    _fmt_int(totals.get("reach", 0)))}
   {_kpi_card("📢", "Impressions",         _fmt_int(totals.get("impressions", 0)))}
 </div>"""
 
     row2 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi_card("💸", "CPC",         _fmt_currency(totals.get("cpc", 0.0)), "#facc15")}
-  {_kpi_card("📈", "CTR",         _fmt_pct(totals.get("ctr", 0.0)),      "#4ade80")}
-  {_kpi_card("💰", "Dépenses",    _fmt_currency(totals.get("spend", 0.0)), "#f97316")}
-  {_kpi_card("🔁", "Fréquence",   f"{totals.get('frequency', 0.0):.2f}x")}
+  {_kpi_card("💸", "Coût par clic",    _fmt_currency(totals.get("cpc", 0.0)),   "#facc15")}
+  {_kpi_card("📈", "CTR",              _fmt_pct(totals.get("ctr", 0.0)),         "#4ade80")}
+  {_kpi_card("💰", "Montant dépensé",  _fmt_currency(totals.get("spend", 0.0)), "#f97316")}
+  {_kpi_card("🔁", "Répétition",       f"{totals.get('frequency', 0.0):.2f}x")}
 </div>"""
 
     st.markdown(row1 + row2, unsafe_allow_html=True)
@@ -159,25 +156,25 @@ def _render_global_kpis(totals: dict):
 
 def _render_conversion_campaigns(conv: dict):
     """Conversion-objective campaigns subsection."""
-    _section_header("🎯 Campagnes de conversion")
+    _section_header("🎯 AVEC L'OBJECTIF CONVERSION")
 
     no_data = conv.get("campaigns_count", 0) == 0
 
     row1 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("📁", "Nb campagnes conv.",    _fmt_int(conv.get("campaigns_count", 0)))}
-  {_kpi_card("🖱️", "Link clicks",           _fmt_int(conv.get("link_clicks", 0)))}
-  {_kpi_card("👁️", "Portée",                _fmt_int(conv.get("reach", 0)))}
-  {_kpi_card("📢", "Impressions",            _fmt_int(conv.get("impressions", 0)))}
+  {_kpi_card("📁", "Campagnes",       _fmt_int(conv.get("campaigns_count", 0)))}
+  {_kpi_card("🖱️", "Clics sur le lien", _fmt_int(conv.get("link_clicks", 0)))}
+  {_kpi_card("👁️", "Comptes touchés",   _fmt_int(conv.get("reach", 0)))}
+  {_kpi_card("📢", "Impressions",        _fmt_int(conv.get("impressions", 0)))}
 </div>"""
 
     row2 = f"""
 <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("💸", "CPC",                   _fmt_currency(conv.get("cpc", 0.0)),              "#facc15")}
-  {_kpi_card("📈", "CTR",                   _fmt_pct(conv.get("ctr", 0.0)),                   "#4ade80")}
-  {_kpi_card("💰", "Dépenses",              _fmt_currency(conv.get("spend", 0.0)),             "#f97316")}
-  {_kpi_card("🎁", "Coût / conversion",     _fmt_currency(conv.get("cost_per_conversion", 0.0)), "#fb7185")}
-  {_kpi_card("✅", "Conversions (achats)", _fmt_int(conv.get("total_conversions", 0)),         "#a78bfa")}
+  {_kpi_card("💸", "Coût par clic",   _fmt_currency(conv.get("cpc", 0.0)),                  "#facc15")}
+  {_kpi_card("📈", "CTR",             _fmt_pct(conv.get("ctr", 0.0)),                        "#4ade80")}
+  {_kpi_card("💰", "Montant dépensé", _fmt_currency(conv.get("spend", 0.0)),                 "#f97316")}
+  {_kpi_card("🎁", "Coût par vente",  _fmt_currency(conv.get("cost_per_conversion", 0.0)),   "#fb7185")}
+  {_kpi_card("✅", "Commandes",       _fmt_int(conv.get("total_conversions", 0)),             "#a78bfa")}
 </div>"""
 
     st.markdown(row1 + row2, unsafe_allow_html=True)
@@ -187,56 +184,82 @@ def _render_conversion_campaigns(conv: dict):
 
 
 def _render_top_campaigns(campaigns: list[dict]):
-    """Top-3 campaigns bar chart + summary table."""
-    _section_header("🏆 Top campagnes par conversions")
+    """Top-3 campaigns podium cards — mirrors the report's slide 39 layout."""
+    _section_header("🏆 TOP #3 CAMPAGNES PAR VENTES")
 
     if not campaigns:
-        _no_data_banner("Aucune campagne à afficher. Les données apparaîtront ici une fois la Meta Marketing API connectée.")
+        _no_data_banner("Aucune campagne à afficher.")
         return
 
-    # Sort by conversions desc, take top 3
+    # Sort by commandes (conversions) desc, take top 3
     top = sorted(campaigns, key=lambda c: c.get("conversions", 0), reverse=True)[:3]
 
-    names       = [c["name"][:32] + "…" if len(c["name"]) > 32 else c["name"] for c in top]
-    conversions = [c.get("conversions", 0) for c in top]
-    spends      = [c.get("spend", 0.0)     for c in top]
-    cpas        = [c.get("cpa", 0.0)       for c in top]
+    # Fall back to spend ranking when no conversions are recorded
+    use_commandes = any(c.get("conversions", 0) > 0 for c in top)
+    if not use_commandes:
+        top = sorted(campaigns, key=lambda c: c.get("spend", 0.0), reverse=True)[:3]
 
-    bar_colors = ["#6366f1", "#8b5cf6", "#a78bfa"]
+    # Pad to always have 3 slots
+    while len(top) < 3:
+        top.append({"name": "—", "conversions": 0, "spend": 0.0, "cpa": 0.0})
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=names,
-        y=conversions,
-        marker_color=bar_colors[:len(top)],
-        text=[f"{v:,}" for v in conversions],
-        textposition="outside",
-        textfont=dict(color="rgba(255,255,255,0.8)", size=13, family="Inter"),
-        hovertemplate="<b>%{x}</b><br>Conversions: %{y:,}<extra></extra>",
-    ))
-    fig.update_layout(
-        **CHART_LAYOUT,
-        height=280,
-        title=dict(text="Top 3 campagnes — achats / conversions", font=dict(size=13), x=0),
-        yaxis=dict(showticklabels=False, gridcolor="rgba(255,255,255,0.06)"),
-        xaxis=dict(tickfont=dict(size=11)),
-        showlegend=False,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    # Podium style: #1 gold, #2 silver, #3 bronze
+    _ranks = [
+        ("#1", "#FFD700", "rgba(255,215,0,0.12)",  "rgba(255,215,0,0.35)"),   # gold
+        ("#2", "#C0C0C0", "rgba(192,192,192,0.10)", "rgba(192,192,192,0.30)"), # silver
+        ("#3", "#CD7F32", "rgba(205,127,50,0.10)",  "rgba(205,127,50,0.30)"),  # bronze
+    ]
 
-    # Summary mini-table
-    col_n, col_c, col_s, col_cpa = st.columns([3, 1, 1, 1])
-    col_n.markdown(  "**Campagne**",         unsafe_allow_html=True)
-    col_c.markdown(  "**Conversions**",      unsafe_allow_html=True)
-    col_s.markdown(  "**Dépenses**",         unsafe_allow_html=True)
-    col_cpa.markdown("**CPA**",              unsafe_allow_html=True)
+    cards_html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:0.5rem 0 1rem;">'
 
-    for c in top:
-        col_n, col_c, col_s, col_cpa = st.columns([3, 1, 1, 1])
-        col_n.write(c["name"])
-        col_c.write(f"{c.get('conversions', 0):,}")
-        col_s.write(_fmt_currency(c.get("spend", 0.0)))
-        col_cpa.write(_fmt_currency(c.get("cpa", 0.0)))
+    for i, c in enumerate(top):
+        rank_label, rank_color, bg_color, border_color = _ranks[i]
+        name = c["name"]
+        # Truncate long names to two lines visually
+        display_name = name if len(name) <= 40 else name[:38] + "…"
+
+        if use_commandes:
+            metric_value = f"{c.get('conversions', 0):,}"
+            metric_label = "commandes"
+        else:
+            metric_value = _fmt_currency(c.get("spend", 0.0))
+            metric_label = "dépensé"
+
+        spend_str = _fmt_currency(c.get("spend", 0.0))
+        cpa_str   = _fmt_currency(c.get("cpa", 0.0))
+
+        cards_html += f"""
+<div style="background:{bg_color};border:1px solid {border_color};border-radius:14px;
+            padding:1.2rem 1rem;text-align:center;position:relative;display:flex;
+            flex-direction:column;align-items:center;gap:0.4rem;">
+  <!-- Rank badge -->
+  <div style="font-size:1.6rem;font-weight:900;color:{rank_color};
+              line-height:1;margin-bottom:0.2rem;">{rank_label}</div>
+  <!-- Campaign name -->
+  <div style="font-size:0.78rem;color:rgba(255,255,255,0.75);font-weight:600;
+              line-height:1.35;min-height:2.7rem;display:flex;align-items:center;
+              justify-content:center;">{display_name}</div>
+  <!-- Big metric number -->
+  <div style="font-size:2rem;font-weight:900;color:{rank_color};
+              line-height:1.1;margin:0.3rem 0 0.1rem;">{metric_value}</div>
+  <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);
+              text-transform:uppercase;letter-spacing:0.06em;">{metric_label}</div>
+  <!-- Sub-details -->
+  <div style="margin-top:0.5rem;width:100%;border-top:1px solid rgba(255,255,255,0.08);
+              padding-top:0.5rem;display:flex;justify-content:space-around;">
+    <div style="text-align:center;">
+      <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);">Dépensé</div>
+      <div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.7);">{spend_str}</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);">Coût / vente</div>
+      <div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.7);">{cpa_str}</div>
+    </div>
+  </div>
+</div>"""
+
+    cards_html += "</div>"
+    st.markdown(cards_html, unsafe_allow_html=True)
 
 
 def _render_insights_panel(totals: dict, conv: dict):
@@ -264,13 +287,13 @@ def _render_insights_panel(totals: dict, conv: dict):
 
     # CPC benchmark
     if cpc == 0:
-        insights.append(("⚪", "CPC", "Données non disponibles."))
+        insights.append(("⚪", "Coût par clic", "Données non disponibles."))
     elif cpc <= 0.50:
-        insights.append(("🟢", "CPC très efficace", f"{_fmt_currency(cpc)} — coût par clic très bas."))
+        insights.append(("🟢", "Coût par clic très efficace", f"{_fmt_currency(cpc)} — coût par clic très bas."))
     elif cpc <= 1.50:
-        insights.append(("🟡", "CPC modéré",        f"{_fmt_currency(cpc)} — acceptable selon le secteur."))
+        insights.append(("🟡", "Coût par clic modéré",        f"{_fmt_currency(cpc)} — acceptable selon le secteur."))
     else:
-        insights.append(("🔴", "CPC élevé",          f"{_fmt_currency(cpc)} — envisager d'affiner le ciblage."))
+        insights.append(("🔴", "Coût par clic élevé",          f"{_fmt_currency(cpc)} — envisager d'affiner le ciblage."))
 
     # Conversion rate
     if cvr == 0:
@@ -284,7 +307,7 @@ def _render_insights_panel(totals: dict, conv: dict):
 
     # CPA
     if cpa > 0:
-        insights.append(("💡", "Coût / achat", f"{_fmt_currency(cpa)} — comparez à la valeur moyenne d'une commande."))
+        insights.append(("💡", "Coût par vente", f"{_fmt_currency(cpa)} — comparez à la valeur moyenne d'une commande."))
 
     rows_html = "".join(
         f'<div style="display:flex;align-items:flex-start;gap:0.6rem;'

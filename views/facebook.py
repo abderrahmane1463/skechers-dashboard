@@ -5,9 +5,7 @@ import plotly.express as px
 import streamlit as st
 
 import api_client as api
-from components.charts import CHART_LAYOUT, series_to_df, safe_sum
-from views.boost import render_boost_tab, empty_boost_data
-from api.boost import fetch_boost_insights
+from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
 
 
 # ─── Post card helper ─────────────────────────────────────────────────────────
@@ -190,13 +188,6 @@ def get_fb_conversations():
 def get_fb_demographics():
     return api.fetch_fb_demographics()
 
-@st.cache_data(ttl=900, show_spinner=False)
-def get_boost_data(days, start=None, end=None):
-    try:
-        return fetch_boost_insights(days, start, end)
-    except Exception as e:
-        print(f"DEBUG boost: fetch failed, using placeholder: {e}")
-        return empty_boost_data()
 
 
 # ─── Main render function ─────────────────────────────────────────────────────
@@ -299,8 +290,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     st.divider()
 
     # ── Tabs ─────────────────────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content", "🤝 Community", "🚀 Boost"
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content", "🤝 Community"
     ])
 
     # ── TAB 1: Audience ───────────────────────────────────────────────────────
@@ -650,35 +641,26 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── TAB 4: Top Content ────────────────────────────────────────────────────
     with tab4:
-        st.markdown('<div class="section-header">Top 3 Posts</div>', unsafe_allow_html=True)
         if posts:
-            posts_df = pd.DataFrame(posts)
-            top_reach = posts_df.nlargest(3, "reach")
-            top_eng = posts_df.nlargest(3, "total_interactions")
+            render_top3_podium(
+                posts,
+                sort_key="reach",
+                title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
+                view_label="Vues",
+            )
+            st.divider()
+            render_top3_podium(
+                posts,
+                sort_key="total_interactions",
+                title="TOP #3 PUBLICATIONS PAR ENGAGEMENT",
+                view_label="Vues",
+            )
 
-            c_left, c_right = st.columns(2)
-
-            def render_posts(col, df, label, metric_col, metric_label):
-                col.markdown(f"**{label}**")
-                for _, row in df.iterrows():
-                    col.markdown(f"""
-<div class="post-card">
-  <div style="font-size:12px;color:rgba(255,255,255,0.5);">{row['created_time']} • {row.get('media_type','POST')}</div>
-  <div style="margin:6px 0;font-size:14px;">{row['text'] or '(No caption)'}</div>
-  <div style="display:flex;gap:16px;font-size:13px;">
-    <span>🎯 {row['reach']:,} reach</span>
-    <span>❤️ {row['reactions']:,}</span>
-    <span>💬 {row['comments']:,}</span>
-  </div>
-</div>""", unsafe_allow_html=True)
-
-            render_posts(c_left, top_reach, "🏆 Top by Reach", "reach", "Reach")
-            render_posts(c_right, top_eng, "🔥 Top by Engagement", "total_interactions", "Interactions")
-
-            with st.expander("📋 All Posts Table"):
+            with st.expander("📋 Toutes les publications"):
+                posts_df = pd.DataFrame(posts)
                 st.dataframe(
                     posts_df[["created_time", "text", "reach", "reactions", "comments", "shares", "total_interactions"]],
-                    width="stretch"
+                    use_container_width=True,
                 )
         else:
             st.info("No post data available.")
@@ -711,7 +693,3 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         else:
             st.success("🎉 All conversations have been responded to!")
 
-    # ── TAB 6: Boost ──────────────────────────────────────────────────────────
-    with tab6:
-        boost_data = get_boost_data(days, start_date, end_date)
-        render_boost_tab(boost_data)

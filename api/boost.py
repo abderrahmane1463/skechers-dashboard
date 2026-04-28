@@ -11,11 +11,14 @@ must have been generated with this scope, or a User token with ads_read must
 replace it for this endpoint).
 """
 
+import json
 import time
 import requests
 
 from config import (
-    ACCESS_TOKEN,
+    ADS_ACCESS_TOKEN,
+    FACEBOOK_PAGE_ID,
+    FOOTLAND_CAMPAIGN_KEYWORDS,
     GRAPH_BASE_URL,
     BLOCKED_AD_ACCOUNTS,
     REQUEST_TIMEOUT,
@@ -27,8 +30,10 @@ from api.base import _date_range
 # The page's ad account — intentionally queried here (Boost tab only)
 AD_ACCOUNT_ID = BLOCKED_AD_ACCOUNTS[0]   # "act_765947885726761"
 
-# Meta action types that represent a purchase / conversion
-_PURCHASE_TYPES = {"purchase", "offsite_conversion.fb_pixel_purchase"}
+# Meta action types that represent a purchase / conversion.
+# Use only "purchase" (the unified de-duplicated count Meta exposes).
+# "offsite_conversion.fb_pixel_purchase" is the same event and would double-count.
+_PURCHASE_TYPES = {"purchase"}
 
 # Campaign objectives that count as "conversion" campaigns
 _CONV_OBJECTIVES = {"CONVERSIONS", "OUTCOME_SALES", "OUTCOME_LEADS"}
@@ -41,7 +46,7 @@ def _get_ads(endpoint: str, params: dict) -> dict:
     Bypasses _assert_not_blocked() — this is intentional (see module docstring).
     """
     url = f"{GRAPH_BASE_URL}/{endpoint.lstrip('/')}"
-    full_params = {**params, "access_token": ACCESS_TOKEN}
+    full_params = {**params, "access_token": ADS_ACCESS_TOKEN}
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -115,7 +120,7 @@ def fetch_boost_insights(
 
     # Fields requested from every campaign row
     _FIELDS = (
-        "campaign_name,objective,"
+        "campaign_id,campaign_name,objective,"
         "impressions,reach,clicks,unique_clicks,"
         "spend,cpc,ctr,frequency,"
         "actions,cost_per_action_type"
@@ -148,56 +153,93 @@ def fetch_boost_insights(
         "campaigns": [],
     }
 
-    # ── 1. Account-level totals (single aggregated row) ───────────────────────
+    # ── 1. Resolve Footland campaign IDs ─────────────────────────────────────
+    # The ad account manages multiple clients (Footland, Skechers standalone,
+    # Air Algérie, Algérie Télécom, Caarama…).
+    # Footland campaigns are identified by either:
+    #   (a) page ID "144124252311741" in the name  → post-boost campaigns
+    #   (b) "FL" code in the name (- FL -, ON- FL, FL -)  → brand campaigns
+    #       e.g. "ClarksON- FL - HF -Week08", "SkechersON- FL - HF -Week08"
+    # "Footland" keyword alone also catches branded posts.
+    def _is_footland(name: str) -> bool:
+        """Returns True if the campaign name matches any Footland keyword."""
+        return any(kw in name for kw in FOOTLAND_CAMPAIGN_KEYWORDS)
+
+    footland_ids = []
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
+            "fields": "id,name",
+            "limit":  500,
+        })
+        all_camps = resp.get("data", [])
+        footland_ids = [c["id"] for c in all_camps if _is_footland(c.get("name", ""))]
+        print(f"DEBUG boost: {len(footland_ids)} Footland campaigns found")
+    except Exception as e:
+        print(f"DEBUG boost: campaign list error: {e}")
+
+    if not footland_ids:
+        return out
+
+    _FILTERING = json.dumps([{
+        "field":    "campaign.id",
+        "operator": "IN",
+        "value":    footland_ids,
+    }])
+
+    # ── 2. Account-level deduplicated reach (Footland only) ───────────────────
+    # Summing per-campaign reach double-counts people who saw multiple campaigns.
+    # A single account-level call with campaign filtering gives true unique reach.
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "account",
-            "fields":     "impressions,reach,unique_clicks,spend,cpc,ctr,frequency",
+            "fields":     "reach",
+            "filtering":  _FILTERING,
             "time_range": time_range,
         })
-        rows = resp.get("data", [])
-        if rows:
-            r = rows[0]
-            out["totals"]["impressions"]  = _safe_int(r.get("impressions"))
-            out["totals"]["reach"]        = _safe_int(r.get("reach"))
-            out["totals"]["link_clicks"]  = _safe_int(r.get("unique_clicks") or r.get("clicks"))
-            out["totals"]["spend"]        = _safe_float(r.get("spend"))
-            out["totals"]["cpc"]          = _safe_float(r.get("cpc"))
-            out["totals"]["ctr"]          = _safe_float(r.get("ctr"))
-            out["totals"]["frequency"]    = _safe_float(r.get("frequency"))
+        rows_acc = resp.get("data", [])
+        if rows_acc:
+            out["totals"]["reach"] = _safe_int(rows_acc[0].get("reach"))
     except Exception as e:
-        print(f"DEBUG boost: account-level totals error: {e}")
+        print(f"DEBUG boost: account-level reach error: {e}")
 
-    # ── 2. Campaign-level breakdown ───────────────────────────────────────────
+    # ── 3. Campaign-level insights (Footland only) ────────────────────────────
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "campaign",
             "fields":     _FIELDS,
+            "filtering":  _FILTERING,
             "time_range": time_range,
-            "limit":      100,
+            "limit":      200,
         })
         rows = resp.get("data", [])
-        out["totals"]["campaigns_count"] = len(rows)
 
-        campaigns = []
-        # Accumulators for conversion-objective campaigns only
-        cv_clicks = cv_reach = cv_imp = cv_purchases = 0
+        campaigns  = []
+        conv_ids:  list[str]   = []   # campaign IDs with conversion objective
+        # Accumulators — reach excluded (comes from dedup account-level call)
+        t_clicks = t_imp = 0
+        t_spend  = 0.0
+        t_cpcs:  list[float] = []
+        t_ctrs:  list[float] = []
+        t_freqs: list[float] = []
+        # Conversion-objective accumulators
+        cv_clicks = cv_imp = cv_purchases = 0
         cv_spend  = 0.0
         cv_cpcs:  list[float] = []
         cv_ctrs:  list[float] = []
         cv_freqs: list[float] = []
 
         for r in rows:
-            objective = r.get("objective", "")
-            purchases = _purchases(r.get("actions"))
-            cpa_val   = _cpa(r.get("cost_per_action_type"))
-            spend_val = _safe_float(r.get("spend"))
-            cpc_val   = _safe_float(r.get("cpc"))
-            ctr_val   = _safe_float(r.get("ctr"))
-            freq_val  = _safe_float(r.get("frequency"))
-            clicks_val= _safe_int(r.get("unique_clicks") or r.get("clicks"))
-            reach_val = _safe_int(r.get("reach"))
-            imp_val   = _safe_int(r.get("impressions"))
+            objective  = r.get("objective", "")
+            purchases  = _purchases(r.get("actions"))
+            cpa_val    = _cpa(r.get("cost_per_action_type"))
+            spend_val  = _safe_float(r.get("spend"))
+            cpc_val    = _safe_float(r.get("cpc"))
+            ctr_val    = _safe_float(r.get("ctr"))
+            freq_val   = _safe_float(r.get("frequency"))
+            clicks_val = _safe_int(r.get("unique_clicks") or r.get("clicks"))
+            reach_val  = _safe_int(r.get("reach"))
+            imp_val    = _safe_int(r.get("impressions"))
+            camp_id    = r.get("campaign_id", "")
 
             campaigns.append({
                 "name":        r.get("campaign_name", "—"),
@@ -213,24 +255,59 @@ def fetch_boost_insights(
                 "frequency":   freq_val,
             })
 
-            # Aggregate conversion campaigns
+            t_clicks += clicks_val
+            t_imp    += imp_val
+            t_spend  += spend_val
+            if cpc_val:  t_cpcs.append(cpc_val)
+            if ctr_val:  t_ctrs.append(ctr_val)
+            if freq_val: t_freqs.append(freq_val)
+
             if objective in _CONV_OBJECTIVES:
                 cv_clicks    += clicks_val
-                cv_reach     += reach_val
                 cv_imp       += imp_val
                 cv_spend     += spend_val
                 cv_purchases += purchases
+                if camp_id:  conv_ids.append(camp_id)
                 if cpc_val:  cv_cpcs.append(cpc_val)
                 if ctr_val:  cv_ctrs.append(ctr_val)
                 if freq_val: cv_freqs.append(freq_val)
 
+        # Deduplicated reach for conversion campaigns only
+        cv_reach = 0
+        if conv_ids:
+            try:
+                resp_cv = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+                    "level":      "account",
+                    "fields":     "reach",
+                    "filtering":  json.dumps([{
+                        "field": "campaign.id", "operator": "IN", "value": conv_ids
+                    }]),
+                    "time_range": time_range,
+                })
+                rows_cv = resp_cv.get("data", [])
+                if rows_cv:
+                    cv_reach = _safe_int(rows_cv[0].get("reach"))
+            except Exception as e:
+                print(f"DEBUG boost: conv dedup reach error: {e}")
+
         out["campaigns"] = campaigns
+        active_count = sum(1 for c in campaigns if c["spend"] > 0 or c["impressions"] > 0)
+        out["totals"].update({
+            "campaigns_count": active_count,
+            "link_clicks":     t_clicks,
+            # reach already set by account-level dedup call above — preserved
+            "impressions":     t_imp,
+            "spend":           t_spend,
+            "cpc":             sum(t_cpcs)  / len(t_cpcs)  if t_cpcs  else 0.0,
+            "ctr":             sum(t_ctrs)  / len(t_ctrs)  if t_ctrs  else 0.0,
+            "frequency":       sum(t_freqs) / len(t_freqs) if t_freqs else 0.0,
+        })
 
         cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES)
         out["conversions"].update({
             "campaigns_count":     cv_count,
             "link_clicks":         cv_clicks,
-            "reach":               cv_reach,
+            "reach":               cv_reach,   # deduplicated
             "impressions":         cv_imp,
             "spend":               cv_spend,
             "cpc":                 sum(cv_cpcs)  / len(cv_cpcs)  if cv_cpcs  else 0.0,
@@ -241,6 +318,6 @@ def fetch_boost_insights(
         })
 
     except Exception as e:
-        print(f"DEBUG boost: campaign-level breakdown error: {e}")
+        print(f"DEBUG boost: campaign insights error: {e}")
 
     return out

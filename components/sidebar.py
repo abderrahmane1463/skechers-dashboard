@@ -32,8 +32,13 @@ def render_sidebar(log_refresh_fn):
             st.markdown('<div class="brand-header">⚽ Footland</div>', unsafe_allow_html=True)
         st.markdown('<div class="brand-sub">Organic Analytics Dashboard</div>', unsafe_allow_html=True)
 
-        platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram"], label_visibility="collapsed")
-        platform = "Facebook" if "Facebook" in platform else "Instagram"
+        platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram", "🚀 Boost"], label_visibility="collapsed")
+        if "Facebook" in platform:
+            platform = "Facebook"
+        elif "Instagram" in platform:
+            platform = "Instagram"
+        else:
+            platform = "Boost"
 
         period_options = list(PERIOD_DAYS.keys()) + ["Custom Range"]
         period_label = st.selectbox("Date Range", period_options, index=1)

@@ -9,15 +9,36 @@ import os
 GRAPH_API_VERSION = "v19.0"
 GRAPH_BASE_URL = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 
-# Access token — can be overridden via environment variable FOOTLAND_TOKEN
+# Page Access Token — organic data (FB posts, insights, IG)
+# Can be overridden via environment variable FOOTLAND_TOKEN
 ACCESS_TOKEN = os.environ.get(
     "FOOTLAND_TOKEN",
     "EAAXdQDmFoT8BRYOvKeaEYk9az3iqKbDnlHks3hT5WZBKmMT8cXjO7D03YX3QOelqZCxHOjKmCbZBLx6rMi7vOrcRLMbYofDwfBbPd7TNOlE2ZCbnWPkEOQ9QZAIbzpNuqpFRP9OvX3LuZC4M1lZAuDszoCxwRkGfKmZBvdeZBr1fZCx41Tv9t7AZAsXhutOo7pQfPzrPSwUpZCy11mn70VINXyXwOvIZD"
 )
 
+# User Access Token — Marketing API only (Boost tab)
+# Can be overridden via environment variable FOOTLAND_ADS_TOKEN
+ADS_ACCESS_TOKEN = os.environ.get(
+    "FOOTLAND_ADS_TOKEN",
+    "EAAXdQDmFoT8BRVJ0R2CRwHDsjLiOKZA6B1OLQv2Wmzg0n0TGaZBShCnOJwrxsPZC9OFD7KZCZCrzEPCn2mabS4Xtt6M6nAcYZAPIMwG39ZBy5n6Dq1axERYaSgDg4yEB5ATZCCLxAcZBrmykPacCD2tmbThqUhsn55CZCxMn6c7StzYTMCiiIGuKkAa0XZBOiGZB1ulQ866PiY9T3KOlKgni"
+)
+
 # ─── Asset IDs ─────────────────────────────────────────────────────────────────
 FACEBOOK_PAGE_ID = "144124252311741"
 INSTAGRAM_USER_ID = "17841403000855491"
+
+# ─── Boost — Footland campaign identification keywords ────────────────────────
+# The ad account (act_765947885726761) manages multiple clients.
+# A campaign is considered Footland if its name contains ANY of these strings.
+# Update this list when the agency changes their naming convention.
+FOOTLAND_CAMPAIGN_KEYWORDS = [
+    "144124252311741",  # page ID  — post-boost campaigns
+    "- FL -",           # agency code — brand/weekly campaigns
+    "ON- FL",           # agency code variant
+    "-FL-",             # agency code without spaces
+    " FL -",            # agency code with leading space
+    "Footland",         # explicit brand name
+]
 
 # ─── Blocklisted (Paid) Assets — NEVER query these ────────────────────────────
 BLOCKED_AD_ACCOUNTS = ["act_765947885726761"]

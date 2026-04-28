@@ -10,6 +10,8 @@ from config import LOG_FILE_PATH
 from components.sidebar import render_sidebar
 from views.facebook import render_facebook_dashboard
 from views.instagram import render_instagram_dashboard
+from views.boost import render_boost_tab, empty_boost_data
+from api.boost import fetch_boost_insights
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -26,29 +28,44 @@ st.markdown("""
 
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-/* Dark warm background matching Footland brand */
-.stApp { background: linear-gradient(135deg, #1a0a00, #2d1200, #1a0a00); }
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #1c0d00 0%, #2a1500 100%);
-    border-right: 1px solid rgba(232,66,10,0.15);
+/* ── Premium Dark Theme ── */
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] {
+    background: #0a0a0a !important;
+    color: #ffffff !important;
 }
 
-/* Metric cards */
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: #111111 !important;
+    border-right: 1px solid #222222 !important;
+}
+[data-testid="stSidebar"] * { color: #eeeeee !important; }
+
+/* ── Main content area ── */
+[data-testid="stMainBlockContainer"] { background: transparent; }
+
+/* ── Metric cards ── */
 [data-testid="metric-container"] {
-    background: rgba(232,66,10,0.07);
-    border: 1px solid rgba(232,66,10,0.2);
+    background: #161616;
+    border: 1px solid #262626;
     border-radius: 16px;
     padding: 20px;
-    backdrop-filter: blur(10px);
-    transition: transform 0.2s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    transition: transform 0.2s ease, border-color 0.2s ease;
 }
-[data-testid="metric-container"]:hover { transform: translateY(-2px); }
+[data-testid="metric-container"]:hover {
+    transform: translateY(-2px);
+    border-color: #E8420A;
+}
+[data-testid="metric-container"] label,
+[data-testid="metric-container"] [data-testid="stMetricLabel"] { color: #a1a1aa !important; }
+[data-testid="metric-container"] [data-testid="stMetricValue"] { color: #ffffff !important; }
 
-/* Tab styling */
+/* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: rgba(232,66,10,0.08);
+    background: #161616;
     border-radius: 12px;
     padding: 4px;
     gap: 4px;
@@ -57,24 +74,29 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     border-radius: 8px;
     padding: 8px 20px;
     font-weight: 500;
+    color: #a1a1aa !important;
 }
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(90deg, #E8420A, #C1320A) !important;
-    color: white !important;
+    background: #262626 !important;
+    color: #E8420A !important;
+    border: 1px solid #E8420A !important;
 }
 
-/* Post card */
+/* ── Post card ── */
 .post-card {
-    background: rgba(232,66,10,0.06);
-    border: 1px solid rgba(232,66,10,0.15);
+    background: #161616;
+    border: 1px solid #262626;
     border-radius: 16px;
     padding: 16px;
     margin-bottom: 12px;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
-.post-card:hover { border-color: rgba(232,66,10,0.5); }
+.post-card:hover {
+    border-color: #E8420A;
+    box-shadow: 0 4px 20px rgba(232,66,10,0.15);
+}
 
-/* Brand header */
+/* ── Brand header ── */
 .brand-header {
     font-size: 28px;
     font-weight: 700;
@@ -83,19 +105,19 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     -webkit-text-fill-color: transparent;
     margin-bottom: 4px;
 }
-.brand-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 24px; }
+.brand-sub { font-size: 12px; color: #71717a; margin-bottom: 24px; }
 
-/* Section header */
+/* ── Section header ── */
 .section-header {
     font-size: 18px;
     font-weight: 600;
-    color: rgba(255,255,255,0.9);
+    color: #ffffff;
     margin: 16px 0 12px 0;
     padding-bottom: 8px;
-    border-bottom: 1px solid rgba(232,66,10,0.2);
+    border-bottom: 2px solid rgba(232,66,10,0.5);
 }
 
-/* Buttons */
+/* ── Buttons ── */
 .stButton > button {
     background: linear-gradient(90deg, #E8420A, #C1320A) !important;
     color: white !important;
@@ -105,14 +127,28 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 .stButton > button:hover {
     background: linear-gradient(90deg, #FF6B35, #E8420A) !important;
-    transform: translateY(-1px);
+    box-shadow: 0 0 15px rgba(232,66,10,0.4);
 }
 
-/* Divider */
-hr { border-color: rgba(232,66,10,0.2) !important; }
+/* ── Divider ── */
+hr { border-color: #e4e4e7 !important; }
 
-/* Selectbox / Radio accent */
-[data-testid="stRadio"] label[data-checked="true"] { color: #FF6B35 !important; }
+/* ── Radio accent ── */
+[data-testid="stRadio"] label[data-checked="true"] { color: #E8420A !important; }
+
+/* ── Expander ── */
+[data-testid="stExpander"] {
+    background: #111111;
+    border: 1px solid #262626 !important;
+    border-radius: 12px !important;
+}
+
+/* ── Dataframe ── */
+[data-testid="stDataFrame"] { background: #111111; border-radius: 12px; }
+
+/* ── General text ── */
+p, span, li, label, h1, h2, h3 { color: #ffffff !important; }
+small { color: #71717a !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -143,12 +179,21 @@ platform, period_label, days, start_date, end_date = render_sidebar(log_refresh)
 # ─── Page Title ───────────────────────────────────────────────────────────────
 col_t1, col_t2 = st.columns([3, 1])
 with col_t1:
-    st.markdown(f"## {'🔵 Facebook' if platform == 'Facebook' else '📸 Instagram'} — {period_label}")
+    _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost"}[platform]
+    st.markdown(f"## {_icon} — {period_label}")
 with col_t2:
     st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
 
 # ─── Dashboard routing ────────────────────────────────────────────────────────
 if platform == "Facebook":
     render_facebook_dashboard(period_label, days, start_date, end_date, log_refresh)
-else:
+elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
+else:
+    # ── Boost (paid campaigns) ────────────────────────────────────────────────
+    try:
+        boost_data = fetch_boost_insights(days, start_date, end_date)
+    except Exception as e:
+        print(f"DEBUG boost: fetch failed, using placeholder: {e}")
+        boost_data = empty_boost_data()
+    render_boost_tab(boost_data)
