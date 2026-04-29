@@ -84,10 +84,17 @@ def fetch_fb_audience(days: int, start: str = None, end: str = None) -> dict:
 # ─── Facebook — Engagement ────────────────────────────────────────────────────
 def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
     """
-    Returns daily post engagements and reaction breakdowns.
+    Returns daily post engagements, reaction breakdowns, and
+    follower vs non-follower daily impression series.
     """
     since, until = _date_range(days, start, end)
-    result = {"engagements": [], "reactions": []}
+    result = {
+        "engagements": [], "reactions": [],
+        "fan_daily": [],        # daily impressions to followers
+        "nonfan_daily": [],     # daily impressions to non-followers
+        "prev_fan_total": 0,
+        "prev_nonfan_total": 0,
+    }
 
     try:
         data = _get(f"{FACEBOOK_PAGE_ID}/insights/page_post_engagements", {
@@ -116,6 +123,47 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
     except Exception:
         pass
 
+    # Follower vs Non-follower daily breakdown
+    # page_impressions_fan  = content seen by people who follow the page
+    # page_impressions_nonviral = content seen by non-followers via direct page posts
+    try:
+        fan_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_fan,page_impressions_nonviral",
+            "period": "day",
+            "since": since,
+            "until": until,
+        })
+        for m in fan_data.get("data", []):
+            series = [
+                {"date": v["end_time"][:10], "value": v["value"]}
+                for v in m.get("values", [])
+            ]
+            if m["name"] == "page_impressions_fan":
+                result["fan_daily"] = series
+            elif m["name"] == "page_impressions_nonviral":
+                result["nonfan_daily"] = series
+    except Exception as e:
+        print(f"DEBUG: fan/nonfan engagement error: {e}")
+
+    # Previous-period totals for % change indicators
+    try:
+        prev_since, prev_until = _prev_date_range(days)
+        prev_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_fan,page_impressions_nonviral",
+            "period": "day",
+            "since": prev_since,
+            "until": prev_until,
+        })
+        for m in prev_data.get("data", []):
+            vals = m.get("values", [])
+            total = sum(v["value"] for v in vals if isinstance(v.get("value"), (int, float)))
+            if m["name"] == "page_impressions_fan":
+                result["prev_fan_total"] = total
+            elif m["name"] == "page_impressions_nonviral":
+                result["prev_nonfan_total"] = total
+    except Exception as e:
+        print(f"DEBUG: prev fan/nonfan error: {e}")
+
     return result
 
 
@@ -126,7 +174,14 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     plus a deduplicated total reach for the period.
     """
     since, until = _date_range(days, start, end)
-    result = {"reach": [], "impressions": [], "page_views": [], "period_reach": 0}
+    result = {
+        "reach": [], "impressions": [], "page_views": [],
+        "page_impressions_daily": [],          # total impressions (all sources) daily series
+        "page_views_organic": [],              # organic impressions daily series
+        "page_views_paid": [],                 # paid impressions daily series
+        "period_reach": 0, "period_impressions": 0,
+        "prev_total_views": 0, "prev_organic_views": 0, "prev_paid_views": 0,
+    }
 
     # 1. Fetch daily metrics (for charts)
     mapping = {
@@ -153,25 +208,108 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: visibility daily insights error: {e}")
 
-    # 2. Fetch deduplicated reach (Period Total)
-    # Meta provides 'week' (7 days) or 'days_28' (28 days) deduplicated reach.
-    # We choose the best fit based on the requested range.
-    best_period = "days_28" if days > 7 else "week"
+    # 1c. Total + Organic + Paid daily impressions — all on the same scale so the
+    #     three-line chart (Vues de la page) renders correctly.
+    #     Fetched in a single isolated call to avoid batch-contamination.
     try:
-        data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_unique",
-            "period": best_period,
+        pv_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions,page_impressions_organic,page_impressions_paid",
+            "period": "day",
             "since": since,
             "until": until,
         })
-        # The latest value in the range represents the deduplicated reach for that window
+        for m in pv_data.get("data", []):
+            series = [
+                {"date": v["end_time"][:10], "value": v["value"]}
+                for v in m.get("values", [])
+            ]
+            if m["name"] == "page_impressions":
+                result["page_impressions_daily"] = series
+            elif m["name"] == "page_impressions_organic":
+                result["page_views_organic"] = series
+            elif m["name"] == "page_impressions_paid":
+                result["page_views_paid"] = series
+    except Exception as e:
+        print(f"DEBUG: impressions breakdown error: {e}")
+
+    # 1d. Previous-period totals for growth indicators (period-over-period %)
+    try:
+        prev_since, prev_until = _prev_date_range(days)
+        prev_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions,page_impressions_organic,page_impressions_paid",
+            "period": "day",
+            "since": prev_since,
+            "until": prev_until,
+        })
+        for m in prev_data.get("data", []):
+            vals = m.get("values", [])
+            total_val = sum(v["value"] for v in vals if isinstance(v.get("value"), (int, float)))
+            if m["name"] == "page_impressions":
+                result["prev_total_views"] = total_val
+            elif m["name"] == "page_impressions_organic":
+                result["prev_organic_views"] = total_val
+            elif m["name"] == "page_impressions_paid":
+                result["prev_paid_views"] = total_val
+    except Exception as e:
+        print(f"DEBUG: prev period impressions error: {e}")
+
+    # 1b. Monthly-level impressions total (page_impressions all sources, period=month)
+    # This matches how Meta Business Suite / reports aggregate impressions —
+    # a monthly aggregate rather than a sum of 31 daily values.
+    try:
+        data_mi = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions",
+            "period": "month",
+            "since": since,
+            "until": until,
+        })
+        for m in data_mi.get("data", []):
+            if m["name"] == "page_impressions":
+                vals = m.get("values", [])
+                if vals:
+                    # Sum all monthly buckets that fall within the range
+                    result["period_impressions"] = sum(v["value"] for v in vals)
+    except Exception as e:
+        print(f"DEBUG: visibility monthly impressions error: {e}")
+
+    # 2. Fetch deduplicated reach (Period Total) — monthly aggregate
+    # page_impressions_unique with period=month gives true deduplicated reach
+    # for the full month (same person seen across multiple days counted once).
+    # Falls back to days_28, then week if month period fails.
+    try:
+        data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_unique",
+            "period": "month",
+            "since": since,
+            "until": until,
+        })
         for m in data_p.get("data", []):
             if m["name"] == "page_impressions_unique":
                 vals = m.get("values", [])
                 if vals:
                     result["period_reach"] = vals[-1]["value"]
+        if result["period_reach"]:
+            print(f"DEBUG: period_reach via month = {result['period_reach']}")
     except Exception as e:
-        print(f"DEBUG: visibility period reach error: {e}")
+        print(f"DEBUG: visibility period reach (month) error: {e}")
+
+    # Fallback: days_28 then week
+    if not result["period_reach"]:
+        best_period = "days_28" if days > 7 else "week"
+        try:
+            data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+                "metric": "page_impressions_unique",
+                "period": best_period,
+                "since": since,
+                "until": until,
+            })
+            for m in data_p.get("data", []):
+                if m["name"] == "page_impressions_unique":
+                    vals = m.get("values", [])
+                    if vals:
+                        result["period_reach"] = vals[-1]["value"]
+        except Exception as e:
+            print(f"DEBUG: visibility period reach ({best_period}) error: {e}")
 
     return result
 
