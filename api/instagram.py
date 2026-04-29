@@ -243,3 +243,77 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
     except Exception as e:
         print(f"DEBUG: IG posts error: {e}")
         return []
+
+
+# ─── Instagram — Conversations (Community Management) ─────────────────────────
+def fetch_ig_conversations(days: int = 30, start: str = None, end: str = None, limit: int = 25) -> dict:
+    """
+    Returns Instagram DM thread metadata for community management stats.
+    Uses the same /conversations endpoint as Facebook with platform=instagram.
+    Requires instagram_manage_messages permission on the connected page.
+    """
+    from config import FACEBOOK_PAGE_ID
+
+    since, until = _date_range(days, start, end)
+
+    result = {
+        "total_threads": 0,
+        "new_threads": 0,
+        "replied_threads": 0,
+        "response_times_minutes": [],
+        "recent_unanswered": [],
+    }
+
+    try:
+        data = _get(f"{FACEBOOK_PAGE_ID}/conversations", {
+            "platform": "instagram",
+            "fields": "id,updated_time,messages{created_time,from,message}",
+            "limit": limit,
+        })
+        threads = data.get("data", [])
+        result["total_threads"] = len(threads)
+
+        for thread in threads:
+            msgs = thread.get("messages", {}).get("data", [])
+
+            # Count threads whose first message falls within the date range
+            if msgs:
+                first_msg_date = msgs[-1].get("created_time", "")[:10]
+                if since <= first_msg_date <= until:
+                    result["new_threads"] += 1
+
+            if len(msgs) < 2:
+                result["recent_unanswered"].append({
+                    "text": msgs[0].get("message", "")[:80] if msgs else "",
+                    "time": thread.get("updated_time", "")[:16],
+                })
+                continue
+
+            # Check if page replied (sender id matches page)
+            page_replied = any(
+                str(m.get("from", {}).get("id", "")) == str(FACEBOOK_PAGE_ID)
+                for m in msgs
+            )
+            if page_replied:
+                result["replied_threads"] += 1
+                first_msg_time = dateparser.parse(msgs[-1]["created_time"])
+                page_reply = next(
+                    (m for m in reversed(msgs)
+                     if str(m.get("from", {}).get("id", "")) == str(FACEBOOK_PAGE_ID)),
+                    None,
+                )
+                if page_reply:
+                    reply_time = dateparser.parse(page_reply["created_time"])
+                    delta_minutes = (reply_time - first_msg_time).total_seconds() / 60
+                    if delta_minutes >= 0:
+                        result["response_times_minutes"].append(delta_minutes)
+            else:
+                result["recent_unanswered"].append({
+                    "text": msgs[0].get("message", "")[:80] if msgs else "",
+                    "time": thread.get("updated_time", "")[:16],
+                })
+
+    except Exception as e:
+        print(f"DEBUG: IG conversations error: {e}")
+
+    return result

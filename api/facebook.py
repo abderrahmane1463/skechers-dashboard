@@ -284,7 +284,7 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
 
         def _process_fb_post(p):
             # ── 0. Public snapshot (always available — no extra API call) ─────
-            reacs = p.get("reactions", {}).get("summary", {}).get("total_count", 0)
+            reacs_public = p.get("reactions", {}).get("summary", {}).get("total_count", 0)
             comm  = p.get("comments",  {}).get("summary", {}).get("total_count", 0)
             shar  = p.get("shares",    {}).get("count", 0)
 
@@ -339,6 +339,12 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             if not isinstance(reactions_by_type, dict):
                 reactions_by_type = {}
 
+            # Use the sum of the breakdown as the canonical reactions count —
+            # post_reactions_by_type_total includes paid/boosted reactions and
+            # matches what Facebook shows publicly on the post.
+            # Fall back to the public snapshot if insights returned nothing.
+            reacs = sum(reactions_by_type.values()) if reactions_by_type else reacs_public
+
             return {
                 "id":                   p.get("id", ""),
                 "text":                 p.get("message", p.get("story", ""))[:120],
@@ -380,12 +386,15 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
 
 
 # ─── Facebook — Conversations ─────────────────────────────────────────────────
-def fetch_fb_conversations(limit: int = 25) -> dict:
+def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, end: str = None) -> dict:
     """
     Returns message thread metadata for community management stats.
     """
+    since, until = _date_range(days, start, end)
+
     result = {
         "total_threads": 0,
+        "new_threads": 0,
         "replied_threads": 0,
         "response_times_minutes": [],
         "recent_unanswered": [],
@@ -400,6 +409,13 @@ def fetch_fb_conversations(limit: int = 25) -> dict:
 
         for thread in threads:
             msgs = thread.get("messages", {}).get("data", [])
+
+            # Count threads whose first message falls within the selected period
+            if msgs:
+                first_msg_date = msgs[-1].get("created_time", "")[:10]
+                if since <= first_msg_date <= until:
+                    result["new_threads"] += 1
+
             if len(msgs) < 2:
                 result["recent_unanswered"].append({
                     "text": msgs[0].get("message", "")[:80] if msgs else "",

@@ -77,8 +77,7 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
     )
     st.markdown(
         f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;">'
-        f'{_cell("👁️", "Vues toutes sources", total_views)}'
-        f'{_cell("📢", "Impressions totales", impressions)}'
+        f'{_cell("👁️", "Reach", total_views)}'
         f'{_cell("🌱", "Organic", imp_org, "#4ade80")}'
         f'{_cell("💰", "Payé", imp_paid, "#facc15")}'
         f'</div>',
@@ -96,9 +95,7 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
         f'{_cell("❤️", "Réactions", reacs)}'
         f'{_cell("💬", "Commentaires", comms)}'
         f'{_cell("🔁", "Partages", shars)}'
-        f'{_cell("🖱️", "Clics uniques", clicks_uniq)}'
-        f'{_cell("🖱️", "Clics totaux", clicks)}'
-        f'{_cell("👤", "Utilisateurs engagés", engaged)}'
+        f'{_cell("🖱️", "Clics", clicks)}'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -181,8 +178,8 @@ def get_fb_posts(days, start=None, end=None):
     return api.fetch_fb_posts(days, start, end, 100)
 
 @st.cache_data(ttl=900, show_spinner=False)
-def get_fb_conversations():
-    return api.fetch_fb_conversations(25)
+def get_fb_conversations(days=30, start=None, end=None):
+    return api.fetch_fb_conversations(25, days, start, end)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_fb_demographics():
@@ -197,7 +194,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         eng = get_fb_engagement(days, start_date, end_date)
         vis = get_fb_visibility(days, start_date, end_date)
         posts = get_fb_posts(days, start_date, end_date)
-        convos = get_fb_conversations()
+        convos = get_fb_conversations(days, start_date, end_date)
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
     total_fans = aud.get("fans_total") or 0
@@ -419,6 +416,26 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         else:
             st.info("No audience data available for this period.")
 
+        # ── Auto-analysis text ───────────────────────────────────────────────
+        if not adds_df.empty:
+            net_total   = int(merged["net"].sum()) if "net" in merged.columns else 0
+            peak_row    = merged.loc[merged["adds"].idxmax()]
+            peak_date   = peak_row["date"].strftime("%d/%m")
+            peak_val    = int(peak_row["adds"])
+            direction   = "▲" if net_total >= 0 else "▼"
+            dir_color   = "#4ade80" if net_total >= 0 else "#f87171"
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(126,200,227,0.5);'
+                f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
+                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'Pic d\'abonnements : <b style="color:#7EC8E3;">{peak_date}</b> avec '
+                f'<b style="color:#fff;">{peak_val:,}</b> nouveaux follows. '
+                f'Solde net sur la période : '
+                f'<b style="color:{dir_color};">{direction} {abs(net_total):,}</b>.'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
         # ── Demographics Chart ───────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -592,6 +609,21 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 fig3.update_layout(**CHART_LAYOUT)
                 st.plotly_chart(fig3, width="stretch")
 
+        if not eng_df.empty:
+            peak_eng  = eng_df.loc[eng_df["value"].idxmax()]
+            peak_date = peak_eng["date"].strftime("%d/%m")
+            peak_val  = int(peak_eng["value"])
+            avg_eng   = int(eng_df["value"].mean())
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(139,92,246,0.6);'
+                f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
+                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'Pic d\'engagement : <b style="color:#8b5cf6;">{peak_date}</b> avec '
+                f'<b style="color:#fff;">{peak_val:,}</b> interactions. '
+                f'Moyenne journalière : <b style="color:#fff;">{avg_eng:,}</b>.'
+                f'</div>',
+                unsafe_allow_html=True
+            )
         if eng_df.empty:
             st.info("No engagement data available for this period.")
 
@@ -636,8 +668,74 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             peak_row = reach_df.loc[reach_df["value"].idxmax()]
             v2.metric("Peak Reach Day", peak_row["date"].strftime("%b %d"), delta=f"{int(peak_row['value']):,}")
             v3.metric("Total Impressions", f"{safe_sum(vis.get('impressions', [])):,}")
+
+            # ── Auto-analysis text ───────────────────────────────────────────
+            peak_reach_date = peak_row["date"].strftime("%d/%m")
+            peak_reach_val  = int(peak_row["value"])
+            avg_reach       = int(reach_df["value"].mean())
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(99,102,241,0.6);'
+                f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
+                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'Pic de couverture : <b style="color:#6366f1;">{peak_reach_date}</b> avec '
+                f'<b style="color:#fff;">{peak_reach_val:,}</b> comptes uniques atteints. '
+                f'Moyenne journalière : <b style="color:#fff;">{avg_reach:,}</b>.'
+                f'</div>',
+                unsafe_allow_html=True
+            )
         else:
             st.info("No visibility data available for this period.")
+
+        # ── VUES DE LA PAGE — dedicated section ──────────────────────────────
+        if not views_df.empty:
+            st.markdown(
+                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                'text-transform:uppercase;letter-spacing:0.08em;'
+                'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                'padding-bottom:0.4rem;">📄 VUES DE LA PAGE</div>',
+                unsafe_allow_html=True
+            )
+            fig_pv = go.Figure()
+            fig_pv.add_trace(go.Scatter(
+                x=views_df["date"], y=views_df["value"],
+                name="Vues de la page",
+                fill="tozeroy",
+                line=dict(color="#ec4899", width=2),
+                fillcolor="rgba(236,72,153,0.12)",
+                mode="lines+markers",
+                marker=dict(size=4, color="#ec4899"),
+            ))
+            pv_layout = {
+                **CHART_LAYOUT,
+                "showlegend": False,
+                "margin": dict(l=0, r=0, t=10, b=30),
+                "height": 220,
+            }
+            fig_pv.update_layout(**pv_layout)
+            st.plotly_chart(fig_pv, width="stretch")
+
+            total_pv    = int(views_df["value"].sum())
+            avg_pv      = int(views_df["value"].mean())
+            peak_pv_row = views_df.loc[views_df["value"].idxmax()]
+            peak_pv_d   = peak_pv_row["date"].strftime("%d/%m")
+            peak_pv_v   = int(peak_pv_row["value"])
+
+            pv1, pv2, pv3 = st.columns(3)
+            pv1.metric("Total Vues", f"{total_pv:,}")
+            pv2.metric("Pic", peak_pv_row["date"].strftime("%b %d"), delta=f"{peak_pv_v:,}")
+            pv3.metric("Moy. journalière", f"{avg_pv:,}")
+
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(236,72,153,0.6);'
+                f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
+                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'Pic de vues de la page : <b style="color:#ec4899;">{peak_pv_d}</b> avec '
+                f'<b style="color:#fff;">{peak_pv_v:,}</b> vues. '
+                f'Total sur la période : <b style="color:#fff;">{total_pv:,}</b> vues '
+                f'(moy. {avg_pv:,}/jour).'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
     # ── TAB 4: Top Content ────────────────────────────────────────────────────
     with tab4:
@@ -668,18 +766,41 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # ── TAB 5: Community Management ───────────────────────────────────────────
     with tab5:
         st.markdown('<div class="section-header">Response Rates & Timing</div>', unsafe_allow_html=True)
-        total_t = convos.get("total_threads", 0)
-        replied = convos.get("replied_threads", 0)
-        times = convos.get("response_times_minutes", [])
-        avg_time = round(np.mean(times), 1) if times else 0
+        total_t    = convos.get("total_threads", 0)
+        new_t      = convos.get("new_threads", 0)
+        replied    = convos.get("replied_threads", 0)
+        times      = convos.get("response_times_minutes", [])
+        avg_time   = round(np.mean(times), 1) if times else 0
         response_rate = round(replied / total_t * 100, 1) if total_t else 0
 
-        cm1, cm2, cm3, cm4 = st.columns(4)
-        cm1.metric("Response Rate", f"{response_rate}%")
-        cm2.metric("Avg Response Time", f"{avg_time} min")
-        cm3.metric("Total Conversations", f"{total_t:,}")
-        cm4.metric("Unanswered", f"{len(convos.get('recent_unanswered', []))}",
-                   delta_color="inverse", delta=f"-{total_t - replied}")
+        # Format response time as Xh YYmin (like the report)
+        if avg_time >= 60:
+            _h   = int(avg_time // 60)
+            _min = int(avg_time % 60)
+            avg_time_str = f"{_h}h{_min:02d}min"
+        else:
+            avg_time_str = f"{int(avg_time)}min"
+
+        def _cm_kpi(icon, label, value, color="#ffffff"):
+            return (
+                f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
+                f'padding:0.9rem 1rem;text-align:center;">'
+                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                f'margin-bottom:0.25rem;">{icon} {label}</div>'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color};'
+                f'white-space:nowrap;">{value}</div>'
+                f'</div>'
+            )
+
+        st.markdown(
+            f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">'
+            f'{_cm_kpi("📨", "Total contacts",     f"{total_t:,}")}'
+            f'{_cm_kpi("🆕", "Nouveaux contacts",  f"{new_t:,}", "#4ade80")}'
+            f'{_cm_kpi("✅", "Taux de réponses",   f"{response_rate}%", "#facc15")}'
+            f'{_cm_kpi("⏱️", "Temps de réponse",   avg_time_str, "#60a5fa")}'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
         unanswered = convos.get("recent_unanswered", [])
         if unanswered:

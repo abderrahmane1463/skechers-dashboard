@@ -21,6 +21,7 @@ def get_ig_posts(days, start=None, end=None):
     return api.fetch_ig_posts(days, start, end, 100)
 
 
+
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_instagram_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
     with st.spinner("Loading Instagram data…"):
@@ -250,80 +251,4 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
         st.divider()
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content"
-    ])
 
-    # ── TAB 1: Audience ───────────────────────────────────────────────────────
-    with tab1:
-        st.markdown('<div class="section-header">Follower Trend</div>', unsafe_allow_html=True)
-        follower_series = ig_profile.get("follower_series", [])
-        if follower_series:
-            df_fol = series_to_df(follower_series)
-            fig = px.area(df_fol, x="date", y="value", title="Follower Count Over Time",
-                          color_discrete_sequence=["#6366f1"])
-            fig.update_layout(**CHART_LAYOUT)
-            st.plotly_chart(fig, width="stretch")
-        else:
-            st.info("Follower time-series not available — showing current snapshot.")
-            st.metric("Current Followers", f"{followers:,}")
-
-    # ── TAB 2: Engagement ─────────────────────────────────────────────────────
-    with tab2:
-        st.markdown('<div class="section-header">Likes, Comments & Saves</div>', unsafe_allow_html=True)
-        daily = ig_eng.get("daily", [])
-        if daily:
-            df_d = pd.DataFrame(daily)
-            df_d["date"] = pd.to_datetime(df_d["date"])
-            pivot = df_d.pivot_table(index="date", columns="metric", values="value", aggfunc="sum").fillna(0)
-            fig5 = px.bar(pivot.reset_index(), x="date", y=pivot.columns.tolist(),
-                          title="Daily Engagement Breakdown",
-                          color_discrete_sequence=["#6366f1", "#ec4899", "#f59e0b", "#34d399"])
-            fig5.update_layout(barmode="stack", **CHART_LAYOUT)
-            st.plotly_chart(fig5, width="stretch")
-
-        e1, e2, e3 = st.columns(3)
-        e1.metric("❤️ Likes", f"{total_ig_likes:,}")
-        e2.metric("💬 Comments", f"{total_ig_comments:,}")
-        e3.metric("📊 Engagement Rate", f"{ig_eng_rate}%")
-
-    # ── TAB 3: Visibility ────────────────────────────────────────────────────
-    with tab3:
-        st.markdown('<div class="section-header">Reach & Impressions</div>', unsafe_allow_html=True)
-        reach_s = ig_profile.get("reach", [])
-        impr_s = ig_profile.get("impressions", [])
-        if reach_s:
-            df_r = series_to_df(reach_s)
-            df_i = series_to_df(impr_s) if impr_s else pd.DataFrame()
-            fig6 = go.Figure()
-            fig6.add_trace(go.Scatter(x=df_r["date"], y=df_r["value"],
-                                      fill="tozeroy", name="Reach",
-                                      line=dict(color="#6366f1", width=2),
-                                      fillcolor="rgba(99,102,241,0.15)"))
-            if not df_i.empty:
-                fig6.add_trace(go.Scatter(x=df_i["date"], y=df_i["value"],
-                                          name="Impressions",
-                                          line=dict(color="#ec4899", width=2, dash="dot")))
-            fig6.update_layout(title="Reach vs Impressions", **CHART_LAYOUT)
-            st.plotly_chart(fig6, width="stretch")
-        else:
-            st.info("No visibility data available for this period.")
-
-    # ── TAB 4: Top Content ────────────────────────────────────────────────────
-    with tab4:
-        if ig_posts:
-            render_top3_podium(
-                ig_posts,
-                sort_key="reach",
-                title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
-                view_label="Vues",
-            )
-            st.divider()
-            render_top3_podium(
-                ig_posts,
-                sort_key="total_interactions",
-                title="TOP #3 PUBLICATIONS PAR ENGAGEMENTS",
-                view_label="Vues",
-            )
-        else:
-            st.info("No post data available.")
