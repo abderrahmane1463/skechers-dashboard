@@ -1,10 +1,10 @@
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 import streamlit as st
 
 import api_client as api
-from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
+from components.charts import CHART_LAYOUT, series_to_df, safe_sum
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -20,52 +20,107 @@ def get_ig_engagement(days, start=None, end=None):
 def get_ig_posts(days, start=None, end=None):
     return api.fetch_ig_posts(days, start, end, 100)
 
+@st.cache_data(ttl=900, show_spinner=False)
+def get_ig_conversations(days, start=None, end=None):
+    return api.fetch_ig_conversations(days, start, end)
+
+
+# ─── Post card helper ─────────────────────────────────────────────────────────
+def _render_ig_post_card(post: dict):
+    thumbnail = post.get("thumbnail", "")
+    text      = post.get("text", "")[:100] or "*(No caption)*"
+    date      = post.get("created_time", "")
+    reacs     = post.get("reactions", 0)
+    comms     = post.get("comments", 0)
+    saves     = post.get("saves", 0)
+    shares    = post.get("shares", 0)
+    total     = post.get("total_interactions", 0)
+    imp_val   = post.get("impressions", 0)
+    reach_val = post.get("reach", 0)
+    permalink = post.get("permalink", "#")
+
+    if thumbnail:
+        st.image(thumbnail, use_container_width=True)
+    else:
+        st.markdown(
+            '<div style="height:160px;background:rgba(255,255,255,0.05);'
+            'border-radius:12px;display:flex;align-items:center;'
+            'justify-content:center;color:rgba(255,255,255,0.3);">📷 No image</div>',
+            unsafe_allow_html=True
+        )
+
+    st.markdown(
+        f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
+        f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
+        unsafe_allow_html=True
+    )
+
+    def _cell(icon, label, value, color="#fff"):
+        return (
+            f'<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">'
+            f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">{icon} {label}</div>'
+            f'<div style="font-size:1rem;font-weight:700;color:{color};">{value:,}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">'
+        f'{_cell("📢", "Impressions", imp_val)}'
+        f'{_cell("👁️", "Couverture",  reach_val)}'
+        f'{_cell("❤️", "Réactions",   reacs, "#f87171")}'
+        f'{_cell("💬", "Commentaires",comms, "#a78bfa")}'
+        f'{_cell("🔖", "Enregistrements", saves, "#60a5fa")}'
+        f'{_cell("↗️", "Partages",    shares, "#34d399")}'
+        f'</div>'
+        f'<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.5rem;">'
+        f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>'
+        f'<div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>'
+        f'</div>'
+        f'<a href="{permalink}" target="_blank" style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">'
+        f'🔗 Voir la publication</a><br><br>',
+        unsafe_allow_html=True
+    )
 
 
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_instagram_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
     with st.spinner("Loading Instagram data…"):
         ig_profile = get_ig_profile(days, start_date, end_date)
-        ig_eng = get_ig_engagement(days, start_date, end_date)
-        ig_posts = get_ig_posts(days, start_date, end_date)
+        ig_eng     = get_ig_engagement(days, start_date, end_date)
+        ig_posts   = get_ig_posts(days, start_date, end_date)
+        ig_convos  = get_ig_conversations(days, start_date, end_date)
 
-    followers            = ig_profile.get("followers_count") or 0
-    follower_additions   = ig_profile.get("follower_additions", [])
-    total_ig_reach       = ig_profile.get("period_reach", 0) or safe_sum(ig_profile.get("reach", []))
-    total_ig_impressions = safe_sum(ig_profile.get("impressions", []))
-    total_ig_views       = safe_sum(ig_profile.get("profile_views", []))
+    followers          = ig_profile.get("followers_count") or 0
+    follower_additions = ig_profile.get("follower_additions", [])
+    total_ig_reach     = ig_profile.get("period_reach", 0) or safe_sum(ig_profile.get("reach", []))
 
-    # Aggregate engagement from posts (account-level API blocked for IG)
+    _acct_impressions  = ig_profile.get("period_impressions", 0) or safe_sum(ig_profile.get("impressions", []))
+    _story_impressions = sum(p.get("impressions", 0) for p in ig_posts if p.get("media_type") == "STORY")
+    total_ig_impressions = _acct_impressions + _story_impressions
+    if total_ig_impressions == 0:
+        total_ig_impressions = sum(p.get("impressions", 0) for p in ig_posts)
+
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
     total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
     total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
     total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
 
-    # Impressions: sum from posts if account-level is 0
-    if total_ig_impressions == 0:
-        total_ig_impressions = sum(p.get("impressions", 0) for p in ig_posts)
-
-    # New followers = net change: last daily cumulative value - first daily cumulative value
-    # (follower_count returns cumulative totals per day, NOT daily additions)
     if len(follower_additions) >= 2:
         ig_new_followers = follower_additions[-1]["value"] - follower_additions[0]["value"]
     elif len(follower_additions) == 1:
         ig_new_followers = 0
     else:
-        ig_new_followers = None  # API returned no data
+        ig_new_followers = None
 
-    ig_eng_rate     = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
-    ig_eng_per_post = round(total_ig_interactions / len(ig_posts), 1) if ig_posts else 0.0
+    ig_eng_rate = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
 
     log_refresh_fn(
-        "Instagram",
-        period_label,
-        "✅ Data Loaded",
+        "Instagram", period_label, "✅ Data Loaded",
         f"Followers: {followers}, Posts: {len(ig_posts)}, Reach: {total_ig_reach}"
     )
 
-    # ── Instagram KPI Grid ────────────────────────────────────────────────────
+    # ── KPI Grid ──────────────────────────────────────────────────────────────
     def _ig_kpi(icon, label, value, color="#ffffff"):
         return (
             f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
@@ -77,178 +132,351 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             f'</div>'
         )
 
-    # Format new followers display
-    if ig_new_followers is None:
-        _new_followers_str = "N/A"
-    elif ig_new_followers >= 0:
-        _new_followers_str = f"+{ig_new_followers:,}"
-    else:
-        _new_followers_str = f"{ig_new_followers:,}"
+    _new_followers_str = (
+        "N/A" if ig_new_followers is None
+        else f"+{ig_new_followers:,}" if ig_new_followers >= 0
+        else f"{ig_new_followers:,}"
+    )
 
-    ig_kpi_html = f"""
+    st.markdown(f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_ig_kpi("👥", "Followers",            f"{followers:,}")}
-  {_ig_kpi("➕", "Nouveaux Followers",   _new_followers_str, "#4ade80")}
-  {_ig_kpi("📝", "Publications",         str(len(ig_posts)))}
-  {_ig_kpi("📊", "Taux d'engagement",    f"{ig_eng_rate}%",       "#facc15")}
+  {_ig_kpi("👥", "Followers",           f"{followers:,}")}
+  {_ig_kpi("➕", "Nouveaux Followers",  _new_followers_str, "#4ade80")}
+  {_ig_kpi("📝", "Publications",        str(len(ig_posts)))}
+  {_ig_kpi("📊", "Taux d'engagement",   f"{ig_eng_rate}%", "#facc15")}
 </div>
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_ig_kpi("👁️", "Couvertures",          f"{total_ig_reach:,}")}
-  {_ig_kpi("📢", "Impressions",          f"{total_ig_impressions:,}")}
-  {_ig_kpi("🔖", "Enregistrements",      f"{total_ig_saves:,}",        "#60a5fa")}
-  {_ig_kpi("⚡", "Engagement / Publi.",   f"{ig_eng_per_post:,}")}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
+  {_ig_kpi("👁️", "Couvertures",         f"{total_ig_reach:,}")}
+  {_ig_kpi("📢", "Impressions",         f"{total_ig_impressions:,}")}
+  {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}", "#60a5fa")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_ig_kpi("🔥", "Total interactions",  f"{total_ig_interactions:,}", "#FF6B35")}
-  {_ig_kpi("❤️", "Réactions",           f"{total_ig_likes:,}",        "#f87171")}
-  {_ig_kpi("💬", "Commentaires",        f"{total_ig_comments:,}",     "#a78bfa")}
-  {_ig_kpi("↗️", "Partages",            f"{total_ig_shares:,}",       "#34d399")}
+  {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35")}
+  {_ig_kpi("❤️", "Réactions",          f"{total_ig_likes:,}",        "#f87171")}
+  {_ig_kpi("💬", "Commentaires",       f"{total_ig_comments:,}",     "#a78bfa")}
+  {_ig_kpi("↗️", "Partages",           f"{total_ig_shares:,}",       "#34d399")}
 </div>
-"""
-    st.markdown(ig_kpi_html, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
     st.divider()
 
-    # ── Instagram Top Publications by Visibility ───────────────────────────
-    if ig_posts:
-        st.markdown(
-            '<div style="text-align:center; font-size:1.1rem; font-weight:700; '
-            'letter-spacing:0.1em; color:rgba(255,255,255,0.6); margin-bottom:1.2rem;">'
-            '🏆 TOP PUBLICATIONS PAR VISIBILITÉ</div>',
-            unsafe_allow_html=True
-        )
+    # ── Tabs ──────────────────────────────────────────────────────────────────
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content", "🤝 Community"
+    ])
 
-        ig_sorted_posts = sorted(ig_posts, key=lambda p: p.get("impressions", 0), reverse=True)[:6]
-        ig_cols = st.columns(3)
-        for idx, post in enumerate(ig_sorted_posts):
-            col = ig_cols[idx % 3]
-            with col:
-                thumbnail = post.get("thumbnail", "")
-                text = post.get("text", "")[:100] or "*(No caption)*"
-                date = post.get("created_time", "")
-                reacs = post.get("reactions", 0)
-                comms = post.get("comments", 0)
-                saves = post.get("saves", 0)
-                total = post.get("total_interactions", 0)
-                permalink = post.get("permalink", "#")
+    # ── TAB 1: Audience ───────────────────────────────────────────────────────
+    with tab1:
+        fa_df = series_to_df(follower_additions)
 
-                if thumbnail:
-                    st.image(thumbnail, use_container_width=True)
-                else:
-                    st.markdown(
-                        '<div style="height:160px;background:rgba(255,255,255,0.05);'
-                        'border-radius:12px;display:flex;align-items:center;'
-                        'justify-content:center;color:rgba(255,255,255,0.3);">📷 No image</div>',
-                        unsafe_allow_html=True
-                    )
+        if not fa_df.empty:
+            chart_col, stats_col = st.columns([3, 1])
 
+            with chart_col:
+                fig_aud = go.Figure()
+                fig_aud.add_trace(go.Scatter(
+                    x=fa_df["date"], y=fa_df["value"],
+                    name="Followers",
+                    line=dict(color="#7EC8E3", width=2.5),
+                    fill="tozeroy",
+                    fillcolor="rgba(126,200,227,0.08)",
+                    mode="lines"
+                ))
+                fig_aud.update_layout(**{
+                    **CHART_LAYOUT,
+                    "yaxis": dict(gridcolor="rgba(255,255,255,0.06)", showline=False),
+                    "xaxis": dict(
+                        gridcolor="rgba(255,255,255,0.06)", showline=False,
+                        tickmode="linear", dtick=86400000, tickangle=-45,
+                    ),
+                    "showlegend": False,
+                    "margin": dict(l=0, r=0, t=10, b=30),
+                    "height": 280,
+                })
+                st.plotly_chart(fig_aud, width="stretch")
                 st.markdown(
-                    f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
-                    f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
+                    '<div style="text-align:center;margin-top:-12px;">'
+                    '<span style="display:inline-block;width:28px;height:2px;'
+                    'background:#7EC8E3;vertical-align:middle;margin-right:6px;"></span>'
+                    '<span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Followers</span>'
+                    '</div>',
                     unsafe_allow_html=True
                 )
 
-                imp_val = post.get('impressions', 0)
-                st.markdown(f"""
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">📢 Impressions</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{imp_val:,}</div>
-  </div>
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">❤️ Réactions</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{reacs:,}</div>
-  </div>
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">💬 Commentaires</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{comms:,}</div>
-  </div>
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">🔖 Enregistrements</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{saves:,}</div>
-  </div>
-</div>
-<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.6rem;margin-bottom:0.5rem;">
-  <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>
-  <div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>
-</div>
-<a href="{permalink}" target="_blank"
-   style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">
-  🔗 Voir la publication
-</a><br><br>
-""", unsafe_allow_html=True)
+            with stats_col:
+                _nf = _new_followers_str
+                st.markdown(
+                    f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;'
+                    f'padding:1.2rem 1rem;display:flex;flex-direction:column;gap:1.2rem;">'
+                    f'<div>'
+                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                    f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Nouveaux followers</div>'
+                    f'<div style="font-size:1.5rem;font-weight:800;color:#4ade80;">{_nf}</div>'
+                    f'</div>'
+                    f'<div>'
+                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                    f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Followers (Lifetime)</div>'
+                    f'<div style="font-size:1.5rem;font-weight:800;color:#FF6B35;">{followers:,}</div>'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+        else:
+            st.markdown(
+                f'<div style="background:rgba(232,66,10,0.08);border:1px solid rgba(232,66,10,0.25);'
+                f'border-radius:16px;padding:1.5rem 2rem;text-align:center;">'
+                f'<p style="font-size:1rem;font-weight:700;color:#FF6B35;margin:0 0 0.5rem;">'
+                f'📊 Données journalières non disponibles via API</p>'
+                f'<p style="font-size:0.85rem;color:rgba(255,255,255,0.6);margin:0;">'
+                f'La métrique <code>follower_count</code> n\'est pas accessible pour ce compte. '
+                f'Le total actuel est <strong style="color:#4ade80;">{followers:,} followers</strong>.'
+                f'</p>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
-        st.divider()
+    # ── TAB 2: Engagement ─────────────────────────────────────────────────────
+    with tab2:
+        # Build daily series from posts
+        _ci_d, _likes_d, _comms_d, _saves_d = {}, {}, {}, {}
+        for p in ig_posts:
+            d = p.get("created_time", "")[:10]
+            if not d:
+                continue
+            _ci_d[d]    = _ci_d.get(d, 0)    + p.get("total_interactions", 0)
+            _likes_d[d] = _likes_d.get(d, 0) + p.get("reactions", 0)
+            _comms_d[d] = _comms_d.get(d, 0) + p.get("comments", 0)
+            _saves_d[d] = _saves_d.get(d, 0) + p.get("saves", 0)
 
-    # ── Instagram Top Publications by Engagement ───────────────────────────
-    if ig_posts:
+        def _make_series(mapping):
+            if not mapping:
+                return pd.DataFrame()
+            return pd.DataFrame(
+                [{"date": pd.Timestamp(k), "value": v}
+                 for k, v in sorted(mapping.items())]
+            )
+
+        ci_df    = _make_series(_ci_d)
+        likes_df = _make_series(_likes_d)
+        comms_df = _make_series(_comms_d)
+        saves_df = _make_series(_saves_d)
+
+        # Fill full date range with zeros
+        if not ci_df.empty and (start_date or days):
+            _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
+            _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
+            _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
+            ci_df    = _full_range.merge(ci_df,    on="date", how="left").fillna(0)
+            likes_df = _full_range.merge(likes_df, on="date", how="left").fillna(0)
+            comms_df = _full_range.merge(comms_df, on="date", how="left").fillna(0)
+            saves_df = _full_range.merge(saves_df, on="date", how="left").fillna(0)
+
+        if not ci_df.empty:
+            fig_eng = go.Figure()
+            fig_eng.add_trace(go.Scatter(
+                x=ci_df["date"], y=ci_df["value"],
+                name="Total interactions",
+                line=dict(color="#FF6B35", width=3), mode="lines",
+            ))
+            fig_eng.add_trace(go.Scatter(
+                x=likes_df["date"], y=likes_df["value"],
+                name="Réactions",
+                line=dict(color="#f87171", width=2), mode="lines",
+            ))
+            fig_eng.add_trace(go.Scatter(
+                x=comms_df["date"], y=comms_df["value"],
+                name="Commentaires",
+                line=dict(color="#a78bfa", width=2), mode="lines",
+            ))
+            fig_eng.add_trace(go.Scatter(
+                x=saves_df["date"], y=saves_df["value"],
+                name="Enregistrements",
+                line=dict(color="#60a5fa", width=2), mode="lines",
+            ))
+            fig_eng.update_layout(**{
+                **CHART_LAYOUT,
+                "yaxis": dict(
+                    gridcolor="rgba(255,255,255,0.06)", showline=False,
+                    tickformat=",", range=[0, 20000],
+                ),
+                "xaxis": dict(
+                    gridcolor="rgba(255,255,255,0.06)", showline=False,
+                    tickmode="array",
+                    tickvals=[ci_df["date"].iloc[i]
+                              for i in range(0, len(ci_df), max(len(ci_df)//6, 1))][:7],
+                    tickangle=0,
+                ),
+                "showlegend": True,
+                "legend": dict(
+                    orientation="h", yanchor="bottom", y=-0.25,
+                    xanchor="center", x=0.5,
+                    font=dict(size=11, color="rgba(255,255,255,0.6)"),
+                    bgcolor="rgba(0,0,0,0)",
+                ),
+                "margin": dict(l=0, r=0, t=10, b=60),
+                "height": 300,
+            })
+            st.plotly_chart(fig_eng, width="stretch")
+
+            ei1, ei2, ei3, ei4 = st.columns(4)
+            ei1.metric("Total interactions", f"{total_ig_interactions:,}")
+            ei2.metric("Réactions",          f"{total_ig_likes:,}")
+            ei3.metric("Commentaires",       f"{total_ig_comments:,}")
+            ei4.metric("Enregistrements",    f"{total_ig_saves:,}")
+        else:
+            st.info("No engagement data available for this period.")
+
+    # ── TAB 3: Visibility ─────────────────────────────────────────────────────
+    with tab3:
+        reach_df      = series_to_df(ig_profile.get("reach", []))
+        impressions_df = series_to_df(ig_profile.get("impressions", []))
+
+        # ── Reach chart ──
+        if not reach_df.empty:
+            st.markdown(
+                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                'text-transform:uppercase;letter-spacing:0.08em;'
+                'margin:0 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                'padding-bottom:0.4rem;">👁️ COUVERTURES (REACH)</div>',
+                unsafe_allow_html=True
+            )
+            fig_reach = go.Figure()
+            fig_reach.add_trace(go.Scatter(
+                x=reach_df["date"], y=reach_df["value"],
+                name="Reach", fill="tozeroy",
+                line=dict(color="#6366f1", width=2),
+                fillcolor="rgba(99,102,241,0.15)",
+                mode="lines+markers",
+                marker=dict(size=4, color="#6366f1"),
+            ))
+            fig_reach.update_layout(**{
+                **CHART_LAYOUT,
+                "showlegend": False,
+                "margin": dict(l=0, r=0, t=10, b=30),
+                "height": 220,
+            })
+            st.plotly_chart(fig_reach, width="stretch")
+
+            r1, r2, r3 = st.columns(3)
+            r1.metric("Total Reach",       f"{total_ig_reach:,}")
+            _peak_r = reach_df.loc[reach_df["value"].idxmax()]
+            r2.metric("Pic", _peak_r["date"].strftime("%b %d"), delta=f"{int(_peak_r['value']):,}")
+            r3.metric("Moy. journalière",  f"{int(reach_df['value'].mean()):,}")
+
+        # ── Impressions chart ──
+        if not impressions_df.empty:
+            st.markdown(
+                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                'text-transform:uppercase;letter-spacing:0.08em;'
+                'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                'padding-bottom:0.4rem;">📢 IMPRESSIONS</div>',
+                unsafe_allow_html=True
+            )
+            fig_imp = go.Figure()
+            fig_imp.add_trace(go.Scatter(
+                x=impressions_df["date"], y=impressions_df["value"],
+                name="Impressions", fill="tozeroy",
+                line=dict(color="#ec4899", width=2),
+                fillcolor="rgba(236,72,153,0.12)",
+                mode="lines+markers",
+                marker=dict(size=4, color="#ec4899"),
+            ))
+            fig_imp.update_layout(**{
+                **CHART_LAYOUT,
+                "showlegend": False,
+                "margin": dict(l=0, r=0, t=10, b=30),
+                "height": 220,
+            })
+            st.plotly_chart(fig_imp, width="stretch")
+
+            _total_imp_v = int(impressions_df["value"].sum())
+            _peak_imp    = impressions_df.loc[impressions_df["value"].idxmax()]
+            i1, i2, i3  = st.columns(3)
+            i1.metric("Total Impressions", f"{_total_imp_v:,}")
+            i2.metric("Pic", _peak_imp["date"].strftime("%b %d"), delta=f"{int(_peak_imp['value']):,}")
+            i3.metric("Moy. journalière",  f"{int(impressions_df['value'].mean()):,}")
+
+        if reach_df.empty and impressions_df.empty:
+            st.info("No visibility data available for this period.")
+
+    # ── TAB 4: Top Content ────────────────────────────────────────────────────
+    with tab4:
+        if ig_posts:
+            # Top by visibility
+            st.markdown(
+                '<div style="text-align:center;font-size:1.1rem;font-weight:700;'
+                'letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:1.2rem;">'
+                '🏆 TOP PUBLICATIONS PAR VISIBILITÉ</div>',
+                unsafe_allow_html=True
+            )
+            vis_sorted = sorted(ig_posts, key=lambda p: p.get("impressions", 0), reverse=True)[:6]
+            vis_cols   = st.columns(3)
+            for idx, post in enumerate(vis_sorted):
+                with vis_cols[idx % 3]:
+                    _render_ig_post_card(post)
+
+            st.divider()
+
+            # Top by engagement
+            st.markdown(
+                '<div style="text-align:center;font-size:1.1rem;font-weight:700;'
+                'letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:1.2rem;">'
+                '⚡ TOP PUBLICATIONS PAR ENGAGEMENT</div>',
+                unsafe_allow_html=True
+            )
+            eng_sorted = sorted(ig_posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:6]
+            eng_cols   = st.columns(3)
+            for idx, post in enumerate(eng_sorted):
+                with eng_cols[idx % 3]:
+                    _render_ig_post_card(post)
+        else:
+            st.info("No post data available.")
+
+    # ── TAB 5: Community ──────────────────────────────────────────────────────
+    with tab5:
+        total_t  = ig_convos.get("total_threads", 0)
+        new_t    = ig_convos.get("new_threads", 0)
+        replied  = ig_convos.get("replied_threads", 0)
+        times    = ig_convos.get("response_times_minutes", [])
+        avg_time = round(np.mean(times), 1) if times else 0
+        response_rate = round(replied / total_t * 100, 1) if total_t else 0
+
+        if avg_time >= 60:
+            _h = int(avg_time // 60)
+            _min = int(avg_time % 60)
+            avg_time_str = f"{_h}h{_min:02d}min"
+        else:
+            avg_time_str = f"{int(avg_time)}min"
+
+        def _cm_kpi(icon, label, value, color="#ffffff"):
+            return (
+                f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
+                f'padding:0.9rem 1rem;text-align:center;">'
+                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                f'margin-bottom:0.25rem;">{icon} {label}</div>'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color};'
+                f'white-space:nowrap;">{value}</div>'
+                f'</div>'
+            )
+
         st.markdown(
-            '<div style="text-align:center; font-size:1.1rem; font-weight:700; '
-            'letter-spacing:0.1em; color:rgba(255,255,255,0.6); margin-bottom:1.2rem;">'
-            '⚡ TOP PUBLICATIONS PAR ENGAGEMENT</div>',
+            f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">'
+            f'{_cm_kpi("📨", "Total contacts",    f"{total_t:,}")}'
+            f'{_cm_kpi("🆕", "Nouveaux contacts", f"{new_t:,}", "#4ade80")}'
+            f'{_cm_kpi("✅", "Taux de réponses",  f"{response_rate}%", "#facc15")}'
+            f'{_cm_kpi("⏱️", "Temps de réponse",  avg_time_str, "#60a5fa")}'
+            f'</div>',
             unsafe_allow_html=True
         )
 
-        ig_eng_sorted = sorted(ig_posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:6]
-        ig_eng_cols = st.columns(3)
-        for idx, post in enumerate(ig_eng_sorted):
-            col = ig_eng_cols[idx % 3]
-            with col:
-                thumbnail = post.get("thumbnail", "")
-                text = post.get("text", "")[:100] or "*(No caption)*"
-                date = post.get("created_time", "")
-                reacs = post.get("reactions", 0)
-                comms = post.get("comments", 0)
-                saves = post.get("saves", 0)
-                total = post.get("total_interactions", 0)
-                permalink = post.get("permalink", "#")
-
-                if thumbnail:
-                    st.image(thumbnail, use_container_width=True)
-                else:
-                    st.markdown(
-                        '<div style="height:160px;background:rgba(255,255,255,0.05);'
-                        'border-radius:12px;display:flex;align-items:center;'
-                        'justify-content:center;color:rgba(255,255,255,0.3);">📷 No image</div>',
-                        unsafe_allow_html=True
-                    )
-
-                st.markdown(
-                    f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
-                    f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
-                    unsafe_allow_html=True
-                )
-
-                imp_val = post.get('impressions', 0)
+        unanswered = ig_convos.get("recent_unanswered", [])
+        if unanswered:
+            st.markdown("**Messages sans réponse récents**")
+            for item in unanswered[:5]:
                 st.markdown(f"""
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">📢 Impressions</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{imp_val:,}</div>
-  </div>
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">❤️ Réactions</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{reacs:,}</div>
-  </div>
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">💬 Commentaires</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{comms:,}</div>
-  </div>
-  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">
-    <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">🔖 Enregistrements</div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;">{saves:,}</div>
-  </div>
-</div>
-<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.6rem;margin-bottom:0.5rem;">
-  <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>
-  <div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>
-</div>
-<a href="{permalink}" target="_blank"
-   style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">
-  🔗 Voir la publication
-</a><br><br>
-""", unsafe_allow_html=True)
-
-        st.divider()
-
-
+<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;">
+  <div style="font-size:12px;color:rgba(255,255,255,0.4);">{item.get('time','')}</div>
+  <div style="font-size:14px;margin-top:4px;">{item.get('text','(No message)')}</div>
+</div>""", unsafe_allow_html=True)
+        else:
+            st.success("🎉 Toutes les conversations ont reçu une réponse !")

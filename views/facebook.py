@@ -120,17 +120,10 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
         )
 
     # ── Total + feedback négatif ──
-    neg_color = "#f87171" if negative > 0 else "rgba(255,255,255,0.3)"
     st.markdown(
-        f'<div style="display:grid;grid-template-columns:3fr 1fr;gap:0.35rem;margin-top:0.4rem;">'
-        f'<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.7rem;">'
+        f'<div style="margin-top:0.4rem;background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.7rem;">'
         f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>'
         f'<div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>'
-        f'</div>'
-        f'<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:0.5rem 0.6rem;text-align:center;">'
-        f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.35);">🚫 Masqué</div>'
-        f'<div style="font-size:1rem;font-weight:700;color:{neg_color};">{negative:,}</div>'
-        f'</div>'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -597,6 +590,15 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         fan_df    = _make_series(_fan_d)
         nonfan_df = _make_series(_nonfan_d)
 
+        # Fill the full date range so the chart starts from day 1, not first post
+        if not ci_df.empty and (start_date or days):
+            _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
+            _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
+            _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
+            ci_df     = _full_range.merge(ci_df,     on="date", how="left").fillna(0)
+            fan_df    = _full_range.merge(fan_df,    on="date", how="left").fillna(0)
+            nonfan_df = _full_range.merge(nonfan_df, on="date", how="left").fillna(0)
+
         ci_total     = int(ci_df["value"].sum())     if not ci_df.empty     else total_engagements
         fan_total    = int(fan_df["value"].sum())    if not fan_df.empty    else 0
         nonfan_total = int(nonfan_df["value"].sum()) if not nonfan_df.empty else 0
@@ -621,97 +623,72 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             )
 
         if not ci_df.empty:
-            slide11_chart, slide11_stats = st.columns([3, 1])
-
-            with slide11_chart:
-                fig_ci = go.Figure()
-                # Line 1 — Content interactions (dark teal, thickest)
+            fig_ci = go.Figure()
+            # Line 1 — Total interactions (orange, thickest)
+            fig_ci.add_trace(go.Scatter(
+                x=ci_df["date"], y=ci_df["value"],
+                name="Total interactions",
+                line=dict(color="#FF6B35", width=3),
+                mode="lines",
+            ))
+            # Line 2 — From followers (teal)
+            if not fan_df.empty:
                 fig_ci.add_trace(go.Scatter(
-                    x=ci_df["date"], y=ci_df["value"],
-                    name="Content interactions",
-                    line=dict(color="#0e7c5b", width=3),
+                    x=fan_df["date"], y=fan_df["value"],
+                    name="From followers",
+                    line=dict(color="#26c6da", width=2),
                     mode="lines",
                 ))
-                # Line 2 — From followers (medium teal)
-                if not fan_df.empty:
-                    fig_ci.add_trace(go.Scatter(
-                        x=fan_df["date"], y=fan_df["value"],
-                        name="From followers",
-                        line=dict(color="#26c6da", width=2),
-                        mode="lines",
-                    ))
-                # Line 3 — From non-followers (light blue)
-                if not nonfan_df.empty:
-                    fig_ci.add_trace(go.Scatter(
-                        x=nonfan_df["date"], y=nonfan_df["value"],
-                        name="From non-followers",
-                        line=dict(color="#b2ebf2", width=2),
-                        mode="lines",
-                    ))
-                ci_layout = {
-                    **CHART_LAYOUT,
-                    "yaxis": dict(
-                        gridcolor="rgba(255,255,255,0.06)",
-                        showline=False,
-                        tickformat=",",
-                    ),
-                    "xaxis": dict(
-                        gridcolor="rgba(255,255,255,0.06)",
-                        showline=False,
-                        tickmode="array",
-                        tickvals=[ci_df["date"].iloc[i]
-                                  for i in range(0, len(ci_df), max(len(ci_df)//6, 1))][:7],
-                        tickangle=0,
-                    ),
-                    "showlegend": True,
-                    "legend": dict(
-                        orientation="h",
-                        yanchor="bottom", y=-0.25,
-                        xanchor="center", x=0.5,
-                        font=dict(size=11, color="rgba(255,255,255,0.6)"),
-                        bgcolor="rgba(0,0,0,0)",
-                    ),
-                    "margin": dict(l=0, r=0, t=10, b=60),
-                    "height": 300,
-                }
-                fig_ci.update_layout(**ci_layout)
-                st.plotly_chart(fig_ci, width="stretch")
+            # Line 3 — From non-followers (light blue)
+            if not nonfan_df.empty:
+                fig_ci.add_trace(go.Scatter(
+                    x=nonfan_df["date"], y=nonfan_df["value"],
+                    name="From non-followers",
+                    line=dict(color="#b2ebf2", width=2),
+                    mode="lines",
+                ))
+            ci_layout = {
+                **CHART_LAYOUT,
+                "yaxis": dict(
+                    gridcolor="rgba(255,255,255,0.06)",
+                    showline=False,
+                    tickformat=",",
+                    range=[0, 20000],
+                ),
+                "xaxis": dict(
+                    gridcolor="rgba(255,255,255,0.06)",
+                    showline=False,
+                    tickmode="array",
+                    tickvals=[ci_df["date"].iloc[i]
+                              for i in range(0, len(ci_df), max(len(ci_df)//6, 1))][:7],
+                    tickangle=0,
+                ),
+                "showlegend": True,
+                "legend": dict(
+                    orientation="h",
+                    yanchor="bottom", y=-0.25,
+                    xanchor="center", x=0.5,
+                    font=dict(size=11, color="rgba(255,255,255,0.6)"),
+                    bgcolor="rgba(0,0,0,0)",
+                ),
+                "margin": dict(l=0, r=0, t=10, b=60),
+                "height": 300,
+            }
+            fig_ci.update_layout(**ci_layout)
+            st.plotly_chart(fig_ci, width="stretch")
 
-            with slide11_stats:
-                st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;'
-                    f'padding:1.2rem 1rem;display:flex;flex-direction:column;gap:1.1rem;">'
-                    f'<div style="font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.8);'
-                    f'margin-bottom:0.2rem;">Interactions breakdown</div>'
-
-                    f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);margin-bottom:2px;">Total</div>'
-                    f'<div style="font-size:1.4rem;font-weight:800;color:#fff;">{ci_total:,}</div>'
-                    f'{_chg_badge(_chg_pct(ci_total, prev_fan + prev_nonfan))}'
-                    f'</div>'
-
-                    f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);margin-bottom:2px;">From followers</div>'
-                    f'<div style="font-size:1.4rem;font-weight:800;color:#fff;">{fan_total:,}</div>'
-                    f'{_chg_badge(_chg_pct(fan_total, prev_fan))}'
-                    f'</div>'
-
-                    f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);margin-bottom:2px;">From non-followers</div>'
-                    f'<div style="font-size:1.4rem;font-weight:800;color:#fff;">{nonfan_total:,}</div>'
-                    f'{_chg_badge(_chg_pct(nonfan_total, prev_nonfan))}'
-                    f'</div>'
-
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
+            ei1, ei2, ei3 = st.columns(3)
+            ei1.metric("Total interactions",   f"{ci_total:,}")
+            ei2.metric("From followers",        f"{fan_total:,}")
+            ei3.metric("From non-followers",    f"{nonfan_total:,}")
 
 
     # ── TAB 3: Visibility ────────────────────────────────────────────────────
     with tab3:
         st.markdown('<div class="section-header">Reach & Page View Fluctuations</div>', unsafe_allow_html=True)
-        reach_df = series_to_df(vis.get("reach", []))
-        views_df = series_to_df(vis.get("page_views", []))
+        reach_df      = series_to_df(vis.get("reach", []))
+        views_df      = series_to_df(vis.get("page_views", []))
+        impressions_df = series_to_df(vis.get("impressions", []))
 
         if not reach_df.empty:
             fig4 = go.Figure()
@@ -721,12 +698,6 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 line=dict(color="#6366f1", width=2),
                 fillcolor="rgba(99,102,241,0.15)"
             ))
-            if not views_df.empty:
-                fig4.add_trace(go.Scatter(
-                    x=views_df["date"], y=views_df["value"],
-                    name="Page Views", line=dict(color="#ec4899", width=2, dash="dot"),
-                    yaxis="y2"
-                ))
             if len(reach_df) > 3:
                 mean_r = reach_df["value"].mean()
                 std_r = reach_df["value"].std()
@@ -736,18 +707,15 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                                    line_color="rgba(251,191,36,0.5)", line_width=1)
 
             fig4.update_layout(
-                title="Reach vs Page Views (peaks highlighted)",
-                yaxis2=dict(overlaying="y", side="right",
-                            gridcolor="rgba(255,255,255,0.04)"),
+                title="Reach (peaks highlighted)",
                 **CHART_LAYOUT
             )
             st.plotly_chart(fig4, width="stretch")
 
-            v1, v2, v3 = st.columns(3)
+            v1, v2 = st.columns(2)
             v1.metric("Avg Daily Reach", f"{int(reach_df['value'].mean()):,}")
             peak_row = reach_df.loc[reach_df["value"].idxmax()]
             v2.metric("Peak Reach Day", peak_row["date"].strftime("%b %d"), delta=f"{int(peak_row['value']):,}")
-            v3.metric("Total Impressions", f"{safe_sum(vis.get('impressions', [])):,}")
 
             # ── Auto-analysis text ───────────────────────────────────────────
             peak_reach_date = peak_row["date"].strftime("%d/%m")
@@ -766,53 +734,53 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         else:
             st.info("No visibility data available for this period.")
 
-        # ── VUES DE LA PAGE — dedicated section ──────────────────────────────
-        if not views_df.empty:
+        # ── IMPRESSIONS — dedicated section ──────────────────────────────────
+        if not impressions_df.empty:
             st.markdown(
                 '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
                 'text-transform:uppercase;letter-spacing:0.08em;'
                 'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
-                'padding-bottom:0.4rem;">📄 VUES DE LA PAGE</div>',
+                'padding-bottom:0.4rem;">📢 IMPRESSIONS</div>',
                 unsafe_allow_html=True
             )
-            fig_pv = go.Figure()
-            fig_pv.add_trace(go.Scatter(
-                x=views_df["date"], y=views_df["value"],
-                name="Vues de la page",
+            fig_imp = go.Figure()
+            fig_imp.add_trace(go.Scatter(
+                x=impressions_df["date"], y=impressions_df["value"],
+                name="Impressions",
                 fill="tozeroy",
                 line=dict(color="#ec4899", width=2),
                 fillcolor="rgba(236,72,153,0.12)",
                 mode="lines+markers",
                 marker=dict(size=4, color="#ec4899"),
             ))
-            pv_layout = {
+            imp_layout = {
                 **CHART_LAYOUT,
                 "showlegend": False,
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,
             }
-            fig_pv.update_layout(**pv_layout)
-            st.plotly_chart(fig_pv, width="stretch")
+            fig_imp.update_layout(**imp_layout)
+            st.plotly_chart(fig_imp, width="stretch")
 
-            total_pv    = int(views_df["value"].sum())
-            avg_pv      = int(views_df["value"].mean())
-            peak_pv_row = views_df.loc[views_df["value"].idxmax()]
-            peak_pv_d   = peak_pv_row["date"].strftime("%d/%m")
-            peak_pv_v   = int(peak_pv_row["value"])
+            total_imp_v    = int(impressions_df["value"].sum())
+            avg_imp_v      = int(impressions_df["value"].mean())
+            peak_imp_row   = impressions_df.loc[impressions_df["value"].idxmax()]
+            peak_imp_d     = peak_imp_row["date"].strftime("%d/%m")
+            peak_imp_v     = int(peak_imp_row["value"])
 
-            pv1, pv2, pv3 = st.columns(3)
-            pv1.metric("Total Vues", f"{total_pv:,}")
-            pv2.metric("Pic", peak_pv_row["date"].strftime("%b %d"), delta=f"{peak_pv_v:,}")
-            pv3.metric("Moy. journalière", f"{avg_pv:,}")
+            pi1, pi2, pi3 = st.columns(3)
+            pi1.metric("Total Impressions", f"{total_imp_v:,}")
+            pi2.metric("Pic", peak_imp_row["date"].strftime("%b %d"), delta=f"{peak_imp_v:,}")
+            pi3.metric("Moy. journalière", f"{avg_imp_v:,}")
 
             st.markdown(
                 f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(236,72,153,0.6);'
                 f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
                 f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
-                f'Pic de vues de la page : <b style="color:#ec4899;">{peak_pv_d}</b> avec '
-                f'<b style="color:#fff;">{peak_pv_v:,}</b> vues. '
-                f'Total sur la période : <b style="color:#fff;">{total_pv:,}</b> vues '
-                f'(moy. {avg_pv:,}/jour).'
+                f'Pic d\'impressions : <b style="color:#ec4899;">{peak_imp_d}</b> avec '
+                f'<b style="color:#fff;">{peak_imp_v:,}</b> impressions. '
+                f'Total sur la période : <b style="color:#fff;">{total_imp_v:,}</b> '
+                f'(moy. {avg_imp_v:,}/jour).'
                 f'</div>',
                 unsafe_allow_html=True
             )

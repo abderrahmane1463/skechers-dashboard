@@ -418,7 +418,7 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             "post_video_views,"                   # video views ≥3 s
             "post_video_views_unique"             # unique video viewers
         )
-        _DICT_METRIC = "post_reactions_by_type_total"   # separate call (dict value)
+        _DICT_METRIC = "post_reactions_by_type_total,post_activity_by_action_type"  # dict-value metrics
 
         def _process_fb_post(p):
             # ── 0. Public snapshot (always available — no extra API call) ─────
@@ -482,6 +482,12 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             # matches what Facebook shows publicly on the post.
             # Fall back to the public snapshot if insights returned nothing.
             reacs = sum(reactions_by_type.values()) if reactions_by_type else reacs_public
+
+            # post_activity_by_action_type gives a more complete share count
+            # (includes reposts, Reels shares, etc.) vs the public shares.count.
+            activity = metrics.get("post_activity_by_action_type", {})
+            if isinstance(activity, dict) and activity.get("share", 0) > shar:
+                shar = activity.get("share", 0)
 
             return {
                 "id":                   p.get("id", ""),

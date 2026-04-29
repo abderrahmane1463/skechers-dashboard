@@ -34,6 +34,8 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "follower_series": [],
         "follower_additions": [],
         "period_reach": 0,
+        "period_impressions": 0,
+        "story_impressions": 0,
         "username": "footland"
     }
 
@@ -84,27 +86,70 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
                         result["impressions"] = [{"date": v["end_time"][:10], "value": v["value"]} for v in m["values"]]
                 except: pass
 
-    # 3. Deduplicated Period Reach (FB page_impressions_unique logic)
-    # Mirroring the 'week'/'days_28' selection logic from FB
-    best_period = "days_28" if days > 7 else "week"
+    # 3. Deduplicated Period Reach — try multiple approaches to get the closest
+    # value to what Meta Business Suite reports.
+
+    # Attempt A: metric_type=total_value (newer IG API — returns full-period aggregate)
     try:
         data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
             "metric": "reach",
-            "period": best_period,
+            "period": "day",
+            "metric_type": "total_value",
             "since": since_ts,
             "until": until_ts,
         })
         for m in data_p.get("data", []):
             if m["name"] == "reach":
-                vals = m.get("values", [])
-                if vals:
-                    # Like FB, we take the most recent period total
-                    result["period_reach"] = vals[-1]["value"]
-    except Exception:
-        pass
+                tv = m.get("total_value", {})
+                if isinstance(tv, dict):
+                    val = tv.get("value", 0)
+                elif isinstance(tv, (int, float)):
+                    val = int(tv)
+                else:
+                    val = 0
+                if val:
+                    result["period_reach"] = val
+                    print(f"DEBUG IG reach total_value = {val}")
+    except Exception as e:
+        print(f"DEBUG: IG reach total_value error: {e}")
 
-    # 4. New Followers (Retry Pattern like FB fans_adds)
-    for m_name in ["follower_count"]:
+    # Attempt B: period=month
+    if not result["period_reach"]:
+        try:
+            data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                "metric": "reach",
+                "period": "month",
+                "since": since_ts,
+                "until": until_ts,
+            })
+            for m in data_p.get("data", []):
+                if m["name"] == "reach":
+                    vals = m.get("values", [])
+                    if vals:
+                        result["period_reach"] = vals[-1]["value"]
+        except Exception:
+            pass
+
+    # Attempt C: days_28 / week fallback
+    if not result["period_reach"]:
+        best_period = "days_28" if days > 7 else "week"
+        try:
+            data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                "metric": "reach",
+                "period": best_period,
+                "since": since_ts,
+                "until": until_ts,
+            })
+            for m in data_p.get("data", []):
+                if m["name"] == "reach":
+                    vals = m.get("values", [])
+                    if vals:
+                        result["period_reach"] = vals[-1]["value"]
+        except Exception:
+            pass
+
+    # 4. Daily Follower Series — try multiple metric names across API versions
+    for m_name in ["follower_count", "profile_follows", "total_followers_count"]:
         try:
             data = _get(f"{INSTAGRAM_USER_ID}/insights", {
                 "metric": m_name,
@@ -114,13 +159,83 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
             })
             for m in data.get("data", []):
                 if m["name"] == m_name:
-                    result["follower_additions"] = [
-                        {"date": v["end_time"][:10], "value": v["value"]}
-                        for v in m["values"]
-                    ]
-            if result["follower_additions"]: break
-        except Exception:
-            pass
+                    vals = m.get("values", [])
+                    if vals:
+                        result["follower_additions"] = [
+                            {"date": v["end_time"][:10], "value": v["value"]}
+                            for v in vals
+                        ]
+                        print(f"DEBUG IG follower series via '{m_name}': {len(vals)} points")
+            if result["follower_additions"]:
+                break
+        except Exception as e:
+            print(f"DEBUG: IG {m_name} error: {e}")
+
+    # Fallback: try metric_type=total_value for follower_count
+    if not result["follower_additions"]:
+        try:
+            data = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                "metric": "follower_count",
+                "period": "day",
+                "metric_type": "total_value",
+                "since": since_ts,
+                "until": until_ts,
+            })
+            for m in data.get("data", []):
+                if m["name"] == "follower_count":
+                    vals = m.get("values", [])
+                    if vals:
+                        result["follower_additions"] = [
+                            {"date": v["end_time"][:10], "value": v["value"]}
+                            for v in vals
+                        ]
+                        print(f"DEBUG IG follower_count total_value: {len(vals)} points")
+        except Exception as e:
+            print(f"DEBUG: IG follower_count total_value error: {e}")
+
+    # 5. Total Impressions (metric_type=total_value — includes Feed + Reels aggregate)
+    try:
+        data_imp = _get(f"{INSTAGRAM_USER_ID}/insights", {
+            "metric": "impressions",
+            "period": "day",
+            "metric_type": "total_value",
+            "since": since_ts,
+            "until": until_ts,
+        })
+        for m in data_imp.get("data", []):
+            if m["name"] == "impressions":
+                tv = m.get("total_value", {})
+                if isinstance(tv, dict):
+                    val = tv.get("value", 0)
+                elif isinstance(tv, (int, float)):
+                    val = int(tv)
+                else:
+                    val = 0
+                if val:
+                    result["period_impressions"] = val
+                    print(f"DEBUG IG impressions total_value = {val}")
+    except Exception as e:
+        print(f"DEBUG: IG impressions total_value error: {e}")
+
+    # 6. Stories Impressions — Stories are NOT included in the account-level
+    #    impressions metric. Fetch active stories and sum their view counts.
+    try:
+        stories_data = _get(f"{INSTAGRAM_USER_ID}/stories", {
+            "fields": "id,insights.metric(impressions,reach)",
+            "limit": 100,
+        })
+        story_imp_total = 0
+        for story in stories_data.get("data", []):
+            ins_list = story.get("insights", {}).get("data", [])
+            for item in ins_list:
+                if item["name"] == "impressions":
+                    val = item.get("values", [{}])[0].get("value", 0) if item.get("values") else 0
+                    story_imp_total += val
+        if story_imp_total:
+            result["story_impressions"] = story_imp_total
+            print(f"DEBUG IG story impressions = {story_imp_total}")
+    except Exception as e:
+        print(f"DEBUG: IG stories impressions error: {e}")
 
     result["follower_series"] = result["follower_additions"]
     return result
@@ -196,10 +311,10 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             likes, comments = p.get("like_count", 0), p.get("comments_count", 0)
 
             # 2. Fetch Deep Insights (Bulletproof Node-Fields Syntax)
-            impressions, reach, saves = 0, 0, 0
+            impressions, reach, saves, shares = 0, 0, 0, 0
             try:
                 # This syntax is robust: it only returns what the post supports
-                m_list = "total_likes,total_comments,total_views,reach,saved,plays,views,impressions"
+                m_list = "total_likes,total_comments,total_views,reach,saved,shares,plays,views,impressions"
                 data = _get(p["id"], {"fields": f"insights.metric({m_list})"})
 
                 ins_list = data.get("insights", {}).get("data", [])
@@ -217,6 +332,8 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                         reach = val
                     elif name == "saved":
                         saves = val
+                    elif name == "shares":
+                        shares = val
             except:
                 pass
 
@@ -232,7 +349,8 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "reactions":        likes,
                 "comments":         comments,
                 "saves":            saves,
-                "total_interactions": likes + comments + saves,
+                "shares":           shares,
+                "total_interactions": likes + comments + saves + shares,
             }
 
         # Parallelize the insight fetching (Restored for speed)
