@@ -6,6 +6,7 @@ from api.facebook import (
     fetch_fb_demographics,
     fetch_fb_posts,
     fetch_fb_conversations,
+    fetch_fb_messaging_stats,
 )
 from api.instagram import (
     fetch_ig_profile,
