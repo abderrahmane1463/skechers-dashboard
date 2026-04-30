@@ -220,7 +220,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("📝", "Publications",             str(len(posts)))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi("🔥", "Total interactions",   f"{total_engagements:,}", "#FF6B35")}
+  {_kpi("🔥", "Total interactions (posts)",   f"{total_engagements:,}", "#FF6B35")}
   {_kpi("❤️", "Réactions",            f"{total_reacs:,}")}
   {_kpi("💬", "Commentaires",         f"{total_comms:,}")}
   {_kpi("🔁", "Partages",             f"{total_shars:,}")}
