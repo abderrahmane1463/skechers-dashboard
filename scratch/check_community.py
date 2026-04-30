@@ -20,7 +20,7 @@ SINCE = sys.argv[1] if len(sys.argv) > 1 else "2025-03-01"
 UNTIL = sys.argv[2] if len(sys.argv) > 2 else "2025-03-31"
 
 print(f"\nPage ID : {FACEBOOK_PAGE_ID}")
-print(f"Period  : {SINCE} → {UNTIL}\n")
+print(f"Period  : {SINCE} to {UNTIL}\n")
 
 
 def _get(path, params=None):
