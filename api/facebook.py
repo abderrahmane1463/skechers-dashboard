@@ -446,7 +446,7 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
 
 
 # ─── Facebook — Posts ─────────────────────────────────────────────────────────
-def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: int = 100) -> list[dict]:
+def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: int = 20) -> list[dict]:
     """
     Returns Facebook posts within the selected date range.
     """
@@ -587,7 +587,7 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             }
 
         # Parallelize
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             parsed = list(executor.map(_process_fb_post, posts))
 
         return parsed

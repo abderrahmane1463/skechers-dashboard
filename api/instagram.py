@@ -288,7 +288,7 @@ def fetch_ig_engagement(days: int, start: str = None, end: str = None) -> dict:
 
 
 # ─── Instagram — Media / Top Posts ───────────────────────────────────────────
-def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: int = 100) -> list[dict]:
+def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: int = 20) -> list[dict]:
     """
     Returns Instagram media within the selected date range.
     """
@@ -354,7 +354,7 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             }
 
         # Parallelize the insight fetching (Restored for speed)
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             parsed = list(executor.map(_process_ig_post, posts))
 
         return parsed

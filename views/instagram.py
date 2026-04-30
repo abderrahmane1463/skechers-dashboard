@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import api_client as api
 from components.charts import CHART_LAYOUT, series_to_df, safe_sum
@@ -85,10 +86,26 @@ def _render_ig_post_card(post: dict):
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_instagram_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
     with st.spinner("Loading Instagram data…"):
-        ig_profile = get_ig_profile(days, start_date, end_date)
-        ig_eng     = get_ig_engagement(days, start_date, end_date)
-        ig_posts   = get_ig_posts(days, start_date, end_date)
-        ig_convos  = get_ig_conversations(days, start_date, end_date)
+        fetchers = {
+            "profile": lambda: get_ig_profile(days, start_date, end_date),
+            "eng":     lambda: get_ig_engagement(days, start_date, end_date),
+            "posts":   lambda: get_ig_posts(days, start_date, end_date),
+            "convos":  lambda: get_ig_conversations(days, start_date, end_date),
+        }
+        results = {}
+        with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
+            futures = {pool.submit(fn): key for key, fn in fetchers.items()}
+            for future in as_completed(futures):
+                key = futures[future]
+                try:
+                    results[key] = future.result()
+                except Exception as e:
+                    print(f"DEBUG fetch {key} error: {e}")
+                    results[key] = {} if key != "posts" else []
+        ig_profile = results["profile"]
+        ig_eng     = results["eng"]
+        ig_posts   = results["posts"]
+        ig_convos  = results["convos"]
 
     followers          = ig_profile.get("followers_count") or 0
     follower_additions = ig_profile.get("follower_additions", [])

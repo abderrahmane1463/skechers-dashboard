@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import api_client as api
 from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
@@ -169,12 +170,30 @@ def get_fb_demographics(days: int, start: str, end: str):
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_facebook_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
     with st.spinner("Loading Facebook data…"):
-        aud = get_fb_audience(days, start_date, end_date)
-        eng = get_fb_engagement(days, start_date, end_date)
-        vis = get_fb_visibility(days, start_date, end_date)
-        posts = get_fb_posts(days, start_date, end_date)
-        convos = get_fb_conversations(days, start_date, end_date)
-        msg_stats = get_fb_messaging_stats(days, start_date, end_date)
+        fetchers = {
+            "aud":       lambda: get_fb_audience(days, start_date, end_date),
+            "eng":       lambda: get_fb_engagement(days, start_date, end_date),
+            "vis":       lambda: get_fb_visibility(days, start_date, end_date),
+            "posts":     lambda: get_fb_posts(days, start_date, end_date),
+            "convos":    lambda: get_fb_conversations(days, start_date, end_date),
+            "msg_stats": lambda: get_fb_messaging_stats(days, start_date, end_date),
+        }
+        results = {}
+        with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
+            futures = {pool.submit(fn): key for key, fn in fetchers.items()}
+            for future in as_completed(futures):
+                key = futures[future]
+                try:
+                    results[key] = future.result()
+                except Exception as e:
+                    print(f"DEBUG fetch {key} error: {e}")
+                    results[key] = {} if key != "posts" else []
+        aud       = results["aud"]
+        eng       = results["eng"]
+        vis       = results["vis"]
+        posts     = results["posts"]
+        convos    = results["convos"]
+        msg_stats = results["msg_stats"]
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
     total_fans = aud.get("fans_total") or 0
