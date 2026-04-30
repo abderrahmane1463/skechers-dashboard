@@ -280,11 +280,32 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     result["period_impressions"] = sum(v["value"] for v in result.get("impressions", []))
     print(f"DEBUG: period_impressions (daily sum) = {result['period_impressions']}")
 
-    # period_reach — sum the daily page_impressions_unique series.
-    # Note: daily unique reach sums overcount people seen on multiple days,
-    # but this is the only way to reflect the selected date range accurately.
-    result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
-    print(f"DEBUG: period_reach (daily sum) = {result['period_reach']}")
+    # period_reach — deduplicated monthly unique reach via period=month.
+    # Always shows the full calendar month value (deduplicated across all days).
+    import calendar as _cal
+    _since_dt  = datetime.strptime(since, "%Y-%m-%d").date()
+    _, _last_d = _cal.monthrange(_since_dt.year, _since_dt.month)
+    _month_since = f"{_since_dt.year}-{_since_dt.month:02d}-01"
+    _month_until = f"{_since_dt.year}-{_since_dt.month:02d}-{_last_d:02d}"
+    try:
+        data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_unique",
+            "period": "month",
+            "since": _month_since,
+            "until": _month_until,
+        })
+        for m in data_p.get("data", []):
+            if m["name"] == "page_impressions_unique":
+                vals = m.get("values", [])
+                if vals:
+                    result["period_reach"] = max(v["value"] for v in vals)
+        print(f"DEBUG: period_reach (month) = {result['period_reach']}")
+    except Exception as e:
+        print(f"DEBUG: period_reach month error: {e}")
+
+    if not result["period_reach"]:
+        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
+        print(f"DEBUG: period_reach (fallback daily sum) = {result['period_reach']}")
 
     return result
 
