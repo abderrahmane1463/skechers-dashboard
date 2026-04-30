@@ -544,11 +544,11 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             if not isinstance(reactions_by_type, dict):
                 reactions_by_type = {}
 
-            # Use the sum of the breakdown as the canonical reactions count —
-            # post_reactions_by_type_total includes paid/boosted reactions and
-            # matches what Facebook shows publicly on the post.
-            # Fall back to the public snapshot if insights returned nothing.
-            reacs = sum(reactions_by_type.values()) if reactions_by_type else reacs_public
+            # Use the public snapshot as the canonical reactions count —
+            # reactions.summary(true).total_count is exactly what Facebook
+            # displays on the post when you open it. post_reactions_by_type_total
+            # from Insights can differ (delayed reporting, paid vs organic split).
+            reacs = reacs_public
 
             # post_activity_by_action_type gives a more complete share count
             # (includes reposts, Reels shares, etc.) vs the public shares.count.
