@@ -178,6 +178,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_reach = vis.get("period_reach", 0) or safe_sum(vis.get("reach", []))
     total_impressions = vis.get("period_impressions") or safe_sum(vis.get("impressions", []))
     total_views = safe_sum(vis.get("page_views", []))
+    total_content_interactions = eng.get("period_content_interactions", 0)
 
     # Aggregate interactions from posts to exclude clicks (page_post_engagements includes clicks)
     total_reacs = sum(p.get("reactions", 0) for p in posts)
@@ -212,10 +213,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("➖", "Désabonnements",       f"-{total_removes:,}", "#f87171")}
   {_kpi("📊", "Taux d'engagement",   f"{eng_rate}%", "#facc15")}
 </div>
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_kpi("👁️", "Spectateurs",         f"{total_reach:,}")}
-  {_kpi("📢", "Impressions",          f"{total_impressions:,}")}
-  {_kpi("📝", "Publications",         str(len(posts)))}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
+  {_kpi("👁️", "Spectateurs",             f"{total_reach:,}")}
+  {_kpi("📢", "Impressions",              f"{total_impressions:,}")}
+  {_kpi("🤝", "Content Interactions",     f"{total_content_interactions:,}", "#a78bfa")}
+  {_kpi("📝", "Publications",             str(len(posts)))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_kpi("🔥", "Total interactions",   f"{total_engagements:,}", "#FF6B35")}

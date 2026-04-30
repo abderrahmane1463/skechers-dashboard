@@ -94,6 +94,7 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
         "nonfan_daily": [],     # daily impressions to non-followers
         "prev_fan_total": 0,
         "prev_nonfan_total": 0,
+        "period_content_interactions": 0,
     }
 
     try:
@@ -107,8 +108,10 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
             {"date": v["end_time"][:10], "value": v["value"]}
             for v in values
         ]
-    except Exception:
-        pass
+        result["period_content_interactions"] = sum(v["value"] for v in values)
+        print(f"DEBUG: period_content_interactions = {result['period_content_interactions']}")
+    except Exception as e:
+        print(f"DEBUG: page_post_engagements error: {e}")
 
     try:
         data = _get(
