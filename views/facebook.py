@@ -157,8 +157,8 @@ def get_fb_conversations(days=30, start=None, end=None):
     return api.fetch_fb_conversations(25, days, start, end)
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_fb_demographics():
-    return api.fetch_fb_demographics()
+def get_fb_demographics(days: int, start: str, end: str):
+    return api.fetch_fb_demographics(days, start, end)
 
 
 
@@ -436,17 +436,20 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        demo = get_fb_demographics()
-        age_brackets   = demo["age_brackets"]
-        men_pcts       = demo["men"]
-        women_pcts     = demo["women"]
-        total_men_pct  = demo["total_men_pct"]
+        demo = get_fb_demographics(days, start_date, end_date)
+        age_brackets    = demo["age_brackets"]
+        men_pcts        = demo["men"]
+        women_pcts      = demo["women"]
+        total_men_pct   = demo["total_men_pct"]
         total_women_pct = demo["total_women_pct"]
+        top_countries   = demo.get("top_countries", [])
+        top_cities      = demo.get("top_cities", [])
 
+        # ── Age / Gender chart ───────────────────────────────────────────────
         if any(v > 0 for v in men_pcts + women_pcts):
             fig_demo = go.Figure()
             fig_demo.add_trace(go.Bar(
-                name="Men",
+                name="Hommes",
                 x=age_brackets,
                 y=men_pcts,
                 marker_color="#7EC8E3",
@@ -455,7 +458,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 textfont=dict(size=11, color="rgba(255,255,255,0.6)"),
             ))
             fig_demo.add_trace(go.Bar(
-                name="Women",
+                name="Femmes",
                 x=age_brackets,
                 y=women_pcts,
                 marker_color="#1C4E80",
@@ -463,97 +466,100 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 textposition="outside",
                 textfont=dict(size=11, color="rgba(255,255,255,0.6)"),
             ))
-            demo_layout = {
+            _ymax = max(max(men_pcts + women_pcts, default=0) * 1.25, 10)
+            fig_demo.update_layout(**{
                 **CHART_LAYOUT,
                 "barmode": "group",
                 "yaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)",
                     showline=False,
                     ticksuffix="%",
-                    range=[0, 35],
+                    range=[0, _ymax],
                 ),
-                "xaxis": dict(
-                    gridcolor="rgba(255,255,255,0.06)",
-                    showline=False,
-                ),
+                "xaxis": dict(gridcolor="rgba(255,255,255,0.06)", showline=False),
                 "showlegend": False,
                 "margin": dict(l=0, r=0, t=20, b=40),
                 "height": 320,
-            }
-            fig_demo.update_layout(**demo_layout)
-            st.plotly_chart(fig_demo, width="stretch")
+            })
+            st.plotly_chart(fig_demo, use_container_width=True)
 
             st.markdown(
                 f'<div style="display:flex;justify-content:center;align-items:center;gap:2rem;margin-top:-8px;">'
                 f'<div style="display:flex;align-items:center;gap:6px;">'
                 f'<div style="width:24px;height:12px;background:#7EC8E3;border-radius:3px;"></div>'
-                f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Men — <strong>{total_men_pct}%</strong></span>'
+                f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Hommes — <strong>{total_men_pct}%</strong></span>'
                 f'</div>'
                 f'<div style="display:flex;align-items:center;gap:6px;">'
                 f'<div style="width:24px;height:12px;background:#1C4E80;border-radius:3px;"></div>'
-                f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Women — <strong>{total_women_pct}%</strong></span>'
+                f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Femmes — <strong>{total_women_pct}%</strong></span>'
                 f'</div>'
                 f'</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                '<p style="font-size:0.7rem;color:rgba(255,255,255,0.3);text-align:center;margin-top:4px;">'
+                '* Basé sur la portée des campagnes payantes Footland (Marketing API)</p>',
                 unsafe_allow_html=True
             )
         else:
             st.markdown(
                 '<div style="background:rgba(232,66,10,0.08);border:1px solid rgba(232,66,10,0.25);'
                 'border-radius:16px;padding:1.5rem 2rem;text-align:center;">'
-                '<p style="font-size:1.1rem;font-weight:700;color:#FF6B35;margin:0 0 0.5rem;">📊 Données non disponibles via API</p>'
-                '<p style="font-size:0.85rem;color:rgba(255,255,255,0.6);margin:0 0 1rem;">'
-                'Meta a supprimé l\'accès aux données démographiques (âge/genre) via l\'API Graph pour les '
-                'pages "New Page Experience". Ces données sont uniquement accessibles dans Meta Business Suite.'
-                '</p>'
-                '<a href="https://business.facebook.com/insights/" target="_blank" '
-                'style="display:inline-block;background:linear-gradient(90deg,#E8420A,#C1320A);'
-                'color:#fff;text-decoration:none;padding:0.5rem 1.2rem;border-radius:8px;'
-                'font-size:0.85rem;font-weight:600;">🔗 Ouvrir Meta Business Suite</a>'
+                '<p style="font-size:1rem;font-weight:700;color:#FF6B35;margin:0 0 0.4rem;">⏳ Données en cours de chargement</p>'
+                '<p style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin:0;">Vérifiez les logs pour les erreurs Marketing API.</p>'
                 '</div>',
                 unsafe_allow_html=True
             )
 
         # ── Geographic Demographics ──────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        gh1, gh2 = st.columns([1, 1])
-        with gh1:
-            st.markdown(
-                '<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;color:#fff;margin:0;">'
-                'DONNÉES DÉMOGRAPHIQUES</p>'
-                '<p style="font-size:0.8rem;color:rgba(255,255,255,0.4);margin:2px 0 0;">Top villes &amp; pays</p>',
-                unsafe_allow_html=True
-            )
-        with gh2:
-            st.markdown(
-                '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">'
-                '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#1877F2">'
-                '<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 '
-                '10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 '
-                '2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 '
-                '3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>'
-                '<span style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.6);">FACEBOOK PERFORMANCE</span>'
-                '</div>',
-                unsafe_allow_html=True
-            )
+        st.markdown(
+            '<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;color:#fff;margin:0 0 4px;">'
+            'DONNÉES GÉOGRAPHIQUES</p>'
+            '<p style="font-size:0.8rem;color:rgba(255,255,255,0.4);margin:0 0 16px;">Top villes &amp; pays · portée payante Footland</p>',
+            unsafe_allow_html=True
+        )
         st.markdown("<br>", unsafe_allow_html=True)
 
         gcol1, gcol2 = st.columns(2)
-        _geo_card = (
-            '<div style="background:rgba(232,66,10,0.08);border:1px solid rgba(232,66,10,0.2);'
-            'border-radius:16px;padding:1.5rem;text-align:center;">'
-            '<p style="font-size:1rem;font-weight:700;color:#FF6B35;margin:0 0 0.4rem;">{icon} {title}</p>'
-            '<p style="font-size:0.78rem;color:rgba(255,255,255,0.5);margin:0 0 1rem;">'
-            'Données non disponibles via API<br>'
-            '<span style="font-size:0.7rem;">(Restriction Meta — New Page Experience)</span></p>'
-            '<a href="https://business.facebook.com/insights/" target="_blank" '
-            'style="background:linear-gradient(90deg,#E8420A,#C1320A);color:#fff;'
-            'text-decoration:none;padding:0.4rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:600;">'
-            '\U0001f517 Business Suite</a></div>'
-        )
+
+        def _geo_table(items: list, icon: str, title: str):
+            if not items:
+                return (
+                    f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:1.2rem;">'
+                    f'<p style="font-size:0.95rem;font-weight:700;color:#fff;margin:0 0 12px;">{icon} {title}</p>'
+                    f'<p style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin:0;">Aucune donnée disponible</p>'
+                    f'</div>'
+                )
+            rows_html = ""
+            for i, item in enumerate(items):
+                bar_w = round(item["pct"] * 0.9, 1)   # scale to 90% max width
+                rank_color = ["#FFD700", "#C0C0C0", "#CD7F32"] + ["rgba(255,255,255,0.3)"] * 7
+                rows_html += (
+                    f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+                    f'<span style="font-size:0.72rem;font-weight:700;color:{rank_color[i]};width:16px;text-align:right;">#{i+1}</span>'
+                    f'<div style="flex:1;">'
+                    f'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+                    f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.8);">{item["name"]}</span>'
+                    f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{item["reach"]:,} &nbsp;·&nbsp; {item["pct"]}%</span>'
+                    f'</div>'
+                    f'<div style="background:rgba(255,255,255,0.08);border-radius:4px;height:5px;">'
+                    f'<div style="background:#E8420A;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
+                    f'</div>'
+                    f'</div>'
+                    f'</div>'
+                )
+            return (
+                f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:1.2rem;">'
+                f'<p style="font-size:0.95rem;font-weight:700;color:#fff;margin:0 0 14px;">{icon} {title}</p>'
+                f'{rows_html}'
+                f'</div>'
+            )
+
         with gcol1:
-            st.markdown(_geo_card.format(icon="\U0001f3d9️", title="Top Villes"), unsafe_allow_html=True)
+            st.markdown(_geo_table(top_cities, "🏙️", "Top Villes / Régions"), unsafe_allow_html=True)
         with gcol2:
-            st.markdown(_geo_card.format(icon="\U0001f30d", title="Top Pays"), unsafe_allow_html=True)
+            st.markdown(_geo_table(top_countries, "🌍", "Top Pays"), unsafe_allow_html=True)
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
     with tab2:

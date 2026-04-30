@@ -334,67 +334,135 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     return result
 
 
-# ─── Facebook — Demographics ──────────────────────────────────────────────────
-def fetch_fb_demographics() -> dict:
+# ─── Facebook — Demographics (Marketing API) ─────────────────────────────────
+def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) -> dict:
     """
-    Returns lifetime page fans broken down by gender and age bracket.
-    Uses the page_fans_gender_age lifetime insight metric.
+    Returns reach demographics from the Marketing API broken down by:
+      - age + gender  → age/gender bar chart
+      - country       → top countries table
+      - region        → top cities/regions table
+
+    Filters to Footland campaigns only via FOOTLAND_CAMPAIGN_KEYWORDS.
+    page_fans_gender_age is blocked for New Page Experience pages; this
+    uses paid reach demographics as a proxy (matches the report which is
+    also driven primarily by paid campaigns).
+
     Returns {
-        "age_brackets": ["18-24","25-34",...],
-        "men":   [pct, pct, ...],
-        "women": [pct, pct, ...],
+        "age_brackets": [...],
+        "men":   [pct, ...],
+        "women": [pct, ...],
         "total_men_pct":   float,
         "total_women_pct": float,
+        "top_countries": [{"name": str, "reach": int, "pct": float}, ...],
+        "top_cities":    [{"name": str, "reach": int, "pct": float}, ...],
+        "source": "marketing_api",
     }
     """
+    import requests as _requests
+    from api.boost import _get_ads
+    from config import BLOCKED_AD_ACCOUNTS, FOOTLAND_CAMPAIGN_KEYWORDS, GRAPH_BASE_URL
+
+    AD_ACCOUNT = BLOCKED_AD_ACCOUNTS[0]
+    since, until = _date_range(days, start, end)
+    time_range = f'{{"since":"{since}","until":"{until}"}}'
+
     age_order = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
     result = {
         "age_brackets": age_order,
-        "men":   [0] * len(age_order),
-        "women": [0] * len(age_order),
+        "men":   [0.0] * len(age_order),
+        "women": [0.0] * len(age_order),
         "total_men_pct":   0.0,
         "total_women_pct": 0.0,
+        "top_countries": [],
+        "top_cities":    [],
+        "source": "marketing_api",
     }
+
+    def _is_footland(name: str) -> bool:
+        n = (name or "").lower()
+        return any(kw.lower() in n for kw in FOOTLAND_CAMPAIGN_KEYWORDS)
+
+    def _fetch_breakdown(breakdown: str) -> list:
+        """Fetch campaign-level insights for a breakdown, return Footland rows only."""
+        rows = []
+        params = {
+            "level": "campaign",
+            "fields": "campaign_name,reach",
+            "breakdowns": breakdown,
+            "time_range": time_range,
+            "limit": 500,
+        }
+        try:
+            page = _get_ads(f"{AD_ACCOUNT}/insights", params)
+            while True:
+                for row in page.get("data", []):
+                    if _is_footland(row.get("campaign_name", "")):
+                        rows.append(row)
+                next_url = page.get("paging", {}).get("next")
+                if not next_url:
+                    break
+                try:
+                    page = _requests.get(next_url, timeout=30).json()
+                except Exception:
+                    break
+        except Exception as e:
+            print(f"DEBUG demographics [{breakdown}] fetch error: {e}")
+        return rows
+
+    # ── Age + Gender ──────────────────────────────────────────────────────────
     try:
-        data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_fans_gender_age",
-            "period": "lifetime",
-        })
-        entries = data.get("data", [])
-        if not entries:
-            return result
-
-        raw = entries[0].get("values", [{}])[-1].get("value", {})
-        if not raw:
-            return result
-
-        # Aggregate totals
-        totals = {bracket: {"M": 0, "F": 0} for bracket in age_order}
-        grand_total = 0
-        for key, count in raw.items():
-            parts = key.split(".")
-            if len(parts) != 2:
-                continue
-            gender, age = parts[0], parts[1]
-            # Normalise 65+ key variants
-            if age.startswith("65"):
-                age = "65+"
-            if age in totals and gender in ("M", "F"):
-                totals[age][gender] += count
-                grand_total += count
-
-        if grand_total == 0:
-            return result
-
-        men_total   = sum(v["M"] for v in totals.values())
-        women_total = sum(v["F"] for v in totals.values())
-
-        result["men"]   = [round(totals[b]["M"] / grand_total * 100, 1) for b in age_order]
-        result["women"] = [round(totals[b]["F"] / grand_total * 100, 1) for b in age_order]
-        result["total_men_pct"]   = round(men_total   / grand_total * 100, 1)
-        result["total_women_pct"] = round(women_total / grand_total * 100, 1)
+        ag_rows = _fetch_breakdown("age,gender")
+        totals = {b: {"male": 0, "female": 0} for b in age_order}
+        for row in ag_rows:
+            age    = row.get("age", "")
+            gender = row.get("gender", "")
+            reach  = int(row.get("reach", 0) or 0)
+            if age in totals and gender in ("male", "female"):
+                totals[age][gender] += reach
+        grand = sum(v["male"] + v["female"] for v in totals.values())
+        if grand > 0:
+            result["men"]   = [round(totals[b]["male"]   / grand * 100, 1) for b in age_order]
+            result["women"] = [round(totals[b]["female"] / grand * 100, 1) for b in age_order]
+            result["total_men_pct"]   = round(sum(totals[b]["male"]   for b in age_order) / grand * 100, 1)
+            result["total_women_pct"] = round(sum(totals[b]["female"] for b in age_order) / grand * 100, 1)
+        print(f"DEBUG demographics age/gender: {len(ag_rows)} rows, grand={grand}")
     except Exception as e:
-        print(f"DEBUG demographics error: {e}")
+        print(f"DEBUG demographics age/gender error: {e}")
+
+    # ── Countries ─────────────────────────────────────────────────────────────
+    try:
+        c_rows = _fetch_breakdown("country")
+        c_totals: dict[str, int] = {}
+        for row in c_rows:
+            c = row.get("country", "?")
+            c_totals[c] = c_totals.get(c, 0) + int(row.get("reach", 0) or 0)
+        total_c = sum(c_totals.values()) or 1
+        result["top_countries"] = sorted(
+            [{"name": k, "reach": v, "pct": round(v / total_c * 100, 1)}
+             for k, v in c_totals.items()],
+            key=lambda x: x["reach"], reverse=True
+        )[:10]
+        print(f"DEBUG demographics countries: {len(result['top_countries'])} entries")
+    except Exception as e:
+        print(f"DEBUG demographics countries error: {e}")
+
+    # ── Cities / Regions ──────────────────────────────────────────────────────
+    try:
+        r_rows = _fetch_breakdown("region")
+        r_totals: dict[str, int] = {}
+        for row in r_rows:
+            r = row.get("region", "?")
+            r_totals[r] = r_totals.get(r, 0) + int(row.get("reach", 0) or 0)
+        total_r = sum(r_totals.values()) or 1
+        result["top_cities"] = sorted(
+            [{"name": k, "reach": v, "pct": round(v / total_r * 100, 1)}
+             for k, v in r_totals.items()],
+            key=lambda x: x["reach"], reverse=True
+        )[:10]
+        print(f"DEBUG demographics cities: {len(result['top_cities'])} entries")
+    except Exception as e:
+        print(f"DEBUG demographics cities error: {e}")
+
     return result
 
 
