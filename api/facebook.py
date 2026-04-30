@@ -185,12 +185,12 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     }
 
     # 1. Fetch daily metrics (for charts)
-    # page_impressions_unique + page_views_total batch well together.
-    # page_impressions is fetched separately in section 1c (with organic/paid breakdown)
-    # to avoid batch-contamination, then aliased to result["impressions"] below.
+    # page_posts_impressions_unique + page_views_total batch well together.
+    # page_impressions_unique is blocked for this page type (#100 error);
+    # page_posts_impressions_unique is the correct deduplicated reach for posts.
     mapping = {
-        "page_impressions_unique": "reach",
-        "page_views_total":        "page_views",
+        "page_posts_impressions_unique": "reach",
+        "page_views_total":              "page_views",
     }
     metrics_str = ",".join(mapping.keys())
 
@@ -284,26 +284,26 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     print(f"DEBUG: period_impressions (sum daily) = {result['period_impressions']}")
 
     # period_reach — deduplicated monthly unique reach via period=month.
-    # Summing daily page_impressions_unique would overcount (same person on
-    # multiple days counted N times). The period=month call returns one
-    # deduplicated bucket for the calendar month — that is the correct Spectateurs value.
+    # Uses page_posts_impressions_unique (page_impressions_unique is blocked #100
+    # for this page type). The period=month call returns one deduplicated bucket
+    # for the calendar month — that is the correct Spectateurs value.
     _since_dt  = datetime.strptime(since, "%Y-%m-%d").date()
     _, _last_d = calendar.monthrange(_since_dt.year, _since_dt.month)
     _month_since = f"{_since_dt.year}-{_since_dt.month:02d}-01"
     _month_until = f"{_since_dt.year}-{_since_dt.month:02d}-{_last_d:02d}"
     try:
         data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_unique",
+            "metric": "page_posts_impressions_unique",
             "period": "month",
             "since": _month_since,
             "until": _month_until,
         })
         for m in data_p.get("data", []):
-            if m["name"] == "page_impressions_unique":
+            if m["name"] == "page_posts_impressions_unique":
                 vals = m.get("values", [])
                 if vals:
                     result["period_reach"] = max(v["value"] for v in vals)
-        print(f"DEBUG: period_reach (month {_month_since}→{_month_until}) = {result['period_reach']}")
+        print(f"DEBUG: period_reach posts_unique (month {_month_since}→{_month_until}) = {result['period_reach']}")
     except Exception as e:
         print(f"DEBUG: period_reach month error: {e}")
 
