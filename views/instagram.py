@@ -147,8 +147,16 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 </div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👁️", "Couvertures",         f"{total_ig_reach:,}")}
-  {_ig_kpi("📢", "Impressions",         f"{total_ig_impressions:,}")}
+  {_ig_kpi("📢", "Impressions *",       f"{total_ig_impressions:,}")}
   {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}", "#60a5fa")}
+</div>
+<div style="background:rgba(99,102,241,0.07);border-left:3px solid rgba(99,102,241,0.5);
+border-radius:0 8px 8px 0;padding:0.45rem 0.85rem;margin-bottom:0.8rem;
+font-size:0.76rem;color:rgba(255,255,255,0.45);line-height:1.5;">
+* <b style="color:rgba(255,255,255,0.6);">Impressions partielles</b> — Les impressions des Stories
+passées ne sont pas disponibles via l'API Meta après 24h. Le total affiché couvre
+uniquement les publications du feed &amp; Reels. Le rapport peut afficher un chiffre
+plus élevé car il inclut les Stories archivées.
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35")}
@@ -222,17 +230,44 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     unsafe_allow_html=True
                 )
         else:
+            # Daily series unavailable — show static summary card instead
+            _net_color  = "#4ade80" if (ig_new_followers or 0) >= 0 else "#f87171"
+            _net_arrow  = "▲" if (ig_new_followers or 0) >= 0 else "▼"
+            _net_label  = _new_followers_str if ig_new_followers is not None else "—"
             st.markdown(
-                f'<div style="background:rgba(232,66,10,0.08);border:1px solid rgba(232,66,10,0.25);'
-                f'border-radius:16px;padding:1.5rem 2rem;text-align:center;">'
-                f'<p style="font-size:1rem;font-weight:700;color:#FF6B35;margin:0 0 0.5rem;">'
-                f'📊 Données journalières non disponibles via API</p>'
-                f'<p style="font-size:0.85rem;color:rgba(255,255,255,0.6);margin:0;">'
-                f'La métrique <code>follower_count</code> n\'est pas accessible pour ce compte. '
-                f'Le total actuel est <strong style="color:#4ade80;">{followers:,} followers</strong>.'
-                f'</p>'
+                f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.8rem;">'
+
+                # Card 1 — current total
+                f'<div style="background:rgba(255,255,255,0.05);border-radius:16px;'
+                f'padding:1.4rem 1.6rem;text-align:center;">'
+                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem;">'
+                f'👥 Followers (total actuel)</div>'
+                f'<div style="font-size:2.4rem;font-weight:900;color:#7EC8E3;line-height:1;">'
+                f'{followers:,}</div>'
+                f'</div>'
+
+                # Card 2 — net change
+                f'<div style="background:rgba(255,255,255,0.05);border-radius:16px;'
+                f'padding:1.4rem 1.6rem;text-align:center;">'
+                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem;">'
+                f'➕ Variation nette sur la période</div>'
+                f'<div style="font-size:2.4rem;font-weight:900;color:{_net_color};line-height:1;">'
+                f'{_net_arrow} {_net_label}</div>'
+                f'</div>'
+
+                f'</div>'
+
+                # API limitation note
+                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(255,255,255,0.15);'
+                f'border-radius:0 8px 8px 0;padding:0.55rem 1rem;'
+                f'font-size:0.76rem;color:rgba(255,255,255,0.35);line-height:1.5;">'
+                f'ℹ️ La série journalière (<code>follower_count</code>) n\'est pas disponible via l\'API '
+                f'Meta pour ce type de compte. Les données ci-dessus sont calculées à partir du total '
+                f'de la page et de la différence entre la première et la dernière valeur de la période.'
                 f'</div>',
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
@@ -272,32 +307,58 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             saves_df = _full_range.merge(saves_df, on="date", how="left").fillna(0)
 
         if not ci_df.empty:
+            # Dynamic Y-axis ceiling: never clip data, but keep a reasonable minimum
+            _y1_max = max(
+                float(ci_df["value"].max()) * 1.2 if not ci_df.empty else 0,
+                float(likes_df["value"].max()) * 1.2 if not likes_df.empty else 0,
+                20_000,
+            )
+            # Secondary axis ceiling for smaller metrics (comments, saves)
+            _y2_max = max(
+                float(comms_df["value"].max()) * 1.5 if not comms_df.empty else 0,
+                float(saves_df["value"].max()) * 1.5 if not saves_df.empty else 0,
+                500,
+            )
+
             fig_eng = go.Figure()
+            # ── Primary axis (left): Total interactions + Réactions ──────────
             fig_eng.add_trace(go.Scatter(
                 x=ci_df["date"], y=ci_df["value"],
                 name="Total interactions",
                 line=dict(color="#FF6B35", width=3), mode="lines",
+                yaxis="y1",
             ))
             fig_eng.add_trace(go.Scatter(
                 x=likes_df["date"], y=likes_df["value"],
                 name="Réactions",
                 line=dict(color="#f87171", width=2), mode="lines",
+                yaxis="y1",
             ))
+            # ── Secondary axis (right): Commentaires + Enregistrements ───────
             fig_eng.add_trace(go.Scatter(
                 x=comms_df["date"], y=comms_df["value"],
-                name="Commentaires",
-                line=dict(color="#a78bfa", width=2), mode="lines",
+                name="Commentaires (→)",
+                line=dict(color="#a78bfa", width=2, dash="dot"), mode="lines",
+                yaxis="y2",
             ))
             fig_eng.add_trace(go.Scatter(
                 x=saves_df["date"], y=saves_df["value"],
-                name="Enregistrements",
-                line=dict(color="#60a5fa", width=2), mode="lines",
+                name="Enregistrements (→)",
+                line=dict(color="#60a5fa", width=2, dash="dot"), mode="lines",
+                yaxis="y2",
             ))
             fig_eng.update_layout(**{
                 **CHART_LAYOUT,
                 "yaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)", showline=False,
-                    tickformat=",", range=[0, 20000],
+                    tickformat=",", range=[0, _y1_max],
+                    title=dict(text="Interactions", font=dict(size=10, color="rgba(255,255,255,0.3)")),
+                ),
+                "yaxis2": dict(
+                    overlaying="y", side="right",
+                    gridcolor="rgba(255,255,255,0)", showline=False,
+                    tickformat=",", range=[0, _y2_max],
+                    title=dict(text="Commentaires / Enreg.", font=dict(size=10, color="rgba(255,255,255,0.3)")),
                 ),
                 "xaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)", showline=False,
@@ -308,13 +369,13 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 ),
                 "showlegend": True,
                 "legend": dict(
-                    orientation="h", yanchor="bottom", y=-0.25,
+                    orientation="h", yanchor="bottom", y=-0.28,
                     xanchor="center", x=0.5,
                     font=dict(size=11, color="rgba(255,255,255,0.6)"),
                     bgcolor="rgba(0,0,0,0)",
                 ),
-                "margin": dict(l=0, r=0, t=10, b=60),
-                "height": 300,
+                "margin": dict(l=0, r=40, t=10, b=70),
+                "height": 320,
             })
             st.plotly_chart(fig_eng, width="stretch")
 
@@ -328,16 +389,47 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── TAB 3: Visibility ─────────────────────────────────────────────────────
     with tab3:
-        reach_df      = series_to_df(ig_profile.get("reach", []))
+        reach_df       = series_to_df(ig_profile.get("reach", []))
         impressions_df = series_to_df(ig_profile.get("impressions", []))
+
+        # ── Fallbacks: build daily series from per-post data when account-level
+        #    API series are blocked/empty. Posts are grouped by publication date.
+        def _posts_daily(metric: str) -> pd.DataFrame:
+            """Aggregate per-post metric by date → DataFrame with date/value columns."""
+            _d: dict = {}
+            for p in ig_posts:
+                _date = p.get("created_time", "")[:10]
+                if _date:
+                    _d[_date] = _d.get(_date, 0) + p.get(metric, 0)
+            if not _d:
+                return pd.DataFrame()
+            return pd.DataFrame(
+                [{"date": pd.Timestamp(k), "value": v} for k, v in sorted(_d.items())]
+            )
+
+        _reach_from_posts       = False
+        _impressions_from_posts = False
+
+        if reach_df.empty and ig_posts:
+            reach_df = _posts_daily("reach")
+            _reach_from_posts = not reach_df.empty
+
+        if impressions_df.empty and ig_posts:
+            impressions_df = _posts_daily("impressions")
+            _impressions_from_posts = not impressions_df.empty
 
         # ── Reach chart ──
         if not reach_df.empty:
+            _reach_src = (
+                ' <span style="font-size:0.62rem;color:rgba(255,165,0,0.7);'
+                'font-weight:400;letter-spacing:0;">(estimé — agrégé depuis les publications)</span>'
+                if _reach_from_posts else ""
+            )
             st.markdown(
-                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
-                'text-transform:uppercase;letter-spacing:0.08em;'
-                'margin:0 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
-                'padding-bottom:0.4rem;">👁️ COUVERTURES (REACH)</div>',
+                f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                f'text-transform:uppercase;letter-spacing:0.08em;'
+                f'margin:0 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                f'padding-bottom:0.4rem;">👁️ COUVERTURES (REACH){_reach_src}</div>',
                 unsafe_allow_html=True
             )
             fig_reach = go.Figure()
@@ -365,12 +457,27 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
         # ── Impressions chart ──
         if not impressions_df.empty:
+            _imp_src = (
+                ' <span style="font-size:0.62rem;color:rgba(255,165,0,0.7);'
+                'font-weight:400;letter-spacing:0;">(estimé — agrégé depuis les publications)</span>'
+                if _impressions_from_posts else ""
+            )
             st.markdown(
-                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
-                'text-transform:uppercase;letter-spacing:0.08em;'
-                'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
-                'padding-bottom:0.4rem;">📢 IMPRESSIONS</div>',
+                f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                f'text-transform:uppercase;letter-spacing:0.08em;'
+                f'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                f'padding-bottom:0.4rem;">📢 IMPRESSIONS *{_imp_src}</div>',
                 unsafe_allow_html=True
+            )
+            st.markdown(
+                '<div style="background:rgba(99,102,241,0.07);border-left:3px solid rgba(99,102,241,0.5);'
+                'border-radius:0 8px 8px 0;padding:0.45rem 0.85rem;margin-bottom:0.7rem;'
+                'font-size:0.76rem;color:rgba(255,255,255,0.45);line-height:1.5;">'
+                '* Les impressions des <b style="color:rgba(255,255,255,0.6);">Stories passées</b> '
+                'ne sont pas disponibles via l\'API Meta après 24h — ce graphique couvre '
+                'uniquement le feed &amp; les Reels.'
+                '</div>',
+                unsafe_allow_html=True,
             )
             fig_imp = go.Figure()
             fig_imp.add_trace(go.Scatter(

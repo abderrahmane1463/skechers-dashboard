@@ -623,6 +623,19 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             )
 
         if not ci_df.empty:
+            # ── Estimated-data disclaimer ─────────────────────────────────────
+            st.markdown(
+                '<div style="background:rgba(255,165,0,0.08);border-left:3px solid #f59e0b;'
+                'border-radius:0 8px 8px 0;padding:0.5rem 0.9rem;margin-bottom:0.6rem;'
+                'font-size:0.78rem;color:rgba(255,255,255,0.55);line-height:1.5;">'
+                '⚠️ <b style="color:#f59e0b;">Données estimées</b> — La répartition '
+                '<i>Abonnés / Non-abonnés</i> est calculée via le ratio impressions organiques/payées '
+                'par publication (proxy). L\'API Meta ne fournit pas cette ventilation exacte '
+                'pour les pages New Page Experience.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
             fig_ci = go.Figure()
             # Line 1 — Total interactions (orange, thickest)
             fig_ci.add_trace(go.Scatter(
@@ -631,20 +644,20 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 line=dict(color="#FF6B35", width=3),
                 mode="lines",
             ))
-            # Line 2 — From followers (teal)
+            # Line 2 — From followers (teal) — estimated
             if not fan_df.empty:
                 fig_ci.add_trace(go.Scatter(
                     x=fan_df["date"], y=fan_df["value"],
-                    name="From followers",
-                    line=dict(color="#26c6da", width=2),
+                    name="~ Abonnés (estimé)",
+                    line=dict(color="#26c6da", width=2, dash="dot"),
                     mode="lines",
                 ))
-            # Line 3 — From non-followers (light blue)
+            # Line 3 — From non-followers (light blue) — estimated
             if not nonfan_df.empty:
                 fig_ci.add_trace(go.Scatter(
                     x=nonfan_df["date"], y=nonfan_df["value"],
-                    name="From non-followers",
-                    line=dict(color="#b2ebf2", width=2),
+                    name="~ Non-abonnés (estimé)",
+                    line=dict(color="#b2ebf2", width=2, dash="dot"),
                     mode="lines",
                 ))
             ci_layout = {
@@ -678,9 +691,9 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             st.plotly_chart(fig_ci, width="stretch")
 
             ei1, ei2, ei3 = st.columns(3)
-            ei1.metric("Total interactions",   f"{ci_total:,}")
-            ei2.metric("From followers",        f"{fan_total:,}")
-            ei3.metric("From non-followers",    f"{nonfan_total:,}")
+            ei1.metric("Total interactions",        f"{ci_total:,}")
+            ei2.metric("~ Abonnés (estimé)",        f"~{fan_total:,}")
+            ei3.metric("~ Non-abonnés (estimé)",    f"~{nonfan_total:,}")
 
 
     # ── TAB 3: Visibility ────────────────────────────────────────────────────
@@ -688,7 +701,12 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         st.markdown('<div class="section-header">Reach & Page View Fluctuations</div>', unsafe_allow_html=True)
         reach_df      = series_to_df(vis.get("reach", []))
         views_df      = series_to_df(vis.get("page_views", []))
-        impressions_df = series_to_df(vis.get("impressions", []))
+        # Prefer page_impressions_daily (page_impressions — all placements) for the
+        # chart so it matches the 📢 Impressions KPI which also uses page_impressions.
+        # Fall back to the generic "impressions" key only if the primary is absent.
+        impressions_df = series_to_df(
+            vis.get("page_impressions_daily") or vis.get("impressions", [])
+        )
 
         if not reach_df.empty:
             fig4 = go.Figure()
@@ -762,14 +780,15 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             fig_imp.update_layout(**imp_layout)
             st.plotly_chart(fig_imp, width="stretch")
 
-            total_imp_v    = int(impressions_df["value"].sum())
-            avg_imp_v      = int(impressions_df["value"].mean())
-            peak_imp_row   = impressions_df.loc[impressions_df["value"].idxmax()]
-            peak_imp_d     = peak_imp_row["date"].strftime("%d/%m")
-            peak_imp_v     = int(peak_imp_row["value"])
+            # total_impressions = KPI value (period_impressions from page_impressions
+            # monthly aggregate). Use it here so the stat matches the headline KPI exactly.
+            avg_imp_v    = int(impressions_df["value"].mean())
+            peak_imp_row = impressions_df.loc[impressions_df["value"].idxmax()]
+            peak_imp_d   = peak_imp_row["date"].strftime("%d/%m")
+            peak_imp_v   = int(peak_imp_row["value"])
 
             pi1, pi2, pi3 = st.columns(3)
-            pi1.metric("Total Impressions", f"{total_imp_v:,}")
+            pi1.metric("Total Impressions", f"{total_impressions:,}")
             pi2.metric("Pic", peak_imp_row["date"].strftime("%b %d"), delta=f"{peak_imp_v:,}")
             pi3.metric("Moy. journalière", f"{avg_imp_v:,}")
 
@@ -779,7 +798,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
                 f'Pic d\'impressions : <b style="color:#ec4899;">{peak_imp_d}</b> avec '
                 f'<b style="color:#fff;">{peak_imp_v:,}</b> impressions. '
-                f'Total sur la période : <b style="color:#fff;">{total_imp_v:,}</b> '
+                f'Total sur la période : <b style="color:#fff;">{total_impressions:,}</b> '
                 f'(moy. {avg_imp_v:,}/jour).'
                 f'</div>',
                 unsafe_allow_html=True

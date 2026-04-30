@@ -2,7 +2,8 @@
 api/facebook.py — Facebook Graph API fetch functions (organic only).
 """
 
-from datetime import timedelta
+import calendar
+from datetime import timedelta, datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from dateutil import parser as dateparser
@@ -184,10 +185,12 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     }
 
     # 1. Fetch daily metrics (for charts)
+    # page_impressions_unique + page_views_total batch well together.
+    # page_impressions is fetched separately in section 1c (with organic/paid breakdown)
+    # to avoid batch-contamination, then aliased to result["impressions"] below.
     mapping = {
         "page_impressions_unique": "reach",
-        "page_posts_impressions": "impressions",
-        "page_views_total": "page_views",
+        "page_views_total":        "page_views",
     }
     metrics_str = ",".join(mapping.keys())
 
@@ -208,29 +211,54 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: visibility daily insights error: {e}")
 
-    # 1c. Total + Organic + Paid daily impressions — all on the same scale so the
-    #     three-line chart (Vues de la page) renders correctly.
-    #     Fetched in a single isolated call to avoid batch-contamination.
+    # 1c. page_impressions daily series — try page_impressions (all placements),
+    #     fall back to page_posts_impressions if the API rejects it.
+    for _imp_metric in ("page_impressions", "page_posts_impressions"):
+        try:
+            pv_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+                "metric": _imp_metric,
+                "period": "day",
+                "since": since,
+                "until": until,
+            })
+            _raw_names = [m.get("name") for m in pv_data.get("data", [])]
+            print(f"DEBUG: {_imp_metric} response names={_raw_names} data_len={len(pv_data.get('data', []))}")
+            for m in pv_data.get("data", []):
+                if m["name"] == _imp_metric:
+                    series = [
+                        {"date": v["end_time"][:10], "value": v["value"]}
+                        for v in m.get("values", [])
+                    ]
+                    result["page_impressions_daily"] = series
+                    result["impressions"] = series
+            if result["impressions"]:
+                print(f"DEBUG: impressions daily set via {_imp_metric}, rows={len(result['impressions'])}")
+                break   # got data — no need for fallback
+            else:
+                print(f"DEBUG: {_imp_metric} returned empty series, trying fallback")
+        except Exception as e:
+            print(f"DEBUG: {_imp_metric} daily error: {e}")
+
+    # 1c-b. Organic + Paid breakdown — optional, needs ads_read permission.
+    #       Failure here must NOT affect the main impressions series.
     try:
-        pv_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions,page_impressions_organic,page_impressions_paid",
+        op_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_organic,page_impressions_paid",
             "period": "day",
             "since": since,
             "until": until,
         })
-        for m in pv_data.get("data", []):
+        for m in op_data.get("data", []):
             series = [
                 {"date": v["end_time"][:10], "value": v["value"]}
                 for v in m.get("values", [])
             ]
-            if m["name"] == "page_impressions":
-                result["page_impressions_daily"] = series
-            elif m["name"] == "page_impressions_organic":
+            if m["name"] == "page_impressions_organic":
                 result["page_views_organic"] = series
             elif m["name"] == "page_impressions_paid":
                 result["page_views_paid"] = series
     except Exception as e:
-        print(f"DEBUG: impressions breakdown error: {e}")
+        print(f"DEBUG: organic/paid impressions breakdown error: {e}")
 
     # 1d. Previous-period totals for growth indicators (period-over-period %)
     try:
@@ -253,43 +281,55 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: prev period impressions error: {e}")
 
+    # Calendar month boundaries used by both 1b and section 2 below.
+    # We align to the calendar month that contains the START of the selected period
+    # so that the KPI values match what Meta Business Suite / PDF reports show.
+    _since_dt  = datetime.strptime(since, "%Y-%m-%d").date()
+    _, _last_d = calendar.monthrange(_since_dt.year, _since_dt.month)
+    _month_since = f"{_since_dt.year}-{_since_dt.month:02d}-01"
+    _month_until = f"{_since_dt.year}-{_since_dt.month:02d}-{_last_d:02d}"
+
     # 1b. Monthly-level impressions total (page_impressions all sources, period=month)
-    # This matches how Meta Business Suite / reports aggregate impressions —
-    # a monthly aggregate rather than a sum of 31 daily values.
+    # Aligned to the same calendar month as the period_reach call (month of period start).
+    # This matches how Meta Business Suite / PDF reports display impressions.
     try:
         data_mi = _get(f"{FACEBOOK_PAGE_ID}/insights", {
             "metric": "page_impressions",
             "period": "month",
-            "since": since,
-            "until": until,
+            "since": _month_since,
+            "until": _month_until,
         })
+        _mi_names = [m.get("name") for m in data_mi.get("data", [])]
+        print(f"DEBUG: period_impressions response names={_mi_names} since={_month_since} until={_month_until}")
         for m in data_mi.get("data", []):
             if m["name"] == "page_impressions":
                 vals = m.get("values", [])
+                print(f"DEBUG: period_impressions raw values = {vals}")
                 if vals:
-                    # Sum all monthly buckets that fall within the range
-                    result["period_impressions"] = sum(v["value"] for v in vals)
+                    result["period_impressions"] = max(v["value"] for v in vals)
+        print(f"DEBUG: period_impressions = {result['period_impressions']}")
     except Exception as e:
         print(f"DEBUG: visibility monthly impressions error: {e}")
 
     # 2. Fetch deduplicated reach (Period Total) — monthly aggregate
-    # page_impressions_unique with period=month gives true deduplicated reach
-    # for the full month (same person seen across multiple days counted once).
-    # Falls back to days_28, then week if month period fails.
+    # page_impressions_unique with period=month gives true deduplicated reach.
+    # Uses the same calendar-month boundaries computed above for impressions.
     try:
         data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
             "metric": "page_impressions_unique",
             "period": "month",
-            "since": since,
-            "until": until,
+            "since": _month_since,
+            "until": _month_until,
         })
+
         for m in data_p.get("data", []):
             if m["name"] == "page_impressions_unique":
                 vals = m.get("values", [])
                 if vals:
-                    result["period_reach"] = vals[-1]["value"]
-        if result["period_reach"]:
-            print(f"DEBUG: period_reach via month = {result['period_reach']}")
+                    # Take the highest bucket — the most complete calendar month
+                    result["period_reach"] = max(v["value"] for v in vals)
+
+        print(f"DEBUG: period_reach = {result['period_reach']} (month: {_month_since} → {_month_until})")
     except Exception as e:
         print(f"DEBUG: visibility period reach (month) error: {e}")
 

@@ -59,6 +59,16 @@ def render_sidebar(log_refresh_fn):
             log_refresh_fn(platform, period_label, "🔄 Manual Refresh Triggered")
             st.rerun()
 
+        # ── Theme toggle ──────────────────────────────────────────────────────
+        if "theme" not in st.session_state:
+            st.session_state.theme = "dark"
+
+        _is_dark = st.session_state.theme == "dark"
+        _toggle_label = "☀️ Mode Clair" if _is_dark else "🌙 Mode Sombre"
+        if st.button(_toggle_label, width="stretch"):
+            st.session_state.theme = "light" if _is_dark else "dark"
+            st.rerun()
+
         st.divider()
 
         health = _get_health()
