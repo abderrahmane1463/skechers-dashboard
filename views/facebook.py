@@ -881,11 +881,25 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         if unanswered:
             st.markdown("**Recent Unanswered Messages**")
             for item in unanswered[:5]:
-                st.markdown(f"""
-<div class="post-card">
-  <div style="font-size:12px;color:rgba(255,255,255,0.4);">{item.get('time','')}</div>
-  <div style="font-size:14px;margin-top:4px;">{item.get('text','(No message)')}</div>
-</div>""", unsafe_allow_html=True)
+                raw_time = item.get("time", "")
+                try:
+                    from datetime import datetime as _dt
+                    _parsed = _dt.fromisoformat(raw_time.replace("Z", "+00:00"))
+                    fmt_time = _parsed.strftime("%d %b %Y · %H:%M")
+                except Exception:
+                    fmt_time = raw_time
+                sender  = item.get("sender", "")
+                snippet = item.get("text", "(No message)")
+                st.markdown(
+                    f'<div class="post-card">'
+                    f'<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
+                    f'<span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);">👤 {sender}</span>'
+                    f'<span style="font-size:11px;color:rgba(255,255,255,0.35);">{fmt_time}</span>'
+                    f'</div>'
+                    f'<div style="font-size:13px;color:rgba(255,255,255,0.85);">{snippet}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
         else:
             st.success("🎉 All conversations have been responded to!")
 

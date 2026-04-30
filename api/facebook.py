@@ -614,34 +614,38 @@ def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, e
         data = _get(f"{FACEBOOK_PAGE_ID}/conversations", {
             "fields": "id,updated_time,messages{created_time,from,message}",
             "limit": limit,
+            "since": since,
+            "until": until,
         })
         threads = data.get("data", [])
         result["total_threads"] = len(threads)
 
         for thread in threads:
             msgs = thread.get("messages", {}).get("data", [])
-
-            # Count threads whose first message falls within the selected period
-            if msgs:
-                first_msg_date = msgs[-1].get("created_time", "")[:10]
-                if since <= first_msg_date <= until:
-                    result["new_threads"] += 1
-
-            if len(msgs) < 2:
-                result["recent_unanswered"].append({
-                    "text": msgs[0].get("message", "")[:80] if msgs else "",
-                    "time": thread.get("updated_time", "")[:16],
-                })
+            if not msgs:
                 continue
 
-            # Check if page replied (sender is page)
+            # msgs[0] = newest message, msgs[-1] = oldest (first) message
+            first_msg_date = msgs[-1].get("created_time", "")[:10]
+            last_msg       = msgs[0]
+            last_sender_id = str(last_msg.get("from", {}).get("id", ""))
+
+            # New thread = first message within selected period
+            if since <= first_msg_date <= until:
+                result["new_threads"] += 1
+
+            # Page replied at any point?
             page_replied = any(
                 str(m.get("from", {}).get("id", "")) == str(FACEBOOK_PAGE_ID)
                 for m in msgs
             )
-            if page_replied:
+
+            # Unanswered = last message is from user (page hasn't replied yet)
+            last_msg_from_user = last_sender_id != str(FACEBOOK_PAGE_ID)
+
+            if page_replied and not last_msg_from_user:
                 result["replied_threads"] += 1
-                # Calculate response time
+                # Response time = time from first user msg to first page reply
                 first_msg_time = dateparser.parse(msgs[-1]["created_time"])
                 page_reply = next(
                     (m for m in reversed(msgs)
@@ -654,12 +658,14 @@ def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, e
                     if delta_minutes >= 0:
                         result["response_times_minutes"].append(delta_minutes)
             else:
+                snippet = last_msg.get("message", "").strip()
                 result["recent_unanswered"].append({
-                    "text": msgs[0].get("message", "")[:80] if msgs else "",
+                    "text": snippet[:80] if snippet else "(media / attachment)",
                     "time": thread.get("updated_time", "")[:16],
+                    "sender": last_msg.get("from", {}).get("name", ""),
                 })
 
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"DEBUG conversations error: {e}")
 
     return result
