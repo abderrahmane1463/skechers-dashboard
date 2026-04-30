@@ -2,7 +2,6 @@
 api/facebook.py — Facebook Graph API fetch functions (organic only).
 """
 
-import calendar
 from datetime import timedelta, datetime
 from concurrent.futures import ThreadPoolExecutor
 
@@ -275,61 +274,17 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: prev period impressions error: {e}")
 
-    # Calendar month boundaries — used by both period_impressions and period_reach.
-    _since_dt  = datetime.strptime(since, "%Y-%m-%d").date()
-    _, _last_d = calendar.monthrange(_since_dt.year, _since_dt.month)
-    _month_since = f"{_since_dt.year}-{_since_dt.month:02d}-01"
-    _month_until = f"{_since_dt.year}-{_since_dt.month:02d}-{_last_d:02d}"
+    # period_impressions — sum the already-fetched daily series.
+    # Responds to any date range change. Slightly lower than period=month
+    # aggregate (~1-2%) due to Meta's internal aggregation difference.
+    result["period_impressions"] = sum(v["value"] for v in result.get("impressions", []))
+    print(f"DEBUG: period_impressions (daily sum) = {result['period_impressions']}")
 
-    # period_impressions — use period=month for the KPI card.
-    # Summing daily page_posts_impressions under-counts vs the report (~8% gap)
-    # because Meta's monthly aggregate is computed differently from daily buckets.
-    # The daily series in result["impressions"] is kept for the chart only.
-    try:
-        data_mi = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_posts_impressions",
-            "period": "month",
-            "since": _month_since,
-            "until": _month_until,
-        })
-        for m in data_mi.get("data", []):
-            if m["name"] == "page_posts_impressions":
-                vals = m.get("values", [])
-                if vals:
-                    result["period_impressions"] = max(v["value"] for v in vals)
-        print(f"DEBUG: period_impressions (month) = {result['period_impressions']}")
-    except Exception as e:
-        print(f"DEBUG: period_impressions month error: {e}")
-
-    # Fallback: sum daily series if month call returns nothing
-    if not result["period_impressions"]:
-        result["period_impressions"] = sum(v["value"] for v in result.get("impressions", []))
-        print(f"DEBUG: period_impressions (fallback daily sum) = {result['period_impressions']}")
-
-    # period_reach — deduplicated monthly unique reach via period=month.
-    # page_impressions_unique confirmed working (6,802,820 in diagnostic).
-    # page_posts_impressions_unique is narrower (posts only) so we revert to
-    # page_impressions_unique which includes all page touchpoints.
-    try:
-        data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_unique",
-            "period": "month",
-            "since": _month_since,
-            "until": _month_until,
-        })
-        for m in data_p.get("data", []):
-            if m["name"] == "page_impressions_unique":
-                vals = m.get("values", [])
-                if vals:
-                    result["period_reach"] = max(v["value"] for v in vals)
-        print(f"DEBUG: period_reach impressions_unique (month {_month_since}→{_month_until}) = {result['period_reach']}")
-    except Exception as e:
-        print(f"DEBUG: period_reach month error: {e}")
-
-    # Fallback: sum daily reach series if month call returns nothing
-    if not result["period_reach"]:
-        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
-        print(f"DEBUG: period_reach (fallback sum daily) = {result['period_reach']}")
+    # period_reach — sum the daily page_impressions_unique series.
+    # Note: daily unique reach sums overcount people seen on multiple days,
+    # but this is the only way to reflect the selected date range accurately.
+    result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
+    print(f"DEBUG: period_reach (daily sum) = {result['period_reach']}")
 
     return result
 
