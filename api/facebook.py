@@ -600,8 +600,14 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
 def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, end: str = None) -> dict:
     """
     Returns message thread metadata for community management stats.
+
+    The /conversations endpoint does not support since/until as date range
+    filters (those are cursor tokens). We fetch up to 5 pages of 100 threads
+    and filter client-side by updated_time.
     """
     since, until = _date_range(days, start, end)
+    since_dt = dateparser.parse(since).replace(tzinfo=None)
+    until_dt = dateparser.parse(until).replace(tzinfo=None) + timedelta(days=1)
 
     result = {
         "total_threads": 0,
@@ -611,26 +617,58 @@ def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, e
         "recent_unanswered": [],
     }
     try:
-        data = _get(f"{FACEBOOK_PAGE_ID}/conversations", {
+        # Paginate up to 5 pages of 100 threads (500 max) without date filter
+        all_threads = []
+        next_url = f"{FACEBOOK_PAGE_ID}/conversations"
+        params = {
             "fields": "id,updated_time,messages{created_time,from,message}",
-            "limit": limit,
-            "since": since,
-            "until": until,
-        })
-        threads = data.get("data", [])
-        result["total_threads"] = len(threads)
+            "limit": 100,
+        }
+        for _ in range(5):
+            data = _get(next_url, params)
+            page_threads = data.get("data", [])
+            if not page_threads:
+                break
 
-        for thread in threads:
+            for t in page_threads:
+                updated = t.get("updated_time", "")[:19]
+                try:
+                    upd_dt = dateparser.parse(updated).replace(tzinfo=None)
+                except Exception:
+                    continue
+                # Stop paginating once threads are older than our window
+                if upd_dt < since_dt:
+                    page_threads = []  # signal outer loop to stop
+                    break
+                if since_dt <= upd_dt <= until_dt:
+                    all_threads.append(t)
+
+            if not page_threads:
+                break
+
+            next_cursor = data.get("paging", {}).get("cursors", {}).get("after")
+            if not next_cursor:
+                break
+            next_url = f"{FACEBOOK_PAGE_ID}/conversations"
+            params = {
+                "fields": "id,updated_time,messages{created_time,from,message}",
+                "limit": 100,
+                "after": next_cursor,
+            }
+
+        result["total_threads"] = len(all_threads)
+
+        for thread in all_threads:
             msgs = thread.get("messages", {}).get("data", [])
             if not msgs:
                 continue
 
-            # msgs[0] = newest message, msgs[-1] = oldest (first) message
+            # msgs[0] = newest message, msgs[-1] = oldest loaded message
             first_msg_date = msgs[-1].get("created_time", "")[:10]
             last_msg       = msgs[0]
             last_sender_id = str(last_msg.get("from", {}).get("id", ""))
 
-            # New thread = first message within selected period
+            # New thread = first loaded message falls within selected period
             if since <= first_msg_date <= until:
                 result["new_threads"] += 1
 
@@ -640,21 +678,26 @@ def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, e
                 for m in msgs
             )
 
-            # Unanswered = last message is from user (page hasn't replied yet)
-            last_msg_from_user = last_sender_id != str(FACEBOOK_PAGE_ID)
-
-            if page_replied and not last_msg_from_user:
+            # Unanswered = page has NEVER replied in this thread
+            if page_replied:
                 result["replied_threads"] += 1
-                # Response time = time from first user msg to first page reply
-                first_msg_time = dateparser.parse(msgs[-1]["created_time"])
-                page_reply = next(
-                    (m for m in reversed(msgs)
-                     if str(m.get("from", {}).get("id", "")) == str(FACEBOOK_PAGE_ID)),
-                    None,
-                )
-                if page_reply:
-                    reply_time = dateparser.parse(page_reply["created_time"])
-                    delta_minutes = (reply_time - first_msg_time).total_seconds() / 60
+                # Response time: oldest user message → oldest page reply after it
+                # msgs list is newest-first; msgs[-1] = oldest
+                user_msgs = [m for m in msgs
+                             if str(m.get("from", {}).get("id", "")) != str(FACEBOOK_PAGE_ID)]
+                page_msgs = [m for m in msgs
+                             if str(m.get("from", {}).get("id", "")) == str(FACEBOOK_PAGE_ID)]
+                if user_msgs and page_msgs:
+                    # Oldest user message and oldest page reply (both at end of list)
+                    first_user_msg_time = dateparser.parse(user_msgs[-1]["created_time"])
+                    # First page reply that came AFTER the first user message
+                    first_reply_after = next(
+                        (m for m in reversed(page_msgs)
+                         if dateparser.parse(m["created_time"]) >= first_user_msg_time),
+                        page_msgs[-1],
+                    )
+                    reply_time    = dateparser.parse(first_reply_after["created_time"])
+                    delta_minutes = (reply_time - first_user_msg_time).total_seconds() / 60
                     if delta_minutes >= 0:
                         result["response_times_minutes"].append(delta_minutes)
             else:
