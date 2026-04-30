@@ -156,6 +156,10 @@ def get_fb_posts(days, start=None, end=None):
 def get_fb_conversations(days=30, start=None, end=None):
     return api.fetch_fb_conversations(25, days, start, end)
 
+@st.cache_data(ttl=900, show_spinner=False)
+def get_fb_messaging_stats(days=30, start=None, end=None):
+    return api.fetch_fb_messaging_stats(days, start, end)
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_fb_demographics(days: int, start: str, end: str):
     return api.fetch_fb_demographics(days, start, end)
@@ -170,6 +174,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         vis = get_fb_visibility(days, start_date, end_date)
         posts = get_fb_posts(days, start_date, end_date)
         convos = get_fb_conversations(days, start_date, end_date)
+        msg_stats = get_fb_messaging_stats(days, start_date, end_date)
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
     total_fans = aud.get("fans_total") or 0
@@ -841,11 +846,12 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # ── TAB 5: Community Management ───────────────────────────────────────────
     with tab5:
         st.markdown('<div class="section-header">Response Rates & Timing</div>', unsafe_allow_html=True)
-        total_t    = convos.get("total_threads", 0)
-        new_t      = convos.get("new_threads", 0)
-        replied    = convos.get("replied_threads", 0)
-        times      = convos.get("response_times_minutes", [])
-        avg_time   = round(np.mean(times), 1) if times else 0
+        total_t   = convos.get("total_threads", 0)
+        # Nouveaux contacts: from Page Insights (confirmed working API metric)
+        new_t     = msg_stats.get("new_conversations", 0)
+        replied   = convos.get("replied_threads", 0)
+        times     = convos.get("response_times_minutes", [])
+        avg_time  = round(np.mean(times), 1) if times else 0
         response_rate = round(replied / total_t * 100, 1) if total_t else 0
 
         # Format response time as Xh YYmin (like the report)
