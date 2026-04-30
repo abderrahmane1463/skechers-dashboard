@@ -606,8 +606,6 @@ def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, e
     and filter client-side by updated_time.
     """
     since, until = _date_range(days, start, end)
-    since_dt = dateparser.parse(since).replace(tzinfo=None)
-    until_dt = dateparser.parse(until).replace(tzinfo=None) + timedelta(days=1)
 
     result = {
         "total_threads": 0,
@@ -617,44 +615,52 @@ def fetch_fb_conversations(limit: int = 25, days: int = 30, start: str = None, e
         "recent_unanswered": [],
     }
     try:
-        # Paginate up to 5 pages of 100 threads (500 max) without date filter
+        # The /conversations endpoint doesn't reliably support date range params.
+        # Fetch up to 3 pages of 50 threads each, filter client-side by
+        # updated_time (string comparison — ISO date prefix is sortable).
         all_threads = []
-        next_url = f"{FACEBOOK_PAGE_ID}/conversations"
-        params = {
-            "fields": "id,updated_time,messages{created_time,from,message}",
-            "limit": 100,
-        }
-        for _ in range(5):
-            data = _get(next_url, params)
+        cursor = None
+        for _ in range(3):
+            params = {
+                "fields": "id,updated_time,messages{created_time,from,message}",
+                "limit": 50,
+            }
+            if cursor:
+                params["after"] = cursor
+
+            data = _get(f"{FACEBOOK_PAGE_ID}/conversations", params)
             page_threads = data.get("data", [])
             if not page_threads:
                 break
 
+            stop_paginating = False
             for t in page_threads:
-                updated = t.get("updated_time", "")[:19]
-                try:
-                    upd_dt = dateparser.parse(updated).replace(tzinfo=None)
-                except Exception:
+                # updated_time is like "2026-04-29T10:17:32+0000"; first 10 chars = date
+                upd_date = t.get("updated_time", "")[:10]
+                if not upd_date:
                     continue
-                # Stop paginating once threads are older than our window
-                if upd_dt < since_dt:
-                    page_threads = []  # signal outer loop to stop
+                if upd_date < since:
+                    # Threads are newest-first; once we pass our window, stop
+                    stop_paginating = True
                     break
-                if since_dt <= upd_dt <= until_dt:
+                if since <= upd_date <= until:
                     all_threads.append(t)
 
-            if not page_threads:
+            if stop_paginating:
                 break
 
-            next_cursor = data.get("paging", {}).get("cursors", {}).get("after")
-            if not next_cursor:
+            cursor = data.get("paging", {}).get("cursors", {}).get("after")
+            if not cursor:
                 break
-            next_url = f"{FACEBOOK_PAGE_ID}/conversations"
-            params = {
+
+        # Fallback: if date-filtering removed everything, use the raw first page
+        # (handles cases where the page has no activity in the selected window)
+        if not all_threads:
+            fallback = _get(f"{FACEBOOK_PAGE_ID}/conversations", {
                 "fields": "id,updated_time,messages{created_time,from,message}",
-                "limit": 100,
-                "after": next_cursor,
-            }
+                "limit": 25,
+            })
+            all_threads = fallback.get("data", [])
 
         result["total_threads"] = len(all_threads)
 
