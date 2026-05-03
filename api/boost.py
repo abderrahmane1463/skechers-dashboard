@@ -119,9 +119,12 @@ def fetch_boost_insights(
     time_range   = f'{{"since":"{since}","until":"{until}"}}'
 
     # Fields requested from every campaign row
+    # inline_link_clicks = clicks that go to the destination URL (true "link clicks")
+    # unique_inline_link_clicks = deduplicated version
+    # clicks/unique_clicks = ALL clicks (reactions, comments, profile, link) — too broad
     _FIELDS = (
         "campaign_id,campaign_name,objective,"
-        "impressions,reach,clicks,unique_clicks,"
+        "impressions,reach,inline_link_clicks,unique_inline_link_clicks,"
         "spend,cpc,ctr,frequency,"
         "actions,cost_per_action_type"
     )
@@ -236,7 +239,7 @@ def fetch_boost_insights(
             cpc_val    = _safe_float(r.get("cpc"))
             ctr_val    = _safe_float(r.get("ctr"))
             freq_val   = _safe_float(r.get("frequency"))
-            clicks_val = _safe_int(r.get("unique_clicks") or r.get("clicks"))
+            clicks_val = _safe_int(r.get("unique_inline_link_clicks") or r.get("inline_link_clicks"))
             reach_val  = _safe_int(r.get("reach"))
             imp_val    = _safe_int(r.get("impressions"))
             camp_id    = r.get("campaign_id", "")
