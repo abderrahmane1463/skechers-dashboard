@@ -331,6 +331,16 @@ def _render_campaigns_table(campaigns: list[dict]):
         _no_data_banner("Aucune campagne à afficher pour cette période.")
         return
 
+    # Mirror the KPI logic: only campaigns with actual activity in the period
+    total_all    = len(campaigns)
+    campaigns    = [c for c in campaigns if c.get("spend", 0) > 0 or c.get("impressions", 0) > 0]
+    total_active = len(campaigns)
+    inactive     = total_all - total_active
+
+    if not campaigns:
+        _no_data_banner("Aucune campagne active pour cette période.")
+        return
+
     rows = []
     for c in campaigns:
         rows.append({
@@ -384,11 +394,12 @@ def _render_campaigns_table(campaigns: list[dict]):
     )
 
     # Totals summary below the table
+    inactive_note = f' <span style="color:rgba(255,255,255,0.3);">· {inactive} sans activité masquées</span>' if inactive else ""
     st.markdown(
         f'<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);'
         f'border-radius:8px;padding:0.6rem 1rem;margin-top:0.4rem;font-size:0.8rem;'
-        f'color:rgba(255,255,255,0.6);display:flex;gap:2rem;flex-wrap:wrap;">'
-        f'<span>📁 <b style="color:#fff">{len(campaigns)}</b> campagnes</span>'
+        f'color:rgba(255,255,255,0.6);display:flex;gap:2rem;flex-wrap:wrap;align-items:center;">'
+        f'<span>📁 <b style="color:#fff">{total_active}</b> campagnes actives{inactive_note}</span>'
         f'<span>💰 Total dépensé : <b style="color:#f97316">€{totals_row["Dépensé (€)"]:,.2f}</b></span>'
         f'<span>📢 Impressions : <b style="color:#fff">{totals_row["Impressions"]:,}</b></span>'
         f'<span>🖱️ Clics : <b style="color:#fff">{totals_row["Clics"]:,}</b></span>'
