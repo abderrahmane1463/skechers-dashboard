@@ -484,10 +484,9 @@ def _render_geographic(demo: dict):
     """Top cities and top countries from Marketing API paid reach."""
     _section_header("🌍 DONNÉES GÉOGRAPHIQUES")
 
-    top_countries = demo.get("top_countries", [])
-    top_cities    = demo.get("top_cities", [])
+    top_cities = demo.get("top_cities", [])
 
-    if not top_countries and not top_cities:
+    if not top_cities:
         _no_data_banner("Données géographiques non disponibles pour cette période.")
         return
 
@@ -522,18 +521,7 @@ def _render_geographic(demo: dict):
             f'</div>'
         )
 
-    gcol1, gcol2 = st.columns(2)
-    with gcol1:
-        st.markdown(_geo_table(top_cities, "🏙️", "Top Villes / Régions"), unsafe_allow_html=True)
-    with gcol2:
-        st.markdown(_geo_table(top_countries, "🌍", "Top Pays"), unsafe_allow_html=True)
-
-    st.markdown(
-        '<p style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:8px;">'
-        '* Les chiffres représentent la somme des impressions par pays/région sur toutes les campagnes Footland. '
-        'Une même personne vue dans 5 campagnes compte 5 fois — ce n\'est pas une portée dédupliquée.</p>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(_geo_table(top_cities, "🏙️", "Top Villes / Régions"), unsafe_allow_html=True)
 
 
 def _render_campaign_lookup(campaigns: list[dict]):
