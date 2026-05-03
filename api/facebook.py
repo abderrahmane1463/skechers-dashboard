@@ -668,39 +668,25 @@ def fetch_fb_messaging_stats(days: int, start: str = None, end: str = None) -> d
     """
     Returns messaging KPIs sourced from Page Insights.
 
-    page_messages_new_conversations_unique (period=day, summed) is the only
+    page_messages_new_conversations_unique (period=day, summed) — the only
     confirmed working metric for period-scoped contact volume on this page.
-
-    total_contacts uses the same metric as the best available proxy —
-    Meta does not expose a distinct "all contacts incl. returning" metric
-    via the Graph API for organic pages.
-
-    page_messages_blocked_conversations_unique is also summed and returned
-    separately for optional display.
+    page_messages_total_messaging_connections is not supported (empty data).
     """
     since, until = _date_range(days, start, end)
-    result = {
-        "new_conversations": 0,
-        "total_contacts":    0,
-        "blocked":           0,
-    }
+    result = {"new_conversations": 0}
     try:
         data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_messages_new_conversations_unique,"
-                      "page_messages_blocked_conversations_unique",
+            "metric": "page_messages_new_conversations_unique",
             "period": "day",
             "since":  since,
             "until":  until,
         })
         for m in data.get("data", []):
-            name = m.get("name", "")
-            vals = m.get("values", [])
-            total = sum(v.get("value", 0) for v in vals if isinstance(v.get("value"), int))
-            if name == "page_messages_new_conversations_unique":
-                result["new_conversations"] = total
-                result["total_contacts"]    = total   # best proxy available
-            elif name == "page_messages_blocked_conversations_unique":
-                result["blocked"] = total
+            if m.get("name") == "page_messages_new_conversations_unique":
+                vals = m.get("values", [])
+                result["new_conversations"] = sum(
+                    v.get("value", 0) for v in vals if isinstance(v.get("value"), int)
+                )
     except Exception as e:
         print(f"DEBUG messaging stats error: {e}")
     return result

@@ -717,13 +717,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # ── TAB 5: Community Management ───────────────────────────────────────────
     with tab5:
         st.markdown('<div class="section-header">Response Rates & Timing</div>', unsafe_allow_html=True)
-        # Both KPIs come from Page Insights (period-scoped, not /conversations fallback)
-        total_t   = msg_stats.get("total_contacts", 0)
         new_t     = msg_stats.get("new_conversations", 0)
         replied   = convos.get("replied_threads", 0)
         times     = convos.get("response_times_minutes", [])
         avg_time  = round(np.mean(times), 1) if times else 0
-        response_rate = round(replied / total_t * 100, 1) if total_t else 0
+        response_rate = round(replied / new_t * 100, 1) if new_t else 0
 
         # Format response time as Xh YYmin (like the report)
         if avg_time >= 60:
@@ -745,8 +743,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             )
 
         st.markdown(
-            f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">'
-            f'{_cm_kpi("📨", "Total contacts",     f"{total_t:,}")}'
+            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem;">'
             f'{_cm_kpi("🆕", "Nouveaux contacts",  f"{new_t:,}", "#4ade80")}'
             f'{_cm_kpi("✅", "Taux de réponses",   f"{response_rate}%", "#facc15")}'
             f'{_cm_kpi("⏱️", "Temps de réponse",   avg_time_str, "#60a5fa")}'
