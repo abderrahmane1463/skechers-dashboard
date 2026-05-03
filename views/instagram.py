@@ -156,7 +156,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     st.markdown(f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👥", "Followers",           f"{followers:,}")}
-  {_ig_kpi("➕", "Nouveaux Followers",  _new_followers_str, "#4ade80")}
+  {_ig_kpi("📈", "Net Follower Change",  _new_followers_str, "#4ade80")}
   {_ig_kpi("📝", "Publications",        str(len(ig_posts)))}
   {_ig_kpi("📊", "Taux d'engagement",   f"{ig_eng_rate}%", "#facc15")}
 </div>
