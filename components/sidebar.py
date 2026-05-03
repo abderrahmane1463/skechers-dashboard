@@ -4,7 +4,7 @@ import streamlit as st
 from datetime import datetime, timezone, timedelta
 
 from config import PERIOD_DAYS
-import api_client as api
+import api
 
 
 @st.cache_data(ttl=900, show_spinner=False)

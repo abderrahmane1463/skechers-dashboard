@@ -5,7 +5,7 @@ import plotly.express as px
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import api_client as api
+import api
 from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
 
 
