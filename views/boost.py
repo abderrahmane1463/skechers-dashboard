@@ -15,6 +15,7 @@ TODO: replace `empty_boost_data()` calls in views/facebook.py with
 
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 
@@ -322,6 +323,81 @@ def _render_insights_panel(totals: dict, conv: dict):
     st.markdown(rows_html, unsafe_allow_html=True)
 
 
+def _render_campaigns_table(campaigns: list[dict]):
+    """Full sortable table of all campaigns for the selected period."""
+    _section_header("📋 TOUTES LES CAMPAGNES")
+
+    if not campaigns:
+        _no_data_banner("Aucune campagne à afficher pour cette période.")
+        return
+
+    rows = []
+    for c in campaigns:
+        rows.append({
+            "Campagne":        c.get("name", "—"),
+            "Objectif":        c.get("objective", "—"),
+            "Dépensé (€)":     round(c.get("spend", 0.0), 2),
+            "Impressions":     c.get("impressions", 0),
+            "Portée":          c.get("reach", 0),
+            "Clics":           c.get("clicks", 0),
+            "CTR (%)":         round(c.get("ctr", 0.0), 2),
+            "CPC (€)":         round(c.get("cpc", 0.0), 2),
+            "Répétition":      round(c.get("frequency", 0.0), 2),
+            "Commandes":       c.get("conversions", 0),
+            "Coût/vente (€)":  round(c.get("cpa", 0.0), 2),
+        })
+
+    df = pd.DataFrame(rows).sort_values("Dépensé (€)", ascending=False).reset_index(drop=True)
+
+    # Summary totals row
+    totals_row = {
+        "Campagne":       f"TOTAL ({len(campaigns)} campagnes)",
+        "Objectif":       "—",
+        "Dépensé (€)":    round(df["Dépensé (€)"].sum(), 2),
+        "Impressions":    int(df["Impressions"].sum()),
+        "Portée":         int(df["Portée"].sum()),
+        "Clics":          int(df["Clics"].sum()),
+        "CTR (%)":        round(df["CTR (%)"].mean(), 2) if len(df) else 0.0,
+        "CPC (€)":        round(df[df["CPC (€)"] > 0]["CPC (€)"].mean(), 2) if (df["CPC (€)"] > 0).any() else 0.0,
+        "Répétition":     round(df[df["Répétition"] > 0]["Répétition"].mean(), 2) if (df["Répétition"] > 0).any() else 0.0,
+        "Commandes":      int(df["Commandes"].sum()),
+        "Coût/vente (€)": round(df[df["Coût/vente (€)"] > 0]["Coût/vente (€)"].mean(), 2) if (df["Coût/vente (€)"] > 0).any() else 0.0,
+    }
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Campagne":       st.column_config.TextColumn("Campagne", width="large"),
+            "Objectif":       st.column_config.TextColumn("Objectif", width="small"),
+            "Dépensé (€)":    st.column_config.NumberColumn("Dépensé (€)",    format="€%.2f"),
+            "Impressions":    st.column_config.NumberColumn("Impressions",     format="%d"),
+            "Portée":         st.column_config.NumberColumn("Portée",          format="%d"),
+            "Clics":          st.column_config.NumberColumn("Clics",           format="%d"),
+            "CTR (%)":        st.column_config.NumberColumn("CTR (%)",         format="%.2f%%"),
+            "CPC (€)":        st.column_config.NumberColumn("CPC (€)",         format="€%.2f"),
+            "Répétition":     st.column_config.NumberColumn("Répétition",      format="%.2fx"),
+            "Commandes":      st.column_config.NumberColumn("Commandes",       format="%d"),
+            "Coût/vente (€)": st.column_config.NumberColumn("Coût/vente (€)", format="€%.2f"),
+        },
+    )
+
+    # Totals summary below the table
+    st.markdown(
+        f'<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);'
+        f'border-radius:8px;padding:0.6rem 1rem;margin-top:0.4rem;font-size:0.8rem;'
+        f'color:rgba(255,255,255,0.6);display:flex;gap:2rem;flex-wrap:wrap;">'
+        f'<span>📁 <b style="color:#fff">{len(campaigns)}</b> campagnes</span>'
+        f'<span>💰 Total dépensé : <b style="color:#f97316">€{totals_row["Dépensé (€)"]:,.2f}</b></span>'
+        f'<span>📢 Impressions : <b style="color:#fff">{totals_row["Impressions"]:,}</b></span>'
+        f'<span>🖱️ Clics : <b style="color:#fff">{totals_row["Clics"]:,}</b></span>'
+        f'<span>✅ Commandes : <b style="color:#a78bfa">{totals_row["Commandes"]:,}</b></span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ─── Public entry point ────────────────────────────────────────────────────────
 def render_boost_tab(data: dict | None = None):
     """
@@ -359,5 +435,7 @@ def render_boost_tab(data: dict | None = None):
     _render_conversion_campaigns(conv)
     st.divider()
     _render_top_campaigns(campaigns)
+    st.divider()
+    _render_campaigns_table(campaigns)
     st.divider()
     _render_insights_panel(totals, conv)
