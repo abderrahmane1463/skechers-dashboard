@@ -424,7 +424,7 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
         result["top_countries"] = sorted(
             [{"name": k, "reach": v, "pct": round(v / total_c * 100, 1)}
              for k, v in c_totals.items()],
-            key=lambda x: x["reach"], reverse=True
+            key=lambda x: x["reach"], reverse=True,
         )[:10]
         print(f"DEBUG demographics countries: {len(result['top_countries'])} entries")
     except Exception as e:

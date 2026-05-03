@@ -509,7 +509,7 @@ def _render_geographic(demo: dict):
                 f'<div style="flex:1;">'
                 f'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
                 f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.8);">{item["name"]}</span>'
-                f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{item["reach"]:,} · {item["pct"]}%</span>'
+                f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{item["reach"]:,} impr. · {item["pct"]}%</span>'
                 f'</div>'
                 f'<div style="background:rgba(255,255,255,0.08);border-radius:4px;height:5px;">'
                 f'<div style="background:#E8420A;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
@@ -527,6 +527,13 @@ def _render_geographic(demo: dict):
         st.markdown(_geo_table(top_cities, "🏙️", "Top Villes / Régions"), unsafe_allow_html=True)
     with gcol2:
         st.markdown(_geo_table(top_countries, "🌍", "Top Pays"), unsafe_allow_html=True)
+
+    st.markdown(
+        '<p style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:8px;">'
+        '* Les chiffres représentent la somme des impressions par pays/région sur toutes les campagnes Footland. '
+        'Une même personne vue dans 5 campagnes compte 5 fois — ce n\'est pas une portée dédupliquée.</p>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_campaign_lookup(campaigns: list[dict]):
