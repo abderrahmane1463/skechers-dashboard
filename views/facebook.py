@@ -161,19 +161,22 @@ def get_fb_conversations(days=30, start=None, end=None):
 def get_fb_messaging_stats(days=30, start=None, end=None):
     return api.fetch_fb_messaging_stats(days, start, end)
 
-
+@st.cache_data(ttl=900, show_spinner=False)
+def get_fb_post_totals(days=30, start=None, end=None):
+    return api.fetch_fb_post_totals(days, start, end)
 
 
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_facebook_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
     with st.spinner("Loading Facebook data…"):
         fetchers = {
-            "aud":       lambda: get_fb_audience(days, start_date, end_date),
-            "eng":       lambda: get_fb_engagement(days, start_date, end_date),
-            "vis":       lambda: get_fb_visibility(days, start_date, end_date),
-            "posts":     lambda: get_fb_posts(days, start_date, end_date),
-            "convos":    lambda: get_fb_conversations(days, start_date, end_date),
-            "msg_stats": lambda: get_fb_messaging_stats(days, start_date, end_date),
+            "aud":         lambda: get_fb_audience(days, start_date, end_date),
+            "eng":         lambda: get_fb_engagement(days, start_date, end_date),
+            "vis":         lambda: get_fb_visibility(days, start_date, end_date),
+            "posts":       lambda: get_fb_posts(days, start_date, end_date),
+            "post_totals": lambda: get_fb_post_totals(days, start_date, end_date),
+            "convos":      lambda: get_fb_conversations(days, start_date, end_date),
+            "msg_stats":   lambda: get_fb_messaging_stats(days, start_date, end_date),
         }
         results = {}
         with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
@@ -185,12 +188,13 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 except Exception as e:
                     print(f"DEBUG fetch {key} error: {e}")
                     results[key] = {} if key != "posts" else []
-        aud       = results["aud"]
-        eng       = results["eng"]
-        vis       = results["vis"]
-        posts     = results["posts"]
-        convos    = results["convos"]
-        msg_stats = results["msg_stats"]
+        aud         = results["aud"]
+        eng         = results["eng"]
+        vis         = results["vis"]
+        posts       = results["posts"]
+        post_totals = results.get("post_totals", {})
+        convos      = results["convos"]
+        msg_stats   = results["msg_stats"]
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
     total_fans = aud.get("fans_total") or 0
@@ -201,11 +205,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_views = safe_sum(vis.get("page_views", []))
     total_content_interactions = eng.get("period_content_interactions", 0)
 
-    # Aggregate interactions from posts to exclude clicks (page_post_engagements includes clicks)
-    total_reacs = sum(p.get("reactions", 0) for p in posts)
-    total_comms = sum(p.get("comments", 0) for p in posts)
-    total_shars = sum(p.get("shares", 0) for p in posts)
-    total_engagements = total_reacs + total_comms + total_shars
+    # Interactions from all posts in period (not capped at 20)
+    total_reacs = post_totals.get("total_reactions", sum(p.get("reactions", 0) for p in posts))
+    total_comms = post_totals.get("total_comments",  sum(p.get("comments",  0) for p in posts))
+    total_shars = post_totals.get("total_shares",    sum(p.get("shares",    0) for p in posts))
+    total_engagements = post_totals.get("total_interactions", total_reacs + total_comms + total_shars)
 
     eng_rate = round(total_engagements / total_reach * 100, 2) if total_reach else 0.0
 

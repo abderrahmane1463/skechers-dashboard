@@ -5,6 +5,7 @@ from api.facebook import (
     fetch_fb_visibility,
     fetch_fb_demographics,
     fetch_fb_posts,
+    fetch_fb_post_totals,
     fetch_fb_conversations,
     fetch_fb_messaging_stats,
 )

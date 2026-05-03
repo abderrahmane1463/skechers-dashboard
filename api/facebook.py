@@ -599,6 +599,70 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
         return []
 
 
+# ─── Facebook — Post interaction totals (all posts in period) ────────────────
+def fetch_fb_post_totals(days: int = None, start: str = None, end: str = None) -> dict:
+    """
+    Paginates through ALL posts published in the period and sums reactions,
+    comments and shares from the public post snapshot (no per-post insights
+    call — very fast).
+
+    Used exclusively for the KPI row so totals are not capped at 20 posts.
+    The Top Content display still uses fetch_fb_posts (20 posts + full insights).
+    """
+    since, until = _date_range(days or 30, start, end)
+    try:
+        until_incl = str((dateparser.parse(until) + timedelta(days=1)).date())
+    except Exception:
+        until_incl = until
+
+    _FIELDS = "id,reactions.summary(true).filter(stream),comments.summary(true).filter(stream),shares"
+    params = {
+        "fields": _FIELDS,
+        "limit":  100,
+        "since":  since,
+        "until":  until_incl,
+    }
+
+    total_reactions = 0
+    total_comments  = 0
+    total_shares    = 0
+    total_posts     = 0
+
+    for _ in range(10):          # max 10 pages = 1 000 posts safety cap
+        try:
+            data = _get(f"{FACEBOOK_PAGE_ID}/posts", params)
+        except Exception as e:
+            print(f"DEBUG fetch_fb_post_totals page error: {e}")
+            break
+
+        posts = data.get("data", [])
+        if not posts:
+            break
+
+        for p in posts:
+            total_reactions += p.get("reactions", {}).get("summary", {}).get("total_count", 0)
+            total_comments  += p.get("comments",  {}).get("summary", {}).get("total_count", 0)
+            total_shares    += p.get("shares",     {}).get("count", 0)
+            total_posts     += 1
+
+        next_cursor = data.get("paging", {}).get("cursors", {}).get("after")
+        next_url    = data.get("paging", {}).get("next")
+        if not next_url or not next_cursor:
+            break
+        params = {**params, "after": next_cursor}
+
+    print(f"DEBUG fetch_fb_post_totals: {total_posts} posts, "
+          f"{total_reactions} reactions, {total_comments} comments, {total_shares} shares")
+
+    return {
+        "total_posts":     total_posts,
+        "total_reactions": total_reactions,
+        "total_comments":  total_comments,
+        "total_shares":    total_shares,
+        "total_interactions": total_reactions + total_comments + total_shares,
+    }
+
+
 # ─── Facebook — Messaging insights ───────────────────────────────────────────
 def fetch_fb_messaging_stats(days: int, start: str = None, end: str = None) -> dict:
     """
