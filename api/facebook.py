@@ -306,10 +306,6 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: period_reach month error: {e}")
 
-    if not result["period_reach"]:
-        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
-        print(f"DEBUG: period_reach (fallback daily sum) = {result['period_reach']}")
-
     return result
 
 
