@@ -154,10 +154,6 @@ def get_fb_posts(days, start=None, end=None):
     return api.fetch_fb_posts(days, start, end, 100)
 
 @st.cache_data(ttl=900, show_spinner=False)
-def get_fb_conversations(days=30, start=None, end=None):
-    return api.fetch_fb_conversations(25, days, start, end)
-
-@st.cache_data(ttl=900, show_spinner=False)
 def get_fb_messaging_stats(days=30, start=None, end=None):
     return api.fetch_fb_messaging_stats(days, start, end)
 
@@ -175,7 +171,6 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             "vis":         lambda: get_fb_visibility(days, start_date, end_date),
             "posts":       lambda: get_fb_posts(days, start_date, end_date),
             "post_totals": lambda: get_fb_post_totals(days, start_date, end_date),
-            "convos":      lambda: get_fb_conversations(days, start_date, end_date),
             "msg_stats":   lambda: get_fb_messaging_stats(days, start_date, end_date),
         }
         results = {}
@@ -193,7 +188,6 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         vis         = results["vis"]
         posts       = results["posts"]
         post_totals = results.get("post_totals", {})
-        convos      = results["convos"]
         msg_stats   = results["msg_stats"]
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
@@ -716,20 +710,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── TAB 5: Community Management ───────────────────────────────────────────
     with tab5:
-        st.markdown('<div class="section-header">Response Rates & Timing</div>', unsafe_allow_html=True)
-        new_t     = msg_stats.get("new_conversations", 0)
-        replied   = convos.get("replied_threads", 0)
-        times     = convos.get("response_times_minutes", [])
-        avg_time  = round(np.mean(times), 1) if times else 0
-        response_rate = round(replied / new_t * 100, 1) if new_t else 0
-
-        # Format response time as Xh YYmin (like the report)
-        if avg_time >= 60:
-            _h   = int(avg_time // 60)
-            _min = int(avg_time % 60)
-            avg_time_str = f"{_h}h{_min:02d}min"
-        else:
-            avg_time_str = f"{int(avg_time)}min"
+        st.markdown('<div class="section-header">Community Management</div>', unsafe_allow_html=True)
+        new_t = msg_stats.get("new_conversations", 0)
 
         def _cm_kpi(icon, label, value, color="#ffffff"):
             return (
@@ -743,37 +725,9 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             )
 
         st.markdown(
-            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem;">'
+            f'<div style="display:grid;grid-template-columns:repeat(1,1fr);gap:0.6rem;margin-bottom:1rem;">'
             f'{_cm_kpi("🆕", "Nouveaux contacts",  f"{new_t:,}", "#4ade80")}'
-            f'{_cm_kpi("✅", "Taux de réponses",   f"{response_rate}%", "#facc15")}'
-            f'{_cm_kpi("⏱️", "Temps de réponse",   avg_time_str, "#60a5fa")}'
             f'</div>',
             unsafe_allow_html=True
         )
-
-        unanswered = convos.get("recent_unanswered", [])
-        if unanswered:
-            st.markdown("**Recent Unanswered Messages**")
-            for item in unanswered[:5]:
-                raw_time = item.get("time", "")
-                try:
-                    from datetime import datetime as _dt
-                    _parsed = _dt.fromisoformat(raw_time.replace("Z", "+00:00"))
-                    fmt_time = _parsed.strftime("%d %b %Y · %H:%M")
-                except Exception:
-                    fmt_time = raw_time
-                sender  = item.get("sender", "")
-                snippet = item.get("text", "(No message)")
-                st.markdown(
-                    f'<div class="post-card">'
-                    f'<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
-                    f'<span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);">👤 {sender}</span>'
-                    f'<span style="font-size:11px;color:rgba(255,255,255,0.35);">{fmt_time}</span>'
-                    f'</div>'
-                    f'<div style="font-size:13px;color:rgba(255,255,255,0.85);">{snippet}</div>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-        else:
-            st.success("🎉 All conversations have been responded to!")
 
