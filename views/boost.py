@@ -409,6 +409,79 @@ def _render_campaigns_table(campaigns: list[dict]):
     )
 
 
+def _render_campaign_lookup(campaigns: list[dict]):
+    """Search box — type a campaign name fragment to see its full detail card."""
+    _section_header("🔍 RECHERCHE DE CAMPAGNE")
+
+    if not campaigns:
+        _no_data_banner("Aucune campagne disponible.")
+        return
+
+    query = st.text_input(
+        "Nom de la campagne",
+        placeholder="ex: Footland, Week08, Clarks…",
+        label_visibility="collapsed",
+    )
+
+    if not query:
+        st.caption("Tapez tout ou partie du nom d'une campagne pour afficher ses détails.")
+        return
+
+    matches = [c for c in campaigns if query.lower() in c.get("name", "").lower()]
+
+    if not matches:
+        st.warning(f"Aucune campagne ne contient « {query} ».")
+        return
+
+    for c in matches:
+        name      = c.get("name", "—")
+        objective = c.get("objective", "—")
+        spend     = c.get("spend", 0.0)
+        imp       = c.get("impressions", 0)
+        reach     = c.get("reach", 0)
+        clicks    = c.get("clicks", 0)
+        ctr       = c.get("ctr", 0.0)
+        cpc       = c.get("cpc", 0.0)
+        freq      = c.get("frequency", 0.0)
+        conv      = c.get("conversions", 0)
+        cpa       = c.get("cpa", 0.0)
+
+        freq_label = round(freq, 2) if freq else "—"
+
+        st.markdown(
+            f'<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);'
+            f'border-radius:14px;padding:1.2rem 1.4rem;margin-bottom:1rem;">'
+
+            # Campaign name + objective badge
+            f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
+            f'margin-bottom:1rem;gap:1rem;">'
+            f'<div style="font-size:0.9rem;font-weight:700;color:#fff;line-height:1.4;">{name}</div>'
+            f'<div style="background:rgba(255,255,255,0.08);border-radius:6px;padding:0.2rem 0.6rem;'
+            f'font-size:0.68rem;color:rgba(255,255,255,0.5);white-space:nowrap;">{objective}</div>'
+            f'</div>'
+
+            # Row 1 — reach / impressions / frequency / clicks
+            f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.5rem;">'
+            f'{_kpi_card("👁️", "Portée",        f"{reach:,}")}'
+            f'{_kpi_card("📢", "Impressions",   f"{imp:,}")}'
+            f'{_kpi_card("🔁", "Répétition",    f"{freq_label}x")}'
+            f'{_kpi_card("🖱️", "Clics",          f"{clicks:,}")}'
+            f'</div>'
+
+            # Row 2 — spend / CPC / CTR / conversions / CPA
+            f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;">'
+            f'{_kpi_card("💰", "Dépensé",       _fmt_currency(spend),  "#f97316")}'
+            f'{_kpi_card("💸", "CPC",            _fmt_currency(cpc),    "#facc15")}'
+            f'{_kpi_card("📈", "CTR",            _fmt_pct(ctr),         "#4ade80")}'
+            f'{_kpi_card("✅", "Commandes",      f"{conv:,}",           "#a78bfa")}'
+            f'{_kpi_card("🎁", "Coût / vente",  _fmt_currency(cpa),    "#fb7185")}'
+            f'</div>'
+
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
 # ─── Public entry point ────────────────────────────────────────────────────────
 def render_boost_tab(data: dict | None = None):
     """
@@ -448,5 +521,7 @@ def render_boost_tab(data: dict | None = None):
     _render_top_campaigns(campaigns)
     st.divider()
     _render_campaigns_table(campaigns)
+    st.divider()
+    _render_campaign_lookup(campaigns)
     st.divider()
     _render_insights_panel(totals, conv)
