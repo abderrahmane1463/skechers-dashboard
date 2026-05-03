@@ -12,6 +12,7 @@ from views.facebook import render_facebook_dashboard
 from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
 from api.boost import fetch_boost_insights
+from api.facebook import fetch_fb_demographics
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -192,9 +193,27 @@ elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
 else:
     # ── Boost (paid campaigns) ────────────────────────────────────────────────
-    try:
-        boost_data = fetch_boost_insights(days, start_date, end_date)
-    except Exception as e:
-        print(f"DEBUG boost: fetch failed, using placeholder: {e}")
-        boost_data = empty_boost_data()
-    render_boost_tab(boost_data)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _fetch_boost():
+        try:
+            return fetch_boost_insights(days, start_date, end_date)
+        except Exception as e:
+            print(f"DEBUG boost: fetch failed: {e}")
+            return empty_boost_data()
+
+    def _fetch_demo():
+        try:
+            return fetch_fb_demographics(days, start_date, end_date)
+        except Exception as e:
+            print(f"DEBUG boost demographics: fetch failed: {e}")
+            return {}
+
+    with st.spinner("Loading Boost data..."):
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_boost = pool.submit(_fetch_boost)
+            f_demo  = pool.submit(_fetch_demo)
+            boost_data = f_boost.result()
+            demo_data  = f_demo.result()
+
+    render_boost_tab(boost_data, demo_data)

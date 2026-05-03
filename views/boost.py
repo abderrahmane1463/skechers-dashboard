@@ -16,7 +16,10 @@ TODO: replace `empty_boost_data()` calls in views/facebook.py with
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
+
+from components.charts import CHART_LAYOUT
 
 
 # ─── Placeholder data structure ───────────────────────────────────────────────
@@ -409,6 +412,123 @@ def _render_campaigns_table(campaigns: list[dict]):
     )
 
 
+def _render_demographics(demo: dict):
+    """Age / gender bar chart from Marketing API paid reach."""
+    _section_header("👥 DONNÉES DÉMOGRAPHIQUES")
+
+    age_brackets    = demo.get("age_brackets", [])
+    men_pcts        = demo.get("men", [])
+    women_pcts      = demo.get("women", [])
+    total_men_pct   = demo.get("total_men_pct", 0)
+    total_women_pct = demo.get("total_women_pct", 0)
+
+    if not age_brackets or not any(v > 0 for v in men_pcts + women_pcts):
+        _no_data_banner("Données démographiques non disponibles pour cette période.")
+        return
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name="Hommes",
+        x=age_brackets,
+        y=men_pcts,
+        marker_color="#7EC8E3",
+        text=[f"{v}%" for v in men_pcts],
+        textposition="outside",
+        textfont=dict(size=11, color="rgba(255,255,255,0.6)"),
+    ))
+    fig.add_trace(go.Bar(
+        name="Femmes",
+        x=age_brackets,
+        y=women_pcts,
+        marker_color="#1C4E80",
+        text=[f"{v}%" for v in women_pcts],
+        textposition="outside",
+        textfont=dict(size=11, color="rgba(255,255,255,0.6)"),
+    ))
+    _ymax = max(max(men_pcts + women_pcts, default=0) * 1.25, 10)
+    fig.update_layout(**{
+        **CHART_LAYOUT,
+        "barmode": "group",
+        "yaxis": dict(
+            gridcolor="rgba(255,255,255,0.06)", showline=False,
+            ticksuffix="%", range=[0, _ymax],
+        ),
+        "xaxis": dict(gridcolor="rgba(255,255,255,0.06)", showline=False),
+        "showlegend": False,
+        "margin": dict(l=0, r=0, t=20, b=40),
+        "height": 320,
+    })
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(
+        f'<div style="display:flex;justify-content:center;align-items:center;gap:2rem;margin-top:-8px;">'
+        f'<div style="display:flex;align-items:center;gap:6px;">'
+        f'<div style="width:24px;height:12px;background:#7EC8E3;border-radius:3px;"></div>'
+        f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Hommes — <strong>{total_men_pct}%</strong></span>'
+        f'</div>'
+        f'<div style="display:flex;align-items:center;gap:6px;">'
+        f'<div style="width:24px;height:12px;background:#1C4E80;border-radius:3px;"></div>'
+        f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Femmes — <strong>{total_women_pct}%</strong></span>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p style="font-size:0.7rem;color:rgba(255,255,255,0.3);text-align:center;margin-top:4px;">'
+        '* Basé sur la portée des campagnes payantes Footland (Marketing API)</p>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_geographic(demo: dict):
+    """Top cities and top countries from Marketing API paid reach."""
+    _section_header("🌍 DONNÉES GÉOGRAPHIQUES")
+
+    top_countries = demo.get("top_countries", [])
+    top_cities    = demo.get("top_cities", [])
+
+    if not top_countries and not top_cities:
+        _no_data_banner("Données géographiques non disponibles pour cette période.")
+        return
+
+    def _geo_table(items: list, icon: str, title: str) -> str:
+        if not items:
+            return (
+                f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:1.2rem;">'
+                f'<p style="font-size:0.95rem;font-weight:700;color:#fff;margin:0 0 12px;">{icon} {title}</p>'
+                f'<p style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin:0;">Aucune donnée disponible</p>'
+                f'</div>'
+            )
+        rank_colors = ["#FFD700", "#C0C0C0", "#CD7F32"] + ["rgba(255,255,255,0.3)"] * 7
+        rows_html = ""
+        for i, item in enumerate(items):
+            bar_w = round(item["pct"] * 0.9, 1)
+            rows_html += (
+                f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+                f'<span style="font-size:0.72rem;font-weight:700;color:{rank_colors[i]};width:16px;text-align:right;">#{i+1}</span>'
+                f'<div style="flex:1;">'
+                f'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+                f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.8);">{item["name"]}</span>'
+                f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{item["reach"]:,} · {item["pct"]}%</span>'
+                f'</div>'
+                f'<div style="background:rgba(255,255,255,0.08);border-radius:4px;height:5px;">'
+                f'<div style="background:#E8420A;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
+                f'</div></div></div>'
+            )
+        return (
+            f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:1.2rem;">'
+            f'<p style="font-size:0.95rem;font-weight:700;color:#fff;margin:0 0 14px;">{icon} {title}</p>'
+            f'{rows_html}'
+            f'</div>'
+        )
+
+    gcol1, gcol2 = st.columns(2)
+    with gcol1:
+        st.markdown(_geo_table(top_cities, "🏙️", "Top Villes / Régions"), unsafe_allow_html=True)
+    with gcol2:
+        st.markdown(_geo_table(top_countries, "🌍", "Top Pays"), unsafe_allow_html=True)
+
+
 def _render_campaign_lookup(campaigns: list[dict]):
     """Search box — type a campaign name fragment to see its full detail card."""
     _section_header("🔍 RECHERCHE DE CAMPAGNE")
@@ -483,23 +603,19 @@ def _render_campaign_lookup(campaigns: list[dict]):
 
 
 # ─── Public entry point ────────────────────────────────────────────────────────
-def render_boost_tab(data: dict | None = None):
+def render_boost_tab(data: dict | None = None, demo: dict | None = None):
     """
     Render the full Boost (Ads Performance) tab.
 
     Parameters
     ----------
-    data : dict
-        Output of fetch_boost_insights() (future) or empty_boost_data().
-        If None, empty_boost_data() is used automatically.
-
-    TODO: pass real data from api/boost.py once the Marketing API is
-          connected:
-              from api.boost import fetch_boost_insights
-              data = fetch_boost_insights(AD_ACCOUNT_ID, since, until)
+    data : dict  — output of fetch_boost_insights()
+    demo : dict  — output of fetch_fb_demographics() (age/gender + geo)
     """
     if data is None:
         data = empty_boost_data()
+    if demo is None:
+        demo = {}
 
     totals    = data.get("totals",      {})
     conv      = data.get("conversions", {})
@@ -523,5 +639,9 @@ def render_boost_tab(data: dict | None = None):
     _render_campaigns_table(campaigns)
     st.divider()
     _render_campaign_lookup(campaigns)
+    st.divider()
+    _render_demographics(demo)
+    st.divider()
+    _render_geographic(demo)
     st.divider()
     _render_insights_panel(totals, conv)
