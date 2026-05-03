@@ -175,7 +175,7 @@ def _render_conversion_campaigns(conv: dict):
   {_kpi_card("📈", "CTR",             _fmt_pct(conv.get("ctr", 0.0)),                        "#4ade80")}
   {_kpi_card("💰", "Montant dépensé", _fmt_currency(conv.get("spend", 0.0)),                 "#f97316")}
   {_kpi_card("🎁", "Coût par vente",  _fmt_currency(conv.get("cost_per_conversion", 0.0)),   "#fb7185")}
-  {_kpi_card("✅", "Commandes",       _fmt_int(conv.get("total_conversions", 0)),             "#a78bfa")}
+  {_kpi_card("✅", "Commandes (conv.)", _fmt_int(conv.get("total_conversions", 0)),            "#a78bfa")}
 </div>"""
 
     st.markdown(row1 + row2, unsafe_allow_html=True)
@@ -403,7 +403,7 @@ def _render_campaigns_table(campaigns: list[dict]):
         f'<span>💰 Total dépensé : <b style="color:#f97316">€{totals_row["Dépensé (€)"]:,.2f}</b></span>'
         f'<span>📢 Impressions : <b style="color:#fff">{totals_row["Impressions"]:,}</b></span>'
         f'<span>🖱️ Clics : <b style="color:#fff">{totals_row["Clics"]:,}</b></span>'
-        f'<span>✅ Commandes : <b style="color:#a78bfa">{totals_row["Commandes"]:,}</b></span>'
+        f'<span>✅ Commandes (toutes campagnes) : <b style="color:#a78bfa">{totals_row["Commandes"]:,}</b></span>'
         f'</div>',
         unsafe_allow_html=True,
     )
