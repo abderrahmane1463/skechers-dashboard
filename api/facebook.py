@@ -408,12 +408,17 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
     except Exception as e:
         print(f"DEBUG demographics age/gender error: {e}")
 
+    # Values Meta returns that carry no useful geographic information
+    _SKIP = {"unknown", "?", "", "other", "n/a"}
+
     # ── Countries ─────────────────────────────────────────────────────────────
     try:
         c_rows = _fetch_breakdown("country")
         c_totals: dict[str, int] = {}
         for row in c_rows:
-            c = row.get("country", "?")
+            c = row.get("country", "").strip()
+            if c.lower() in _SKIP:
+                continue
             c_totals[c] = c_totals.get(c, 0) + int(row.get("reach", 0) or 0)
         total_c = sum(c_totals.values()) or 1
         result["top_countries"] = sorted(
@@ -430,7 +435,9 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
         r_rows = _fetch_breakdown("region")
         r_totals: dict[str, int] = {}
         for row in r_rows:
-            r = row.get("region", "?")
+            r = row.get("region", "").strip()
+            if r.lower() in _SKIP:
+                continue
             r_totals[r] = r_totals.get(r, 0) + int(row.get("reach", 0) or 0)
         total_r = sum(r_totals.values()) or 1
         result["top_cities"] = sorted(
