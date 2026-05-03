@@ -437,114 +437,40 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     with tab2:
         eng_df = series_to_df(eng.get("engagements", []))
 
-        # ── Content interactions: Followers vs Non-followers (slide 11) ─────────
-        # Build three daily series entirely from posts data so numbers always
-        # match the KPI (reactions + comments + shares).
-        # Follower/non-follower split = organic/paid impression ratio per post.
-        _ci_d, _fan_d, _nonfan_d = {}, {}, {}
+        # ── Content interactions daily chart ────────────────────────────────────
+        _ci_d = {}
         for p in posts:
             d = p.get("created_time", "")[:10]
             if not d:
                 continue
-            ti   = p.get("total_interactions", 0)
-            org  = p.get("impressions_organic", 0)
-            paid = p.get("impressions_paid",    0)
-            denom = org + paid
-            # fan_ratio: what fraction of reach came from organic (follower) channel
-            fan_ratio = (org / denom) if denom > 0 else 0.14
-            _ci_d[d]     = _ci_d.get(d, 0)     + ti
-            _fan_d[d]    = _fan_d.get(d, 0)    + round(ti * fan_ratio)
-            _nonfan_d[d] = _nonfan_d.get(d, 0) + round(ti * (1 - fan_ratio))
+            _ci_d[d] = _ci_d.get(d, 0) + p.get("total_interactions", 0)
 
-        def _make_series(mapping):
-            if not mapping:
-                return pd.DataFrame()
-            return pd.DataFrame(
-                [{"date": pd.Timestamp(k), "value": v}
-                 for k, v in sorted(mapping.items())]
-            )
+        ci_df = pd.DataFrame(
+            [{"date": pd.Timestamp(k), "value": v} for k, v in sorted(_ci_d.items())]
+        ) if _ci_d else pd.DataFrame()
 
-        ci_df     = _make_series(_ci_d)
-        fan_df    = _make_series(_fan_d)
-        nonfan_df = _make_series(_nonfan_d)
-
-        # Fill the full date range so the chart starts from day 1, not first post
         if not ci_df.empty and (start_date or days):
             _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
             _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
             _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
-            ci_df     = _full_range.merge(ci_df,     on="date", how="left").fillna(0)
-            fan_df    = _full_range.merge(fan_df,    on="date", how="left").fillna(0)
-            nonfan_df = _full_range.merge(nonfan_df, on="date", how="left").fillna(0)
+            ci_df = _full_range.merge(ci_df, on="date", how="left").fillna(0)
 
-        ci_total     = int(ci_df["value"].sum())     if not ci_df.empty     else total_engagements
-        fan_total    = int(fan_df["value"].sum())    if not fan_df.empty    else 0
-        nonfan_total = int(nonfan_df["value"].sum()) if not nonfan_df.empty else 0
-
-        # Period-over-period % (use API prev data if available, else "—")
-        prev_fan    = eng.get("prev_fan_total",    0)
-        prev_nonfan = eng.get("prev_nonfan_total", 0)
-
-        def _chg_pct(curr, prev):
-            if not prev:
-                return None
-            return round((curr - prev) / prev * 100, 1)
-
-        def _chg_badge(pct):
-            if pct is None:
-                return '<span style="font-size:0.8rem;color:rgba(255,255,255,0.3);">—</span>'
-            color = "#4ade80" if pct >= 0 else "#f87171"
-            arrow = "▲" if pct >= 0 else "▼"
-            return (
-                f'<span style="font-size:0.85rem;font-weight:700;color:{color};">'
-                f'{arrow} {abs(pct)}%</span>'
-            )
+        ci_total = int(ci_df["value"].sum()) if not ci_df.empty else total_engagements
 
         if not ci_df.empty:
-            # ── Estimated-data disclaimer ─────────────────────────────────────
-            st.markdown(
-                '<div style="background:rgba(255,165,0,0.08);border-left:3px solid #f59e0b;'
-                'border-radius:0 8px 8px 0;padding:0.5rem 0.9rem;margin-bottom:0.6rem;'
-                'font-size:0.78rem;color:rgba(255,255,255,0.55);line-height:1.5;">'
-                '⚠️ <b style="color:#f59e0b;">Données estimées</b> — La répartition '
-                '<i>Abonnés / Non-abonnés</i> est calculée via le ratio impressions organiques/payées '
-                'par publication (proxy). L\'API Meta ne fournit pas cette ventilation exacte '
-                'pour les pages New Page Experience.'
-                '</div>',
-                unsafe_allow_html=True,
-            )
-
             fig_ci = go.Figure()
-            # Line 1 — Total interactions (orange, thickest)
             fig_ci.add_trace(go.Scatter(
                 x=ci_df["date"], y=ci_df["value"],
                 name="Total interactions",
                 line=dict(color="#FF6B35", width=3),
                 mode="lines",
             ))
-            # Line 2 — From followers (teal) — estimated
-            if not fan_df.empty:
-                fig_ci.add_trace(go.Scatter(
-                    x=fan_df["date"], y=fan_df["value"],
-                    name="~ Abonnés (estimé)",
-                    line=dict(color="#26c6da", width=2, dash="dot"),
-                    mode="lines",
-                ))
-            # Line 3 — From non-followers (light blue) — estimated
-            if not nonfan_df.empty:
-                fig_ci.add_trace(go.Scatter(
-                    x=nonfan_df["date"], y=nonfan_df["value"],
-                    name="~ Non-abonnés (estimé)",
-                    line=dict(color="#b2ebf2", width=2, dash="dot"),
-                    mode="lines",
-                ))
             ci_layout = {
                 **CHART_LAYOUT,
                 "yaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)",
                     showline=False,
                     tickformat=",",
-                    range=[0, 20000],
                 ),
                 "xaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)",
@@ -554,24 +480,14 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                               for i in range(0, len(ci_df), max(len(ci_df)//6, 1))][:7],
                     tickangle=0,
                 ),
-                "showlegend": True,
-                "legend": dict(
-                    orientation="h",
-                    yanchor="bottom", y=-0.25,
-                    xanchor="center", x=0.5,
-                    font=dict(size=11, color="rgba(255,255,255,0.6)"),
-                    bgcolor="rgba(0,0,0,0)",
-                ),
-                "margin": dict(l=0, r=0, t=10, b=60),
+                "showlegend": False,
+                "margin": dict(l=0, r=0, t=10, b=40),
                 "height": 300,
             }
             fig_ci.update_layout(**ci_layout)
             st.plotly_chart(fig_ci, width="stretch")
 
-            ei1, ei2, ei3 = st.columns(3)
-            ei1.metric("Total interactions",        f"{ci_total:,}")
-            ei2.metric("~ Abonnés (estimé)",        f"~{fan_total:,}")
-            ei3.metric("~ Non-abonnés (estimé)",    f"~{nonfan_total:,}")
+            st.metric("Total interactions", f"{ci_total:,}")
 
 
     # ── TAB 3: Visibility ────────────────────────────────────────────────────
