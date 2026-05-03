@@ -295,15 +295,30 @@ def fetch_boost_insights(
 
         out["campaigns"] = campaigns
         active_count = sum(1 for c in campaigns if c["spend"] > 0 or c["impressions"] > 0)
+
+        # Frequency = total_impressions / deduplicated_reach
+        # Per-campaign frequency values must NOT be averaged (that ignores campaign size).
+        # The account-level deduplicated reach was already fetched above.
+        dedup_reach = out["totals"].get("reach", 0)
+        total_freq  = round(t_imp / dedup_reach, 2) if dedup_reach else 0.0
+        cv_freq     = round(cv_imp / cv_reach,   2) if cv_reach    else 0.0
+
+        # CPC: weighted by clicks (not a simple average)
+        # CTR: weighted by impressions
+        total_cpc = round(t_spend  / t_clicks,  2) if t_clicks else 0.0
+        total_ctr = round(t_clicks / t_imp * 100, 2) if t_imp  else 0.0
+        cv_cpc    = round(cv_spend  / cv_clicks,  2) if cv_clicks else 0.0
+        cv_ctr    = round(cv_clicks / cv_imp * 100, 2) if cv_imp  else 0.0
+
         out["totals"].update({
             "campaigns_count": active_count,
             "link_clicks":     t_clicks,
             # reach already set by account-level dedup call above — preserved
             "impressions":     t_imp,
             "spend":           t_spend,
-            "cpc":             sum(t_cpcs)  / len(t_cpcs)  if t_cpcs  else 0.0,
-            "ctr":             sum(t_ctrs)  / len(t_ctrs)  if t_ctrs  else 0.0,
-            "frequency":       sum(t_freqs) / len(t_freqs) if t_freqs else 0.0,
+            "cpc":             total_cpc,
+            "ctr":             total_ctr,
+            "frequency":       total_freq,
         })
 
         cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES)
@@ -313,9 +328,9 @@ def fetch_boost_insights(
             "reach":               cv_reach,   # deduplicated
             "impressions":         cv_imp,
             "spend":               cv_spend,
-            "cpc":                 sum(cv_cpcs)  / len(cv_cpcs)  if cv_cpcs  else 0.0,
-            "ctr":                 sum(cv_ctrs)  / len(cv_ctrs)  if cv_ctrs  else 0.0,
-            "frequency":           sum(cv_freqs) / len(cv_freqs) if cv_freqs else 0.0,
+            "cpc":                 cv_cpc,
+            "ctr":                 cv_ctr,
+            "frequency":           cv_freq,
             "total_conversions":   cv_purchases,
             "cost_per_conversion": cv_spend / cv_purchases if cv_purchases else 0.0,
         })
