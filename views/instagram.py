@@ -123,10 +123,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
     total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
 
-    if len(follower_additions) >= 2:
-        ig_new_followers = follower_additions[-1]["value"] - follower_additions[0]["value"]
-    elif len(follower_additions) == 1:
-        ig_new_followers = 0
+    if follower_additions:
+        ig_new_followers = sum(p["value"] for p in follower_additions)
     else:
         ig_new_followers = None
 
