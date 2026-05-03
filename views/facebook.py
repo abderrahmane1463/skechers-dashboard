@@ -713,8 +713,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # ── TAB 5: Community Management ───────────────────────────────────────────
     with tab5:
         st.markdown('<div class="section-header">Response Rates & Timing</div>', unsafe_allow_html=True)
-        total_t   = convos.get("total_threads", 0)
-        # Nouveaux contacts: from Page Insights (confirmed working API metric)
+        # Both KPIs come from Page Insights (period-scoped, not /conversations fallback)
+        total_t   = msg_stats.get("total_contacts", 0)
         new_t     = msg_stats.get("new_conversations", 0)
         replied   = convos.get("replied_threads", 0)
         times     = convos.get("response_times_minutes", [])
