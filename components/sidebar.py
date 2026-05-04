@@ -48,7 +48,7 @@ def render_sidebar(log_refresh_fn):
             st.markdown('<div class="brand-header">⚽ Footland</div>', unsafe_allow_html=True)
         st.markdown('<div class="brand-sub">Organic Analytics Dashboard</div>', unsafe_allow_html=True)
 
-        st.page_link("pages/1_Documentation.py", label="📖 Documentation", use_container_width=True)
+        st.markdown("📖 [Documentation](/1_Documentation)", unsafe_allow_html=False)
         st.divider()
 
         platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram", "🚀 Boost"], label_visibility="collapsed")
