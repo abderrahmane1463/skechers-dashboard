@@ -1,0 +1,30 @@
+name: Refresh Data
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:          # manual trigger from GitHub UI
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests python-dotenv python-dateutil
+
+      - name: Run fetcher
+        env:
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
+          FOOTLAND_TOKEN:     ${{ secrets.FOOTLAND_TOKEN }}
+          FOOTLAND_ADS_TOKEN: ${{ secrets.FOOTLAND_ADS_TOKEN }}
+        run: python fetcher.py
