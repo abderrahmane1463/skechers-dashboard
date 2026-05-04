@@ -11,8 +11,7 @@ from components.sidebar import render_sidebar
 from views.facebook import render_facebook_dashboard
 from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
-from api.boost import fetch_boost_insights
-from api.facebook import fetch_fb_demographics
+import db
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -197,14 +196,14 @@ else:
 
     def _fetch_boost():
         try:
-            return fetch_boost_insights(days, start_date, end_date)
+            return db.get_boost_insights(days, start_date, end_date)
         except Exception as e:
             print(f"DEBUG boost: fetch failed: {e}")
             return empty_boost_data()
 
     def _fetch_demo():
         try:
-            return fetch_fb_demographics(days, start_date, end_date)
+            return db.get_fb_demographics(days, start_date, end_date)
         except Exception as e:
             print(f"DEBUG boost demographics: fetch failed: {e}")
             return {}

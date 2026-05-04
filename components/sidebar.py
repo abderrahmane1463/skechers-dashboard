@@ -4,12 +4,28 @@ import streamlit as st
 from datetime import datetime, timezone, timedelta
 
 from config import PERIOD_DAYS
-import api
+import db
 
 
 @st.cache_data(ttl=900, show_spinner=False)
 def _get_health():
-    return api.check_api_health()
+    try:
+        result = db.load_fetched_at("ig_profile", "2026-01-01", "2026-12-31")
+        # Just check if Supabase responds — any response means connection is OK
+        import requests, os
+        from dotenv import load_dotenv
+        load_dotenv()
+        resp = requests.get(
+            f"{os.environ['SUPABASE_URL']}/rest/v1/metric_cache",
+            headers={"apikey": os.environ["SUPABASE_KEY"], "Authorization": f"Bearer {os.environ['SUPABASE_KEY']}"},
+            params={"limit": "1", "select": "id"},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            return {"status": "ok", "name": "Supabase connecte"}
+        return {"status": "error", "message": f"Supabase HTTP {resp.status_code}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 def render_sidebar(log_refresh_fn):
@@ -73,10 +89,10 @@ def render_sidebar(log_refresh_fn):
 
         health = _get_health()
         if health.get("status") == "ok":
-            st.success(f"✅ API Connected\n\n{health.get('name', '')}")
+            st.success(f"✅ Base de donnees connectee")
         else:
-            st.error(f"❌ API Error\n\n{health.get('message', 'Unknown error')}")
+            st.error(f"❌ Erreur\n\n{health.get('message', 'Unknown error')}")
 
-        st.caption("Cache TTL: 15 min • Graph API v19.0")
+        st.caption("Cache TTL: 15 min • Supabase")
 
     return platform, period_label, days, start_date, end_date

@@ -363,6 +363,72 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
         return []
 
 
+# ─── Instagram — Post totals (all posts in period) ───────────────────────────
+def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -> dict:
+    """
+    Paginates through ALL Instagram posts in the period, fetches per-post
+    impressions via insights, and returns summed KPI totals.
+
+    Used for the 📢 Impressions KPI so the value covers all posts, not
+    just the 20 shown in the Top Content tab.
+    """
+    since, until = _date_range(days or 30, start, end)
+    try:
+        until_incl = str((dateparser.parse(until) + timedelta(days=1)).date())
+    except Exception:
+        until_incl = until
+
+    params = {
+        "fields": "id,timestamp,media_type",
+        "limit":  100,
+        "since":  since,
+        "until":  until_incl,
+    }
+
+    all_posts = []
+    for _ in range(10):          # max 10 pages = 1 000 posts safety cap
+        try:
+            data = _get(f"{INSTAGRAM_USER_ID}/media", params)
+        except Exception as e:
+            print(f"DEBUG fetch_ig_post_totals page error: {e}")
+            break
+        posts = data.get("data", [])
+        if not posts:
+            break
+        all_posts.extend(posts)
+        next_url    = data.get("paging", {}).get("next")
+        next_cursor = data.get("paging", {}).get("cursors", {}).get("after")
+        if not next_url or not next_cursor:
+            break
+        params = {**params, "after": next_cursor}
+
+    def _get_impressions(p):
+        try:
+            m_list = "total_views,impressions,views,plays"
+            d = _get(p["id"], {"fields": f"insights.metric({m_list})"})
+            imp = 0
+            for item in d.get("insights", {}).get("data", []):
+                val = item["values"][0]["value"] if item.get("values") else 0
+                imp = max(imp, val)
+            return imp
+        except Exception:
+            return 0
+
+    total_impressions = 0
+    total_posts       = len(all_posts)
+
+    if all_posts:
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            results = list(executor.map(_get_impressions, all_posts))
+        total_impressions = sum(results)
+
+    print(f"DEBUG fetch_ig_post_totals: {total_posts} posts, {total_impressions} impressions")
+    return {
+        "total_posts":       total_posts,
+        "total_impressions": total_impressions,
+    }
+
+
 # ─── Instagram — Conversations (Community Management) ─────────────────────────
 def fetch_ig_conversations(days: int = 30, start: str = None, end: str = None, limit: int = 25) -> dict:
     """

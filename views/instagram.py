@@ -1,29 +1,28 @@
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import api
+import db
 from components.charts import CHART_LAYOUT, series_to_df, safe_sum
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
 @st.cache_data(ttl=900, show_spinner=False)
 def get_ig_profile(days, start=None, end=None):
-    return api.fetch_ig_profile(days, start, end)
+    return db.get_ig_profile(days, start, end)
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_ig_engagement(days, start=None, end=None):
-    return api.fetch_ig_engagement(days, start, end)
+    return db.get_ig_engagement(days, start, end)
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_ig_posts(days, start=None, end=None):
-    return api.fetch_ig_posts(days, start, end, 100)
+    return db.get_ig_posts(days, start, end)
 
 @st.cache_data(ttl=900, show_spinner=False)
-def get_ig_conversations(days, start=None, end=None):
-    return api.fetch_ig_conversations(days, start, end)
+def get_ig_post_totals(days, start=None, end=None):
+    return db.get_ig_post_totals(days, start, end)
 
 
 # ─── Post card helper ─────────────────────────────────────────────────────────
@@ -87,10 +86,10 @@ def _render_ig_post_card(post: dict):
 def render_instagram_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
     with st.spinner("Loading Instagram data…"):
         fetchers = {
-            "profile": lambda: get_ig_profile(days, start_date, end_date),
-            "eng":     lambda: get_ig_engagement(days, start_date, end_date),
-            "posts":   lambda: get_ig_posts(days, start_date, end_date),
-            "convos":  lambda: get_ig_conversations(days, start_date, end_date),
+            "profile":     lambda: get_ig_profile(days, start_date, end_date),
+            "eng":         lambda: get_ig_engagement(days, start_date, end_date),
+            "posts":       lambda: get_ig_posts(days, start_date, end_date),
+            "post_totals": lambda: get_ig_post_totals(days, start_date, end_date),
         }
         results = {}
         with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
@@ -102,20 +101,19 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 except Exception as e:
                     print(f"DEBUG fetch {key} error: {e}")
                     results[key] = {} if key != "posts" else []
-        ig_profile = results["profile"]
-        ig_eng     = results["eng"]
-        ig_posts   = results["posts"]
-        ig_convos  = results["convos"]
+        ig_profile   = results["profile"]
+        ig_eng       = results["eng"]
+        ig_posts     = results["posts"]
+        ig_post_totals = results.get("post_totals", {})
 
     followers          = ig_profile.get("followers_count") or 0
     follower_additions = ig_profile.get("follower_additions", [])
     total_ig_reach     = ig_profile.get("period_reach", 0) or safe_sum(ig_profile.get("reach", []))
 
-    _acct_impressions  = ig_profile.get("period_impressions", 0) or safe_sum(ig_profile.get("impressions", []))
-    _story_impressions = sum(p.get("impressions", 0) for p in ig_posts if p.get("media_type") == "STORY")
-    total_ig_impressions = _acct_impressions + _story_impressions
-    if total_ig_impressions == 0:
-        total_ig_impressions = sum(p.get("impressions", 0) for p in ig_posts)
+    total_ig_impressions = (
+        sum(p.get("impressions", 0) for p in ig_posts)
+        or ig_post_totals.get("total_impressions")
+    )
 
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
@@ -162,16 +160,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 </div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👁️", "Couvertures",         f"{total_ig_reach:,}")}
-  {_ig_kpi("📢", "Impressions *",       f"{total_ig_impressions:,}")}
+  {_ig_kpi("📢", "Impressions (Posts)",  f"{total_ig_impressions:,}")}
   {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}", "#60a5fa")}
-</div>
-<div style="background:rgba(99,102,241,0.07);border-left:3px solid rgba(99,102,241,0.5);
-border-radius:0 8px 8px 0;padding:0.45rem 0.85rem;margin-bottom:0.8rem;
-font-size:0.76rem;color:rgba(255,255,255,0.45);line-height:1.5;">
-* <b style="color:rgba(255,255,255,0.6);">Impressions partielles</b> — Les impressions des Stories
-passées ne sont pas disponibles via l'API Meta après 24h. Le total affiché couvre
-uniquement les publications du feed &amp; Reels. Le rapport peut afficher un chiffre
-plus élevé car il inclut les Stories archivées.
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35")}
@@ -184,8 +174,8 @@ plus élevé car il inclut les Stories archivées.
     st.divider()
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content", "🤝 Community"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content"
     ])
 
     # ── TAB 1: Audience ───────────────────────────────────────────────────────
@@ -553,52 +543,3 @@ plus élevé car il inclut les Stories archivées.
                     _render_ig_post_card(post)
         else:
             st.info("No post data available.")
-
-    # ── TAB 5: Community ──────────────────────────────────────────────────────
-    with tab5:
-        total_t  = ig_convos.get("total_threads", 0)
-        new_t    = ig_convos.get("new_threads", 0)
-        replied  = ig_convos.get("replied_threads", 0)
-        times    = ig_convos.get("response_times_minutes", [])
-        avg_time = round(np.mean(times), 1) if times else 0
-        response_rate = round(replied / total_t * 100, 1) if total_t else 0
-
-        if avg_time >= 60:
-            _h = int(avg_time // 60)
-            _min = int(avg_time % 60)
-            avg_time_str = f"{_h}h{_min:02d}min"
-        else:
-            avg_time_str = f"{int(avg_time)}min"
-
-        def _cm_kpi(icon, label, value, color="#ffffff"):
-            return (
-                f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
-                f'padding:0.9rem 1rem;text-align:center;">'
-                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
-                f'margin-bottom:0.25rem;">{icon} {label}</div>'
-                f'<div style="font-size:1.35rem;font-weight:800;color:{color};'
-                f'white-space:nowrap;">{value}</div>'
-                f'</div>'
-            )
-
-        st.markdown(
-            f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">'
-            f'{_cm_kpi("📨", "Total contacts",    f"{total_t:,}")}'
-            f'{_cm_kpi("🆕", "Nouveaux contacts", f"{new_t:,}", "#4ade80")}'
-            f'{_cm_kpi("✅", "Taux de réponses",  f"{response_rate}%", "#facc15")}'
-            f'{_cm_kpi("⏱️", "Temps de réponse",  avg_time_str, "#60a5fa")}'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-
-        unanswered = ig_convos.get("recent_unanswered", [])
-        if unanswered:
-            st.markdown("**Messages sans réponse récents**")
-            for item in unanswered[:5]:
-                st.markdown(f"""
-<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;">
-  <div style="font-size:12px;color:rgba(255,255,255,0.4);">{item.get('time','')}</div>
-  <div style="font-size:14px;margin-top:4px;">{item.get('text','(No message)')}</div>
-</div>""", unsafe_allow_html=True)
-        else:
-            st.success("🎉 Toutes les conversations ont reçu une réponse !")

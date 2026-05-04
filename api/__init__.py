@@ -13,5 +13,5 @@ from api.instagram import (
     fetch_ig_profile,
     fetch_ig_engagement,
     fetch_ig_posts,
-    fetch_ig_conversations,
+    fetch_ig_post_totals,
 )
