@@ -50,7 +50,7 @@ def render_login():
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
-        _logo = pathlib.Path("assets/footland_logo.png")
+        _logo = pathlib.Path(__file__).parent.parent / "assets" / "footland_logo.png"
         if _logo.exists():
             _b64 = base64.b64encode(_logo.read_bytes()).decode()
             st.markdown(
