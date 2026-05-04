@@ -2,6 +2,8 @@
 views/login.py — Login page for Footland dashboard.
 """
 
+import base64
+import pathlib
 import streamlit as st
 import auth
 
@@ -48,7 +50,17 @@ def render_login():
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
-        st.markdown('<div class="login-logo">⚽ Footland</div>', unsafe_allow_html=True)
+        _logo = pathlib.Path("assets/footland_logo.png")
+        if _logo.exists():
+            _b64 = base64.b64encode(_logo.read_bytes()).decode()
+            st.markdown(
+                f'<div style="text-align:center;margin-bottom:8px;">'
+                f'<img src="data:image/png;base64,{_b64}" style="max-width:180px;width:100%;"/>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown('<div class="login-logo">⚽ Footland</div>', unsafe_allow_html=True)
         st.markdown('<div class="login-sub">Analytics Dashboard</div>', unsafe_allow_html=True)
 
         with st.form("login_form", clear_on_submit=False):
