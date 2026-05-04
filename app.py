@@ -12,6 +12,7 @@ from views.facebook import render_facebook_dashboard
 from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
 from views.login import render_login
+from views.documentation import render_documentation
 import db
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
@@ -192,7 +193,9 @@ with col_t2:
     st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
 
 # ─── Dashboard routing ────────────────────────────────────────────────────────
-if platform == "Facebook":
+if platform == "Documentation":
+    render_documentation()
+elif platform == "Facebook":
     render_facebook_dashboard(period_label, days, start_date, end_date, log_refresh)
 elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
