@@ -95,4 +95,12 @@ def render_sidebar(log_refresh_fn):
 
         st.caption("Cache TTL: 15 min • Supabase")
 
+        st.divider()
+
+        user = st.session_state.get("user", {})
+        st.caption(f"Connecté : {user.get('display_name') or user.get('email', '')}")
+        if st.button("🚪 Se déconnecter", width="stretch"):
+            del st.session_state["user"]
+            st.rerun()
+
     return platform, period_label, days, start_date, end_date

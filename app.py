@@ -11,6 +11,7 @@ from components.sidebar import render_sidebar
 from views.facebook import render_facebook_dashboard
 from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
+from views.login import render_login
 import db
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
@@ -20,6 +21,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ─── Auth guard ───────────────────────────────────────────────────────────────
+if "user" not in st.session_state:
+    render_login()
+    st.stop()
 
 # ─── Theme-aware CSS ─────────────────────────────────────────────────────────
 if "theme" not in st.session_state:
