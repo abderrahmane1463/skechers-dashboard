@@ -404,17 +404,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
     with tab2:
-        # Build daily series from post interactions — same source as 🔥 Total interactions (posts)
-        _ci_d = {}
-        for p in posts:
-            d = p.get("created_time", "")[:10]
-            if not d:
-                continue
-            _ci_d[d] = _ci_d.get(d, 0) + p.get("total_interactions", 0)
-
-        chart_df = pd.DataFrame(
-            [{"date": pd.Timestamp(k), "value": v} for k, v in sorted(_ci_d.items())]
-        ) if _ci_d else pd.DataFrame()
+        # Use daily Content Interactions series — same source as 🤝 Content Interactions KPI
+        chart_df = series_to_df(eng.get("engagements", []))
 
         if not chart_df.empty and (start_date or days):
             _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
@@ -422,7 +413,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
             chart_df = _full_range.merge(chart_df, on="date", how="left").fillna(0)
 
-        chart_total = int(chart_df["value"].sum()) if not chart_df.empty else total_engagements
+        chart_total = int(chart_df["value"].sum()) if not chart_df.empty else total_content_interactions
 
         if not chart_df.empty:
             fig_ci = go.Figure()
@@ -456,7 +447,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             fig_ci.update_layout(**ci_layout)
             st.plotly_chart(fig_ci, width="stretch")
 
-            st.metric("⚡ Total interactions", f"{chart_total:,}")
+            st.metric("🤝 Content Interactions", f"{chart_total:,}")
 
 
     # ── TAB 3: Visibility ────────────────────────────────────────────────────
