@@ -403,12 +403,18 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
     with tab2:
-        # Use real daily engagement series from page_post_engagements (Meta Insights)
-        eng_df = series_to_df(eng.get("engagements", []))
+        # Build daily series from post interactions — same source as 🔥 Total interactions (posts)
+        _ci_d = {}
+        for p in posts:
+            d = p.get("created_time", "")[:10]
+            if not d:
+                continue
+            _ci_d[d] = _ci_d.get(d, 0) + p.get("total_interactions", 0)
 
-        chart_df = eng_df.copy() if not eng_df.empty else pd.DataFrame()
+        chart_df = pd.DataFrame(
+            [{"date": pd.Timestamp(k), "value": v} for k, v in sorted(_ci_d.items())]
+        ) if _ci_d else pd.DataFrame()
 
-        # Fill full date range with zeros so gaps show correctly
         if not chart_df.empty and (start_date or days):
             _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
             _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
