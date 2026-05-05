@@ -162,77 +162,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     st.divider()
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "👥 Audience", "📡 Visibility", "💬 Engagement", "🏆 Top Content"
+    tab1, tab2, tab3 = st.tabs([
+        "📡 Visibility", "💬 Engagement", "🏆 Top Content"
     ])
 
-    # ── TAB 1: Audience ───────────────────────────────────────────────────────
-    with tab1:
-        pv_series = ig_profile.get("profile_views", [])
-        pv_df = series_to_df(pv_series)
-        total_pv = int(pv_df["value"].sum()) if not pv_df.empty else 0
-
-        chart_col, stats_col = st.columns([3, 1])
-
-        with chart_col:
-            if not pv_df.empty:
-                fig_aud = go.Figure()
-                fig_aud.add_trace(go.Scatter(
-                    x=pv_df["date"], y=pv_df["value"],
-                    name="Profile Views",
-                    line=dict(color="#a78bfa", width=2.5),
-                    fill="tozeroy",
-                    fillcolor="rgba(167,139,250,0.08)",
-                    mode="lines"
-                ))
-                fig_aud.update_layout(**{
-                    **CHART_LAYOUT,
-                    "yaxis": dict(gridcolor="rgba(255,255,255,0.06)", showline=False),
-                    "xaxis": dict(
-                        gridcolor="rgba(255,255,255,0.06)", showline=False,
-                        tickmode="linear", dtick=86400000, tickangle=-45,
-                    ),
-                    "showlegend": False,
-                    "margin": dict(l=0, r=0, t=10, b=30),
-                    "height": 280,
-                })
-                st.plotly_chart(fig_aud, width="stretch")
-                st.markdown(
-                    '<div style="text-align:center;margin-top:-12px;">'
-                    '<span style="display:inline-block;width:28px;height:2px;'
-                    'background:#a78bfa;vertical-align:middle;margin-right:6px;"></span>'
-                    '<span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Profile Views</span>'
-                    '</div>',
-                    unsafe_allow_html=True
-                )
-            else:
-                st.markdown(
-                    '<div style="background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.25);'
-                    'border-radius:10px;padding:1rem 1.2rem;color:rgba(255,165,0,0.9);font-size:0.85rem;">'
-                    '⚠️ Aucune donnée de vues de profil disponible pour cette période.</div>',
-                    unsafe_allow_html=True,
-                )
-
-        with stats_col:
-            st.markdown(
-                f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;'
-                f'padding:1.2rem 1rem;display:flex;flex-direction:column;gap:1.2rem;">'
-                f'<div>'
-                f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
-                f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Vues du profil</div>'
-                f'<div style="font-size:1.5rem;font-weight:800;color:#a78bfa;">{total_pv:,}</div>'
-                f'</div>'
-                f'<div>'
-                f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
-                f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Followers (total)</div>'
-                f'<div style="font-size:1.5rem;font-weight:800;color:#FF6B35;">{followers:,}</div>'
-                f'</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-
-    # ── TAB 2: Engagement ─────────────────────────────────────────────────────
-    with tab3:
+    # ── TAB 1: Engagement ─────────────────────────────────────────────────────
+    with tab2:
         # Build daily series from posts
         _ci_d, _likes_d, _comms_d, _saves_d = {}, {}, {}, {}
         for p in ig_posts:
@@ -348,8 +283,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         else:
             st.info("No engagement data available for this period.")
 
-    # ── TAB 3: Visibility ─────────────────────────────────────────────────────
-    with tab2:
+    # ── TAB 2: Visibility ─────────────────────────────────────────────────────
+    with tab1:
         reach_df       = series_to_df(ig_profile.get("reach", []))
         impressions_df = series_to_df(ig_profile.get("impressions", []))
 
@@ -467,8 +402,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         if reach_df.empty and impressions_df.empty:
             st.info("No visibility data available for this period.")
 
-    # ── TAB 4: Top Content ────────────────────────────────────────────────────
-    with tab4:
+    # ── TAB 3: Top Content ────────────────────────────────────────────────────
+    with tab3:
         if ig_posts:
             # Top by visibility
             st.markdown(
