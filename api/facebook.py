@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dateutil import parser as dateparser
 
 from config import FACEBOOK_PAGE_ID, FB_POST_FIELDS
-from api.base import _get, _date_range, _prev_date_range
+from api.base import _get, _get_insights_chunked, _date_range, _prev_date_range
 
 
 # ─── Facebook — Audience ──────────────────────────────────────────────────────
@@ -42,39 +42,37 @@ def fetch_fb_audience(days: int, start: str = None, end: str = None) -> dict:
         except:
             pass
 
-    # Adds (Try individual calls to avoid API rejection)
+    # Adds — chunked to support date ranges > 92 days (This Year, Last Year, etc.)
     for m_name in ["page_daily_follows", "page_fan_adds"]:
         try:
-            data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-                "metric": m_name,
-                "period": "day",
-                "since": since,
-                "until": until,
-            })
+            data = _get_insights_chunked(
+                f"{FACEBOOK_PAGE_ID}/insights",
+                {"metric": m_name, "period": "day"},
+                since, until,
+            )
             for m in data.get("data", []):
                 result["fans_adds"].extend([
                     {"date": v["end_time"][:10], "value": v["value"]}
-                    for v in m["values"]
+                    for v in m.get("values", [])
                 ])
-            if result["fans_adds"]: break # Stop if we got data
+            if result["fans_adds"]: break
         except Exception:
             pass
 
-    # Removes
+    # Removes — chunked
     for m_name in ["page_daily_unfollows", "page_fan_removes"]:
         try:
-            data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-                "metric": m_name,
-                "period": "day",
-                "since": since,
-                "until": until,
-            })
+            data = _get_insights_chunked(
+                f"{FACEBOOK_PAGE_ID}/insights",
+                {"metric": m_name, "period": "day"},
+                since, until,
+            )
             for m in data.get("data", []):
                 result["fans_removes"].extend([
                     {"date": v["end_time"][:10], "value": v["value"]}
-                    for v in m["values"]
+                    for v in m.get("values", [])
                 ])
-            if result["fans_removes"]: break # Stop if we got data
+            if result["fans_removes"]: break
         except Exception:
             pass
 
@@ -98,12 +96,16 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
     }
 
     try:
-        data = _get(f"{FACEBOOK_PAGE_ID}/insights/page_post_engagements", {
-            "period": "day",
-            "since": since,
-            "until": until,
-        })
-        values = data.get("data", [{}])[0].get("values", [])
+        data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": "page_post_engagements", "period": "day"},
+            since, until,
+        )
+        values = []
+        for m in data.get("data", []):
+            if m.get("name") == "page_post_engagements":
+                values = m.get("values", [])
+                break
         result["engagements"] = [
             {"date": v["end_time"][:10], "value": v["value"]}
             for v in values
@@ -114,11 +116,16 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
         print(f"DEBUG: page_post_engagements error: {e}")
 
     try:
-        data = _get(
-            f"{FACEBOOK_PAGE_ID}/insights/page_actions_post_reactions_total",
-            {"period": "day", "since": since, "until": until},
+        data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": "page_actions_post_reactions_total", "period": "day"},
+            since, until,
         )
-        values = data.get("data", [{}])[0].get("values", [])
+        values = []
+        for m in data.get("data", []):
+            if m.get("name") == "page_actions_post_reactions_total":
+                values = m.get("values", [])
+                break
         result["reactions"] = [
             {"date": v["end_time"][:10], **v.get("value", {})}
             for v in values
@@ -130,12 +137,11 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
     # page_impressions_fan  = content seen by people who follow the page
     # page_impressions_nonviral = content seen by non-followers via direct page posts
     try:
-        fan_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_fan,page_impressions_nonviral",
-            "period": "day",
-            "since": since,
-            "until": until,
-        })
+        fan_data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": "page_impressions_fan,page_impressions_nonviral", "period": "day"},
+            since, until,
+        )
         for m in fan_data.get("data", []):
             series = [
                 {"date": v["end_time"][:10], "value": v["value"]}
@@ -197,12 +203,11 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     metrics_str = ",".join(mapping.keys())
 
     try:
-        data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": metrics_str,
-            "period": "day",
-            "since": since,
-            "until": until,
-        })
+        data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": metrics_str, "period": "day"},
+            since, until,
+        )
         for m in data.get("data", []):
             target_key = mapping.get(m["name"])
             if target_key:
@@ -217,12 +222,11 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     # Diagnostic confirmed: page_impressions is blocked for this page type (#100 error).
     # page_posts_impressions returns 35,030,491 which matches the report exactly.
     try:
-        pv_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_posts_impressions",
-            "period": "day",
-            "since": since,
-            "until": until,
-        })
+        pv_data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": "page_posts_impressions", "period": "day"},
+            since, until,
+        )
         for m in pv_data.get("data", []):
             if m["name"] == "page_posts_impressions":
                 series = [
@@ -238,12 +242,11 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     # 1c-b. Organic + Paid breakdown — optional, needs ads_read permission.
     #       Failure here must NOT affect the main impressions series.
     try:
-        op_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_organic,page_impressions_paid",
-            "period": "day",
-            "since": since,
-            "until": until,
-        })
+        op_data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": "page_impressions_organic,page_impressions_paid", "period": "day"},
+            since, until,
+        )
         for m in op_data.get("data", []):
             series = [
                 {"date": v["end_time"][:10], "value": v["value"]}
@@ -704,12 +707,11 @@ def fetch_fb_messaging_stats(days: int, start: str = None, end: str = None) -> d
     since, until = _date_range(days, start, end)
     result = {"new_conversations": 0}
     try:
-        data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_messages_new_conversations_unique",
-            "period": "day",
-            "since":  since,
-            "until":  until,
-        })
+        data = _get_insights_chunked(
+            f"{FACEBOOK_PAGE_ID}/insights",
+            {"metric": "page_messages_new_conversations_unique", "period": "day"},
+            since, until,
+        )
         for m in data.get("data", []):
             if m.get("name") == "page_messages_new_conversations_unique":
                 vals = m.get("values", [])
