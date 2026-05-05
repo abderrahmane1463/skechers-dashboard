@@ -94,22 +94,30 @@ def _fmt_int(value: int) -> str:
     return f"{value:,}"
 
 
-def _kpi_card(icon: str, label: str, value: str, color: str = "#ffffff") -> str:
+def _kpi_card(icon: str, label: str, value: str, color: str | None = None) -> str:
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
+    _brd = "none"                    if _dark else "1px solid #e5e7eb"
+    _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _vc  = color if color else ("#ffffff" if _dark else "#111827")
     return (
-        f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
+        f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
         f'padding:0.9rem 1rem;text-align:center;">'
-        f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+        f'<div style="font-size:0.72rem;color:{_lc};'
         f'margin-bottom:0.25rem;">{icon} {label}</div>'
-        f'<div style="font-size:1.3rem;font-weight:800;color:{color};'
+        f'<div style="font-size:1.3rem;font-weight:800;color:{_vc};'
         f'white-space:nowrap;">{value}</div>'
         f'</div>'
     )
 
 
 def _no_data_banner(msg: str = "Aucune donnée publicitaire disponible pour cette période."):
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    _bg  = "rgba(255,165,0,0.08)"  if _dark else "rgba(255,165,0,0.12)"
+    _tc  = "rgba(255,165,0,0.9)"   if _dark else "#92400e"
     st.markdown(
-        f'<div style="background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.25);'
-        f'border-radius:10px;padding:1rem 1.2rem;color:rgba(255,165,0,0.9);'
+        f'<div style="background:{_bg};border:1px solid rgba(255,165,0,0.3);'
+        f'border-radius:10px;padding:1rem 1.2rem;color:{_tc};'
         f'font-size:0.85rem;margin:0.5rem 0 1rem;">'
         f'⚠️ {msg}</div>',
         unsafe_allow_html=True,
@@ -117,10 +125,13 @@ def _no_data_banner(msg: str = "Aucune donnée publicitaire disponible pour cett
 
 
 def _section_header(title: str):
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    _tc  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+    _brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
     st.markdown(
-        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+        f'<div style="font-size:0.68rem;color:{_tc};'
         f'text-transform:uppercase;letter-spacing:0.08em;'
-        f'margin:1.2rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+        f'margin:1.2rem 0 0.6rem;border-bottom:1px solid {_brd};'
         f'padding-bottom:0.4rem;">{title}</div>',
         unsafe_allow_html=True,
     )
@@ -214,6 +225,13 @@ def _render_top_campaigns(campaigns: list[dict]):
         ("#3", "#CD7F32", "rgba(205,127,50,0.10)",  "rgba(205,127,50,0.30)"),  # bronze
     ]
 
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    _name_c  = "rgba(255,255,255,0.75)" if _dark else "#1f2937"
+    _meta_c  = "rgba(255,255,255,0.4)"  if _dark else "#9ca3af"
+    _div_brd = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
+    _sub_lc  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+    _sub_vc  = "rgba(255,255,255,0.7)"  if _dark else "#374151"
+
     cards_html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:0.5rem 0 1rem;">'
 
     for i, c in enumerate(top):
@@ -236,28 +254,24 @@ def _render_top_campaigns(campaigns: list[dict]):
 <div style="background:{bg_color};border:1px solid {border_color};border-radius:14px;
             padding:1.2rem 1rem;text-align:center;position:relative;display:flex;
             flex-direction:column;align-items:center;gap:0.4rem;">
-  <!-- Rank badge -->
   <div style="font-size:1.6rem;font-weight:900;color:{rank_color};
               line-height:1;margin-bottom:0.2rem;">{rank_label}</div>
-  <!-- Campaign name -->
-  <div style="font-size:0.78rem;color:rgba(255,255,255,0.75);font-weight:600;
+  <div style="font-size:0.78rem;color:{_name_c};font-weight:600;
               line-height:1.35;min-height:2.7rem;display:flex;align-items:center;
               justify-content:center;">{display_name}</div>
-  <!-- Big metric number -->
   <div style="font-size:2rem;font-weight:900;color:{rank_color};
               line-height:1.1;margin:0.3rem 0 0.1rem;">{metric_value}</div>
-  <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);
+  <div style="font-size:0.7rem;color:{_meta_c};
               text-transform:uppercase;letter-spacing:0.06em;">{metric_label}</div>
-  <!-- Sub-details -->
-  <div style="margin-top:0.5rem;width:100%;border-top:1px solid rgba(255,255,255,0.08);
+  <div style="margin-top:0.5rem;width:100%;border-top:1px solid {_div_brd};
               padding-top:0.5rem;display:flex;justify-content:space-around;">
     <div style="text-align:center;">
-      <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);">Dépensé</div>
-      <div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.7);">{spend_str}</div>
+      <div style="font-size:0.68rem;color:{_sub_lc};">Dépensé</div>
+      <div style="font-size:0.82rem;font-weight:700;color:{_sub_vc};">{spend_str}</div>
     </div>
     <div style="text-align:center;">
-      <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);">Coût / vente</div>
-      <div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.7);">{cpa_str}</div>
+      <div style="font-size:0.68rem;color:{_sub_lc};">Coût / vente</div>
+      <div style="font-size:0.82rem;font-weight:700;color:{_sub_vc};">{cpa_str}</div>
     </div>
   </div>
 </div>"""
@@ -313,13 +327,18 @@ def _render_insights_panel(totals: dict, conv: dict):
     if cpa > 0:
         insights.append(("💡", "Coût par vente", f"{_fmt_currency(cpa)} — comparez à la valeur moyenne d'une commande."))
 
+    _dark  = st.session_state.get("theme", "dark") == "dark"
+    _row_bg = "rgba(255,255,255,0.03)" if _dark else "#f8fafc"
+    _lbl_c  = "rgba(255,255,255,0.75)" if _dark else "#111827"
+    _txt_c  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+
     rows_html = "".join(
         f'<div style="display:flex;align-items:flex-start;gap:0.6rem;'
-        f'background:rgba(255,255,255,0.03);border-radius:8px;'
+        f'background:{_row_bg};border-radius:8px;'
         f'padding:0.55rem 0.8rem;margin-bottom:0.35rem;">'
         f'<span style="font-size:1rem;line-height:1.4;">{dot}</span>'
-        f'<div><span style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.75);">{label}</span>'
-        f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.45);"> — {text}</span></div>'
+        f'<div><span style="font-size:0.78rem;font-weight:700;color:{_lbl_c};">{label}</span>'
+        f'<span style="font-size:0.78rem;color:{_txt_c};"> — {text}</span></div>'
         f'</div>'
         for dot, label, text in insights
     )
@@ -397,16 +416,22 @@ def _render_campaigns_table(campaigns: list[dict]):
     )
 
     # Totals summary below the table
-    inactive_note = f' <span style="color:rgba(255,255,255,0.3);">· {inactive} sans activité masquées</span>' if inactive else ""
+    _dark   = st.session_state.get("theme", "dark") == "dark"
+    _sum_bg  = "rgba(255,255,255,0.04)" if _dark else "#f9fafb"
+    _sum_brd = "rgba(255,255,255,0.1)"  if _dark else "#e5e7eb"
+    _sum_tc  = "rgba(255,255,255,0.6)"  if _dark else "#4b5563"
+    _sum_vc  = "#ffffff"                 if _dark else "#111827"
+    _note_c  = "rgba(255,255,255,0.3)"  if _dark else "#9ca3af"
+    inactive_note = f' <span style="color:{_note_c};">· {inactive} sans activité masquées</span>' if inactive else ""
     st.markdown(
-        f'<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);'
+        f'<div style="background:{_sum_bg};border:1px solid {_sum_brd};'
         f'border-radius:8px;padding:0.6rem 1rem;margin-top:0.4rem;font-size:0.8rem;'
-        f'color:rgba(255,255,255,0.6);display:flex;gap:2rem;flex-wrap:wrap;align-items:center;">'
-        f'<span>📁 <b style="color:#fff">{total_active}</b> campagnes actives{inactive_note}</span>'
-        f'<span>💰 Total dépensé : <b style="color:#f97316">€{totals_row["Dépensé (€)"]:,.2f}</b></span>'
-        f'<span>📢 Impressions : <b style="color:#fff">{totals_row["Impressions"]:,}</b></span>'
-        f'<span>🖱️ Clics : <b style="color:#fff">{totals_row["Clics"]:,}</b></span>'
-        f'<span>✅ Commandes (toutes campagnes) : <b style="color:#a78bfa">{totals_row["Commandes"]:,}</b></span>'
+        f'color:{_sum_tc};display:flex;gap:2rem;flex-wrap:wrap;align-items:center;">'
+        f'<span>📁 <b style="color:{_sum_vc};">{total_active}</b> campagnes actives{inactive_note}</span>'
+        f'<span>💰 Total dépensé : <b style="color:#f97316;">€{totals_row["Dépensé (€)"]:,.2f}</b></span>'
+        f'<span>📢 Impressions : <b style="color:{_sum_vc};">{totals_row["Impressions"]:,}</b></span>'
+        f'<span>🖱️ Clics : <b style="color:{_sum_vc};">{totals_row["Clics"]:,}</b></span>'
+        f'<span>✅ Commandes (toutes campagnes) : <b style="color:#a78bfa;">{totals_row["Commandes"]:,}</b></span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -460,22 +485,26 @@ def _render_demographics(demo: dict):
     })
     st.plotly_chart(fig, use_container_width=True)
 
+    _dark   = st.session_state.get("theme", "dark") == "dark"
+    _leg_c  = "rgba(255,255,255,0.7)" if _dark else "#374151"
+    _note_c = "rgba(255,255,255,0.3)" if _dark else "#9ca3af"
+
     st.markdown(
         f'<div style="display:flex;justify-content:center;align-items:center;gap:2rem;margin-top:-8px;">'
         f'<div style="display:flex;align-items:center;gap:6px;">'
         f'<div style="width:24px;height:12px;background:#7EC8E3;border-radius:3px;"></div>'
-        f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Hommes — <strong>{total_men_pct}%</strong></span>'
+        f'<span style="font-size:0.8rem;color:{_leg_c};">Hommes — <strong>{total_men_pct}%</strong></span>'
         f'</div>'
         f'<div style="display:flex;align-items:center;gap:6px;">'
         f'<div style="width:24px;height:12px;background:#1C4E80;border-radius:3px;"></div>'
-        f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Femmes — <strong>{total_women_pct}%</strong></span>'
+        f'<span style="font-size:0.8rem;color:{_leg_c};">Femmes — <strong>{total_women_pct}%</strong></span>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p style="font-size:0.7rem;color:rgba(255,255,255,0.3);text-align:center;margin-top:4px;">'
-        '* Basé sur la portée des campagnes payantes Footland (Marketing API)</p>',
+        f'<p style="font-size:0.7rem;color:{_note_c};text-align:center;margin-top:4px;">'
+        f'* Basé sur la portée des campagnes payantes Footland (Marketing API)</p>',
         unsafe_allow_html=True,
     )
 
@@ -490,15 +519,25 @@ def _render_geographic(demo: dict):
         _no_data_banner("Données géographiques non disponibles pour cette période.")
         return
 
+    _dark     = st.session_state.get("theme", "dark") == "dark"
+    _geo_bg   = "rgba(255,255,255,0.04)" if _dark else "#f9fafb"
+    _geo_brd  = "none"                    if _dark else "1px solid #e5e7eb"
+    _title_c  = "#ffffff"                 if _dark else "#111827"
+    _empty_c  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+    _name_c   = "rgba(255,255,255,0.8)"  if _dark else "#111827"
+    _stat_c   = "rgba(255,255,255,0.5)"  if _dark else "#6b7280"
+    _bar_bg   = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
+    _rank_low = "rgba(255,255,255,0.3)"  if _dark else "#d1d5db"
+
     def _geo_table(items: list, icon: str, title: str) -> str:
         if not items:
             return (
-                f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:1.2rem;">'
-                f'<p style="font-size:0.95rem;font-weight:700;color:#fff;margin:0 0 12px;">{icon} {title}</p>'
-                f'<p style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin:0;">Aucune donnée disponible</p>'
+                f'<div style="background:{_geo_bg};border:{_geo_brd};border-radius:14px;padding:1.2rem;">'
+                f'<p style="font-size:0.95rem;font-weight:700;color:{_title_c};margin:0 0 12px;">{icon} {title}</p>'
+                f'<p style="font-size:0.8rem;color:{_empty_c};margin:0;">Aucune donnée disponible</p>'
                 f'</div>'
             )
-        rank_colors = ["#FFD700", "#C0C0C0", "#CD7F32"] + ["rgba(255,255,255,0.3)"] * 7
+        rank_colors = ["#FFD700", "#C0C0C0", "#CD7F32"] + [_rank_low] * 7
         rows_html = ""
         for i, item in enumerate(items):
             bar_w = round(item["pct"] * 0.9, 1)
@@ -507,16 +546,16 @@ def _render_geographic(demo: dict):
                 f'<span style="font-size:0.72rem;font-weight:700;color:{rank_colors[i]};width:16px;text-align:right;">#{i+1}</span>'
                 f'<div style="flex:1;">'
                 f'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
-                f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.8);">{item["name"]}</span>'
-                f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{item["reach"]:,} impr. · {item["pct"]}%</span>'
+                f'<span style="font-size:0.78rem;color:{_name_c};">{item["name"]}</span>'
+                f'<span style="font-size:0.78rem;color:{_stat_c};">{item["reach"]:,} impr. · {item["pct"]}%</span>'
                 f'</div>'
-                f'<div style="background:rgba(255,255,255,0.08);border-radius:4px;height:5px;">'
+                f'<div style="background:{_bar_bg};border-radius:4px;height:5px;">'
                 f'<div style="background:#E8420A;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
                 f'</div></div></div>'
             )
         return (
-            f'<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:1.2rem;">'
-            f'<p style="font-size:0.95rem;font-weight:700;color:#fff;margin:0 0 14px;">{icon} {title}</p>'
+            f'<div style="background:{_geo_bg};border:{_geo_brd};border-radius:14px;padding:1.2rem;">'
+            f'<p style="font-size:0.95rem;font-weight:700;color:{_title_c};margin:0 0 14px;">{icon} {title}</p>'
             f'{rows_html}'
             f'</div>'
         )
@@ -548,6 +587,13 @@ def _render_campaign_lookup(campaigns: list[dict]):
         st.warning(f"Aucune campagne ne contient « {query} ».")
         return
 
+    _dark    = st.session_state.get("theme", "dark") == "dark"
+    _crd_bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
+    _crd_brd = "rgba(255,255,255,0.12)" if _dark else "#e5e7eb"
+    _nm_c    = "#ffffff"                 if _dark else "#111827"
+    _bdg_bg  = "rgba(255,255,255,0.08)" if _dark else "#f1f5f9"
+    _bdg_c   = "rgba(255,255,255,0.5)"  if _dark else "#6b7280"
+
     for c in matches:
         name      = c.get("name", "—")
         objective = c.get("objective", "—")
@@ -564,15 +610,15 @@ def _render_campaign_lookup(campaigns: list[dict]):
         freq_label = round(freq, 2) if freq else "—"
 
         st.markdown(
-            f'<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);'
+            f'<div style="background:{_crd_bg};border:1px solid {_crd_brd};'
             f'border-radius:14px;padding:1.2rem 1.4rem;margin-bottom:1rem;">'
 
             # Campaign name + objective badge
             f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
             f'margin-bottom:1rem;gap:1rem;">'
-            f'<div style="font-size:0.9rem;font-weight:700;color:#fff;line-height:1.4;">{name}</div>'
-            f'<div style="background:rgba(255,255,255,0.08);border-radius:6px;padding:0.2rem 0.6rem;'
-            f'font-size:0.68rem;color:rgba(255,255,255,0.5);white-space:nowrap;">{objective}</div>'
+            f'<div style="font-size:0.9rem;font-weight:700;color:{_nm_c};line-height:1.4;">{name}</div>'
+            f'<div style="background:{_bdg_bg};border-radius:6px;padding:0.2rem 0.6rem;'
+            f'font-size:0.68rem;color:{_bdg_c};white-space:nowrap;">{objective}</div>'
             f'</div>'
 
             # Row 1 — reach / impressions / frequency / clicks
@@ -617,11 +663,14 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None):
     campaigns = data.get("campaigns",   [])
 
     # Header
+    _dark   = st.session_state.get("theme", "dark") == "dark"
+    _hdr_c  = "#ffffff"                 if _dark else "#111827"
+    _sub_c  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
     st.markdown(
-        '<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;'
-        'color:#fff;margin:0 0 0.2rem;">BOOST — ADS PERFORMANCE</p>'
-        '<p style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin:0 0 1rem;">'
-        'Performances publicitaires payantes · Meta Marketing API</p>',
+        f'<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;'
+        f'color:{_hdr_c};margin:0 0 0.2rem;">BOOST — ADS PERFORMANCE</p>'
+        f'<p style="font-size:0.8rem;color:{_sub_c};margin:0 0 1rem;">'
+        f'Performances publicitaires payantes · Meta Marketing API</p>',
         unsafe_allow_html=True,
     )
 

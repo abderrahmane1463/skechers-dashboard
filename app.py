@@ -148,13 +148,20 @@ small { color: #6b7280 !important; }
 /* Borders */
 [style*="border-bottom:1px solid rgba(255,255,255,0.08)"] { border-bottom-color: #e5e7eb !important; }
 [style*="border:1px solid rgba(255,255,255,0.08)"]        { border-color: #e5e7eb !important; }
+[style*="border:1px solid rgba(255,255,255,0.1)"]         { border-color: #e5e7eb !important; }
+[style*="border:1px solid rgba(255,255,255,0.12)"]        { border-color: #d1d5db !important; }
+[style*="border-top:1px solid rgba(255,255,255,0.08)"]    { border-top-color: #e5e7eb !important; }
+
+/* Backgrounds not covered by the 0.03/0.04/0.05 rules */
+[style*="background:rgba(255,255,255,0.08)"] { background: #f1f5f9 !important; }
 
 /* Specific dark section blocks */
 [style*="background:rgba(232,66,10,0.08)"] { background: rgba(232,66,10,0.06) !important; }
 [style*="background:rgba(232,66,10,0.15)"] { background: rgba(232,66,10,0.08) !important; }
 
 /* Warning/info banners */
-[style*="background:rgba(255,165,0,0.08)"] { background: rgba(255,165,0,0.1) !important; }
+[style*="background:rgba(255,165,0,0.08)"]  { background: rgba(255,165,0,0.1) !important; }
+[style*="background:rgba(255,165,0,0.12)"]  { background: rgba(255,165,0,0.1) !important; }
 </style>
 """
 

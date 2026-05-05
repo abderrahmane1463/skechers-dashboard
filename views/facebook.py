@@ -333,15 +333,16 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     fillcolor="rgba(126,200,227,0.08)",
                     mode="lines"
                 ))
-                audience_layout = {
+                _gc = "rgba(255,255,255,0.06)" if _dark else "#e5e7eb"
+            audience_layout = {
                     **get_chart_layout(),
                     "yaxis": dict(
-                        gridcolor="rgba(255,255,255,0.06)",
+                        gridcolor=_gc,
                         showline=False,
                         range=[0, max(merged["adds"].max() * 1.2, 10)]
                     ),
                     "xaxis": dict(
-                        gridcolor="rgba(255,255,255,0.06)",
+                        gridcolor=_gc,
                         showline=False,
                         tickmode="array",
                         tickvals=[merged["date"].iloc[i]
@@ -447,15 +448,16 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 fillcolor="rgba(232,66,10,0.08)",
                 mode="lines",
             ))
+            _gc2 = "rgba(255,255,255,0.06)" if _dark else "#e5e7eb"
             ci_layout = {
                 **get_chart_layout(),
                 "yaxis": dict(
-                    gridcolor="rgba(255,255,255,0.06)",
+                    gridcolor=_gc2,
                     showline=False,
                     tickformat=",",
                 ),
                 "xaxis": dict(
-                    gridcolor="rgba(255,255,255,0.06)",
+                    gridcolor=_gc2,
                     showline=False,
                     tickmode="array",
                     tickvals=[chart_df["date"].iloc[i]
