@@ -214,13 +214,18 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         f"Followers: {total_fans}, Posts: {len(posts)}, Reach: {total_reach}"
     )
 
-    def _kpi(icon, label, value, color="#ffffff"):
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    def _kpi(icon, label, value, color=None):
+        _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
+        _brd = "none" if _dark else "1px solid #e5e7eb"
+        _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+        _vc  = color if color else ("#ffffff" if _dark else "#111827")
         return (
-            f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
+            f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
             f'padding:0.9rem 1rem;text-align:center;">'
-            f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+            f'<div style="font-size:0.72rem;color:{_lc};'
             f'margin-bottom:0.25rem;">{icon} {label}</div>'
-            f'<div style="font-size:1.35rem;font-weight:800;color:{color};'
+            f'<div style="font-size:1.35rem;font-weight:800;color:{_vc};'
             f'white-space:nowrap;">{value}</div>'
             f'</div>'
         )

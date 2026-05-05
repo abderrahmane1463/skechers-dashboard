@@ -60,11 +60,15 @@ def render_top3_podium(
     metrics    : optional list of (icon, label, field) tuples to override the
                  default metrics grid. e.g. [("❤️", "Réactions", "reactions")]
     """
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    _hdr_color  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+    _hdr_border = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
+
     # Section header
     st.markdown(
-        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+        f'<div style="font-size:0.68rem;color:{_hdr_color};'
         f'text-transform:uppercase;letter-spacing:0.08em;'
-        f'margin:1.2rem 0 0.8rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+        f'margin:1.2rem 0 0.8rem;border-bottom:1px solid {_hdr_border};'
         f'padding-bottom:0.4rem;">🏆 {title}</div>',
         unsafe_allow_html=True,
     )
@@ -94,10 +98,11 @@ def render_top3_podium(
         cols, slots, ranks, rank_colors, rank_borders, rank_bg
     ):
         with col:
+            _empty_tc = "rgba(255,255,255,0.2)" if _dark else "#d1d5db"
             if post is None:
                 st.markdown(
                     f'<div style="background:{bg};border:1px solid {border};border-radius:14px;'
-                    f'padding:1rem;text-align:center;color:rgba(255,255,255,0.2);font-size:0.8rem;">'
+                    f'padding:1rem;text-align:center;color:{_empty_tc};font-size:0.8rem;">'
                     f'Données insuffisantes</div>',
                     unsafe_allow_html=True,
                 )
@@ -122,9 +127,11 @@ def render_top3_podium(
                 ("🖱️", "Clics",     "clicks"),
                 ("⚡", "Total",     "total_interactions"),
             ]
+            _metric_lc = "rgba(255,255,255,0.65)" if _dark else "#6b7280"
+            _metric_vc = "rgba(255,255,255,0.9)"  if _dark else "#111827"
             metrics_html = "".join(
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'{icon} <b style="color:rgba(255,255,255,0.9);">{_fmt_big(post.get(field, 0))}</b>'
+                f'<div style="font-size:0.75rem;color:{_metric_lc};">'
+                f'{icon} <b style="color:{_metric_vc};">{_fmt_big(post.get(field, 0))}</b>'
                 f'{" " + label if label else ""}</div>'
                 for icon, label, field in _metrics
             )
@@ -139,13 +146,20 @@ def render_top3_podium(
                     unsafe_allow_html=True,
                 )
             else:
+                _no_img_bg = "rgba(255,255,255,0.04)" if _dark else "#f3f4f6"
+                _no_img_tc = "rgba(255,255,255,0.2)"  if _dark else "#d1d5db"
                 st.markdown(
-                    f'<div style="border-radius:12px 12px 0 0;background:rgba(255,255,255,0.04);'
+                    f'<div style="border-radius:12px 12px 0 0;background:{_no_img_bg};'
                     f'border:2px solid {border};border-bottom:none;aspect-ratio:1/1;'
                     f'display:flex;align-items:center;justify-content:center;'
-                    f'color:rgba(255,255,255,0.2);font-size:2rem;">📷</div>',
+                    f'color:{_no_img_tc};font-size:2rem;">📷</div>',
                     unsafe_allow_html=True,
                 )
+
+            _caption_c = "rgba(255,255,255,0.8)" if _dark else "#111827"
+            _date_c    = "rgba(255,255,255,0.4)"  if _dark else "#9ca3af"
+            _link_c    = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+            _link_brd  = "rgba(255,255,255,0.15)" if _dark else "#d1d5db"
 
             # ── Card body ──────────────────────────────────────────────────────
             st.markdown(
@@ -153,11 +167,11 @@ def render_top3_podium(
                 f'border-radius:0 0 14px 14px;padding:0.75rem 0.85rem 0.85rem;">'
 
                 # Caption
-                f'<div style="font-size:0.78rem;color:rgba(255,255,255,0.8);'
+                f'<div style="font-size:0.78rem;color:{_caption_c};'
                 f'font-weight:600;line-height:1.35;min-height:2.2rem;">{display_caption or "—"}</div>'
 
                 # Date
-                f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);'
+                f'<div style="font-size:0.68rem;color:{_date_c};'
                 f'margin:0.3rem 0 0.6rem;">📅 {date}</div>'
 
                 # Metrics row
@@ -173,8 +187,8 @@ def render_top3_podium(
                 # Post link
                 f'<div style="text-align:center;margin-top:0.6rem;">'
                 f'<a href="{post_url}" target="_blank" style="font-size:0.72rem;'
-                f'color:rgba(255,255,255,0.45);text-decoration:none;'
-                f'border:1px solid rgba(255,255,255,0.15);border-radius:6px;'
+                f'color:{_link_c};text-decoration:none;'
+                f'border:1px solid {_link_brd};border-radius:6px;'
                 f'padding:3px 10px;transition:all 0.2s;">'
                 f'Voir le post →</a></div>'
 
