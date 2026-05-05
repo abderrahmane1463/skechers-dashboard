@@ -305,25 +305,36 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     _since_dt = _dt2.strptime(since, "%Y-%m-%d").date()
     _until_dt = _dt2.strptime(until, "%Y-%m-%d").date()
     _window   = (_until_dt - _since_dt).days + 1
-    _reach_period = "week" if _window <= 7 else "month"
-    try:
-        data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_unique",
-            "period": _reach_period,
-            "since": since,
-            "until": until,
-        })
-        for m in data_r.get("data", []):
-            if m["name"] == "page_impressions_unique":
-                vals = m.get("values", [])
-                if vals:
-                    # last value = rolling window ending at the most recent date
-                    result["period_reach"] = vals[-1].get("value", 0)
-        print(f"DEBUG: period_reach ({_reach_period}, last val) = {result['period_reach']}")
-    except Exception as e:
-        print(f"DEBUG: period_reach ({_reach_period}) error: {e}")
-        # Fallback: sum of daily unique series (overcounts multi-day users)
-        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
+
+    if _window == 1:
+        # Single-day window (Today / Yesterday): reuse the already-fetched
+        # page_impressions_unique period=day series — no extra API call needed
+        # and avoids the 7-day rolling window distorting a 1-day selection.
+        _daily = result.get("reach", [])
+        result["period_reach"] = _daily[0]["value"] if _daily else 0
+        print(f"DEBUG: period_reach (day, direct) = {result['period_reach']}")
+    else:
+        # Multi-day windows: use the appropriate rolling-window unique metric.
+        #   period=week  (7-day rolling)  for windows of 2–7 days
+        #   period=month (28-day rolling) for windows of 8+ days
+        # We take the LAST value = rolling window ending at `until` date.
+        _reach_period = "week" if _window <= 7 else "month"
+        try:
+            data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+                "metric": "page_impressions_unique",
+                "period": _reach_period,
+                "since": since,
+                "until": until,
+            })
+            for m in data_r.get("data", []):
+                if m["name"] == "page_impressions_unique":
+                    vals = m.get("values", [])
+                    if vals:
+                        result["period_reach"] = vals[-1].get("value", 0)
+            print(f"DEBUG: period_reach ({_reach_period}, last val) = {result['period_reach']}")
+        except Exception as e:
+            print(f"DEBUG: period_reach ({_reach_period}) error: {e}")
+            result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
 
     return result
 

@@ -207,7 +207,10 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_shars = post_totals.get("total_shares",    sum(p.get("shares",    0) for p in posts))
     total_engagements = post_totals.get("total_interactions", total_reacs + total_comms + total_shars)
 
-    eng_rate = round(total_engagements / total_reach * 100, 2) if total_reach else 0.0
+    # Engagement rate: prefer post-level interactions; fall back to page-level
+    # Content Interactions when no posts were published in the period (e.g. Today).
+    _eng_numerator = total_engagements if total_engagements > 0 else total_content_interactions
+    eng_rate = round(_eng_numerator / total_reach * 100, 2) if total_reach else 0.0
 
     log_refresh_fn(
         "Facebook",
