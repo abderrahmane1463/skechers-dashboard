@@ -108,11 +108,12 @@ def render_top3_podium(
             post_id  = post.get("id", "")
             post_url = f"https://www.facebook.com/{post_id.replace('_', '/posts/')}" if post_id else "#"
 
-            reach     = post.get("reach", 0)
-            reactions = post.get("reactions", 0)
-            comments  = post.get("comments", 0)
-            shares    = post.get("shares", 0)
-            clicks    = post.get("clicks", 0)
+            reach        = post.get("reach", 0)
+            reactions    = post.get("reactions", 0)
+            comments     = post.get("comments", 0)
+            shares       = post.get("shares", 0)
+            clicks       = post.get("clicks", 0)
+            interactions = post.get("total_interactions", 0)
 
             # ── Thumbnail ──────────────────────────────────────────────────────
             if thumb:
@@ -158,6 +159,8 @@ def render_top3_podium(
                 f'🔁 <b style="color:rgba(255,255,255,0.9);">{_fmt_big(shares)}</b></div>'
                 f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
                 f'🖱️ <b style="color:rgba(255,255,255,0.9);">{_fmt_big(clicks)}</b> Clics</div>'
+                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
+                f'⚡ <b style="color:rgba(255,255,255,0.9);">{_fmt_big(interactions)}</b> Total</div>'
                 f'</div>'
 
                 # Rank badge
