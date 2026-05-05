@@ -214,6 +214,10 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # no new publications or when only 1 post with few interactions exists.
     eng_rate = round(total_content_interactions / total_reach * 100, 2) if total_reach else 0.0
 
+    # Reach window label — drives the note shown under 👁️ Spectateurs KPI
+    _reach_window_label = vis.get("reach_window_label")
+    _reach_note = _reach_window_label if _reach_window_label else None
+
     log_refresh_fn(
         "Facebook",
         period_label,
@@ -222,11 +226,16 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     )
 
     _dark = st.session_state.get("theme", "dark") == "dark"
-    def _kpi(icon, label, value, color=None):
+    def _kpi(icon, label, value, color=None, note=None):
         _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
         _brd = "none" if _dark else "1px solid #e5e7eb"
         _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+        _nc  = "rgba(255,255,255,0.3)"  if _dark else "#9ca3af"
         _vc  = color if color else ("#ffffff" if _dark else "#111827")
+        _note_html = (
+            f'<div style="font-size:0.62rem;color:{_nc};margin-top:0.25rem;'
+            f'white-space:normal;line-height:1.35;">{note}</div>'
+        ) if note else ""
         return (
             f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
             f'padding:0.9rem 1rem;text-align:center;">'
@@ -234,6 +243,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             f'margin-bottom:0.25rem;">{icon} {label}</div>'
             f'<div style="font-size:1.35rem;font-weight:800;color:{_vc};'
             f'white-space:nowrap;">{value}</div>'
+            f'{_note_html}'
             f'</div>'
         )
 
@@ -245,7 +255,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("📊", "Taux d'engagement",   f"{eng_rate}%", "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_kpi("👁️", "Spectateurs",             f"{total_reach:,}")}
+  {_kpi("👁️", "Spectateurs",             f"{total_reach:,}", note=_reach_note)}
   {_kpi("📢", "Impressions",              f"{total_impressions:,}")}
   {_kpi("🤝", "Content Interactions",     f"{total_content_interactions:,}", "#a78bfa")}
   {_kpi("📝", "Publications",             str(len(posts)))}

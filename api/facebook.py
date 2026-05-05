@@ -190,6 +190,8 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
         "page_views_paid": [],                 # paid impressions daily series
         "period_reach": 0, "period_impressions": 0,
         "prev_total_views": 0, "prev_organic_views": 0, "prev_paid_views": 0,
+        # None = exact value; "7j" / "28j" = rolling window used (shown in UI)
+        "reach_window_label": None,
     }
 
     # 1. Fetch daily metrics (for charts)
@@ -286,57 +288,57 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     result["period_impressions"] = sum(v["value"] for v in result.get("impressions", []))
     print(f"DEBUG: period_impressions (daily sum) = {result['period_impressions']}")
 
-    # period_reach — true deduplicated unique reach via Facebook's rolling window metrics.
+    # ── period_reach — deduplicated unique reach ──────────────────────────────
     #
-    # Facebook's Graph API does NOT provide truly unique reach for arbitrary date ranges.
-    # The only deduplicated unique metrics available are rolling windows:
-    #   - period=week  → 7-day rolling unique reach  (use for windows ≤ 7 days)
-    #   - period=month → 28-day rolling unique reach (use for windows  > 7 days)
+    # Facebook Graph API does NOT expose arbitrary-period unique reach.
+    # Available deduplicated windows (always take the LAST value in the series):
+    #   period=day     → exact daily unique reach          (use for 1-day windows)
+    #   period=week    → 7-day rolling unique reach        (use for 2–7 day windows)
+    #   period=days_28 → 28-day rolling unique reach       (use for 8+ day windows)
     #
-    # We take the LAST value in the API response, which is the rolling window
-    # ending at `until` (the most recent date in the selected period).
-    # This is the closest approximation to "unique people who saw the page
-    # in the selected period" that the Graph API exposes.
-    #
-    # Note: for very short windows (e.g. Today = 1 day) the 7-day rolling
-    # reach will be larger than the true 1-day reach — this is a known API
-    # limitation. For 14 days and 30 days ending on the same date the values
-    # will be similar (both using the same 28-day rolling window), which is
-    # correct: the page's deduplicated audience does not change much based on
-    # whether the user selected 14 or 30 days.
+    # Mapping:
+    #   Today / Yesterday (1 day)   → period=day   → exact, no label shown
+    #   This Week / Last 7d (2–7d)  → period=week  → 7-day rolling, no label
+    #   Last 14d / 30d (8–30d)      → period=days_28 → informational label
+    #   Last 60d / 90d / calendars  → period=days_28 → warning label (window < period)
     from datetime import datetime as _dt2
     _since_dt = _dt2.strptime(since, "%Y-%m-%d").date()
     _until_dt = _dt2.strptime(until, "%Y-%m-%d").date()
     _window   = (_until_dt - _since_dt).days + 1
 
-    if _window <= 7:
-        # Short windows (1–7 days): sum the already-fetched daily unique reach series.
-        # Using period=week (7-day rolling) for a 2- or 3-day window inflates the number
-        # (it covers 7 days regardless of the actual selection) and can produce the
-        # physically-impossible situation where reach > impressions.
-        # Daily sum ensures: reach ≤ impressions, and longer windows always show higher
-        # reach than shorter windows within this range.
-        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
-        print(f"DEBUG: period_reach (daily sum, {_window}d) = {result['period_reach']}")
+    if _window == 1:
+        _reach_api_period = "day"
+        _reach_label      = None                 # exact — no note needed
+    elif _window <= 7:
+        _reach_api_period = "week"
+        _reach_label      = None                 # 7-day rolling matches the selection
+    elif _window <= 30:
+        _reach_api_period = "days_28"
+        _reach_label      = "fenêtre glissante 28j"   # informational
     else:
-        # Longer windows (8+ days): use the 28-day rolling deduplicated unique reach.
-        # Take the last value = rolling window ending at the `until` date.
-        try:
-            data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-                "metric": "page_impressions_unique",
-                "period": "month",
-                "since": since,
-                "until": until,
-            })
-            for m in data_r.get("data", []):
-                if m["name"] == "page_impressions_unique":
-                    vals = m.get("values", [])
-                    if vals:
-                        result["period_reach"] = vals[-1].get("value", 0)
-            print(f"DEBUG: period_reach (month rolling, last val) = {result['period_reach']}")
-        except Exception as e:
-            print(f"DEBUG: period_reach (month) error: {e}")
-            result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
+        _reach_api_period = "days_28"
+        _reach_label      = "fenêtre glissante 28j ⚠️"  # mismatch — period > 28j
+
+    result["reach_window_label"] = _reach_label
+
+    try:
+        data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_unique",
+            "period": _reach_api_period,
+            "since": since,
+            "until": until,
+        })
+        for m in data_r.get("data", []):
+            if m["name"] == "page_impressions_unique":
+                vals = m.get("values", [])
+                if vals:
+                    result["period_reach"] = vals[-1].get("value", 0)
+        print(f"DEBUG: period_reach ({_reach_api_period}, last val, {_window}d) = {result['period_reach']}")
+    except Exception as e:
+        print(f"DEBUG: period_reach ({_reach_api_period}) error: {e}")
+        # Fallback: sum the already-fetched daily series (slight overcount but safe)
+        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
+        result["reach_window_label"] = None
 
     return result
 
