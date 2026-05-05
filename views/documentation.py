@@ -80,7 +80,7 @@ def render_documentation():
     with col1:
         st.info("🔵 **Facebook** — Audience, Engagement, Visibilité, Publications, Communauté")
     with col2:
-        st.info("📸 **Instagram** — Audience, Engagement, Visibilité, Publications")
+        st.info("📸 **Instagram** — Visibilité, Engagement, Publications")
     with col3:
         st.info("🚀 **Boost** — Campagnes payantes, Conversions, Démographie, Géographie")
 
@@ -89,7 +89,7 @@ def render_documentation():
     # ── Facebook ──────────────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">🔵 Facebook</div>', unsafe_allow_html=True)
 
-    t1, t2, t3, t4, t5, t6 = st.tabs(["Vue d'ensemble", "👥 Audience", "💬 Engagement", "📡 Visibilité", "🏆 Top Contenu", "🤝 Communauté"])
+    t1, t2, t3, t4, t5, t6 = st.tabs(["Vue d'ensemble", "👥 Audience", "📡 Visibilité", "💬 Engagement", "🏆 Top Contenu", "🤝 Communauté"])
 
     with t1:
         st.markdown("""
@@ -138,13 +138,15 @@ def render_documentation():
 
     with t5:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Publications les plus performantes, classées par portée et engagement.</p><br>
+<p style="color:#a1a1aa;font-size:14px;">Podium Top #3 par portée et Top #3 par engagement. Chaque carte affiche :</p><br>
 <table class="kpi-table">
-  <tr><th>Colonne</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">Portée</td><td class="kpi-desc">Comptes uniques ayant vu ce post.</td><td><span class="endpoint">/{post_id}/insights?metric=post_impressions_unique</span></td></tr>
-  <tr><td class="kpi-name">Impressions</td><td class="kpi-desc">Nombre total d'affichages du post.</td><td><span class="endpoint">/{post_id}/insights?metric=post_impressions_organic_unique</span></td></tr>
-  <tr><td class="kpi-name">Réactions</td><td class="kpi-desc">Réactions par type sur le post.</td><td><span class="endpoint">/{post_id}/insights?metric=post_reactions_by_type_total</span></td></tr>
-  <tr><td class="kpi-name">Commentaires / Partages</td><td class="kpi-desc">Interactions par type.</td><td><span class="endpoint">/{post_id}/insights?metric=post_activity_by_action_type</span></td></tr>
+  <tr><th>Métrique carte</th><th>Description</th><th>Endpoint</th></tr>
+  <tr><td class="kpi-name">👁️ Reach</td><td class="kpi-desc">Comptes uniques ayant vu ce post (seule métrique d'impression disponible pour New Page Experience).</td><td><span class="endpoint">/{post_id}/insights?metric=post_impressions_unique</span></td></tr>
+  <tr><td class="kpi-name">❤️ Réactions</td><td class="kpi-desc">Total des réactions sur le post.</td><td><span class="endpoint">/{post_id}?fields=reactions.summary(true)</span></td></tr>
+  <tr><td class="kpi-name">💬 Commentaires</td><td class="kpi-desc">Total des commentaires.</td><td><span class="endpoint">/{post_id}?fields=comments.summary(true)</span></td></tr>
+  <tr><td class="kpi-name">🔁 Partages</td><td class="kpi-desc">Total des partages (inclut reposts via post_activity_by_action_type).</td><td><span class="endpoint">/{post_id}/insights?metric=post_activity_by_action_type</span></td></tr>
+  <tr><td class="kpi-name">🖱️ Clics</td><td class="kpi-desc">Total des clics sur le post (liens, photo, nom de page).</td><td><span class="endpoint">/{post_id}/insights?metric=post_clicks</span></td></tr>
+  <tr><td class="kpi-name">⚡ Total interactions</td><td class="kpi-desc">Réactions + Commentaires + Partages.</td><td><span class="endpoint">Calculé</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with t6:
@@ -159,14 +161,13 @@ def render_documentation():
     # ── Instagram ─────────────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">📸 Instagram</div>', unsafe_allow_html=True)
 
-    i1, i2, i3, i4, i5 = st.tabs(["Vue d'ensemble", "👥 Audience", "💬 Engagement", "📡 Visibilité", "🏆 Top Contenu"])
+    i1, i2, i3, i4 = st.tabs(["Vue d'ensemble", "📡 Visibilité", "💬 Engagement", "🏆 Top Contenu"])
 
     with i1:
         st.markdown("""
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
   <tr><td class="kpi-name">👥 Followers</td><td class="kpi-desc">Total abonnés au compte Instagram.</td><td><span class="endpoint">/{ig_user_id}?fields=followers_count</span></td></tr>
-  <tr><td class="kpi-name">📈 Net Follower Change</td><td class="kpi-desc">Variation nette des abonnés sur la période.</td><td><span class="endpoint">/{ig_user_id}/insights?metric=follower_count&period=day</span></td></tr>
   <tr><td class="kpi-name">📝 Publications</td><td class="kpi-desc">Nombre de posts publiés.</td><td><span class="endpoint">/{ig_user_id}/media?fields=id,timestamp,…</span></td></tr>
   <tr><td class="kpi-name">📊 Taux d'engagement</td><td class="kpi-desc">Total interactions ÷ portée × 100.</td><td><span class="endpoint">Calculé</span></td></tr>
   <tr><td class="kpi-name">👁️ Couvertures (Reach)</td><td class="kpi-desc">Comptes uniques ayant vu au moins un post.</td><td><span class="endpoint">/{ig_user_id}/insights?metric=reach&period=day</span></td></tr>
@@ -182,8 +183,10 @@ def render_documentation():
         st.markdown("""
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">👥 Nouveaux followers</td><td class="kpi-desc">Nouveaux abonnés gagnés pendant la période.</td><td><span class="endpoint">/{ig_user_id}/insights?metric=follower_count&period=day</span></td></tr>
-  <tr><td class="kpi-name">👤 Followers (Lifetime)</td><td class="kpi-desc">Évolution du total des abonnés au fil du temps.</td><td><span class="endpoint">/{ig_user_id}/insights?metric=total_followers_count</span></td></tr>
+  <tr><td class="kpi-name">👁️ Total Reach</td><td class="kpi-desc">Comptes uniques touchés par les posts.</td><td><span class="endpoint">/{ig_user_id}/insights?metric=reach&period=day</span></td></tr>
+  <tr><td class="kpi-name">🎯 Pic</td><td class="kpi-desc">Meilleure journée en portée ou impressions.</td><td><span class="endpoint">Calculé depuis la série journalière</span></td></tr>
+  <tr><td class="kpi-name">📏 Moy. journalière</td><td class="kpi-desc">Moyenne par jour sur la période.</td><td><span class="endpoint">Calculé depuis la série journalière</span></td></tr>
+  <tr><td class="kpi-name">📊 Total Impressions</td><td class="kpi-desc">Somme affichages depuis les métriques de chaque post.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(impressions,views,plays)</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with i3:
@@ -198,22 +201,14 @@ def render_documentation():
 
     with i4:
         st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Podium Top #3 par vues et Top #3 par engagement. Chaque carte affiche :</p><br>
 <table class="kpi-table">
-  <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">👁️ Total Reach</td><td class="kpi-desc">Comptes uniques touchés par les posts.</td><td><span class="endpoint">/{ig_user_id}/insights?metric=reach&period=day</span></td></tr>
-  <tr><td class="kpi-name">🎯 Pic</td><td class="kpi-desc">Meilleure journée en portée ou impressions.</td><td><span class="endpoint">Calculé depuis la série journalière</span></td></tr>
-  <tr><td class="kpi-name">📏 Moy. journalière</td><td class="kpi-desc">Moyenne par jour sur la période.</td><td><span class="endpoint">Calculé depuis la série journalière</span></td></tr>
-  <tr><td class="kpi-name">📊 Total Impressions</td><td class="kpi-desc">Somme affichages depuis les métriques de chaque post.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(impressions,views,plays)</span></td></tr>
-</table>""", unsafe_allow_html=True)
-
-    with i5:
-        st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Posts les plus performants, classés par impressions et engagement total.</p><br>
-<table class="kpi-table">
-  <tr><th>Colonne</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">Impressions / Reach</td><td class="kpi-desc">Affichages et comptes uniques par post.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(impressions,reach)</span></td></tr>
-  <tr><td class="kpi-name">Likes / Commentaires</td><td class="kpi-desc">Interactions par type par post.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(total_likes,total_comments)</span></td></tr>
-  <tr><td class="kpi-name">Partages / Enregistrements</td><td class="kpi-desc">Partages et sauvegardes par post.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(shares,saved)</span></td></tr>
+  <tr><th>Métrique carte</th><th>Description</th><th>Endpoint</th></tr>
+  <tr><td class="kpi-name">👁️ Vues</td><td class="kpi-desc">Total affichages du post (impressions).</td><td><span class="endpoint">/{media_id}?fields=insights.metric(impressions,views,plays)</span></td></tr>
+  <tr><td class="kpi-name">❤️ Réactions</td><td class="kpi-desc">Total des likes sur le post.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(total_likes)</span></td></tr>
+  <tr><td class="kpi-name">💬 Commentaires</td><td class="kpi-desc">Total des commentaires.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(total_comments)</span></td></tr>
+  <tr><td class="kpi-name">🔖 Enregistrements</td><td class="kpi-desc">Nombre de fois que le post a été sauvegardé.</td><td><span class="endpoint">/{media_id}?fields=insights.metric(saved)</span></td></tr>
+  <tr><td class="kpi-name">↗️ Partages</td><td class="kpi-desc">Partages (Stories, DMs, etc.).</td><td><span class="endpoint">/{media_id}?fields=insights.metric(shares)</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
