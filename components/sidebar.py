@@ -3,7 +3,7 @@ import pathlib
 import streamlit as st
 from datetime import datetime, timezone, timedelta
 
-from config import PERIOD_DAYS
+from config import PERIOD_DAYS, CALENDAR_PERIODS
 import db
 
 
@@ -58,19 +58,83 @@ def render_sidebar(log_refresh_fn):
         else:
             platform = "Documentation"
 
-        period_options = list(PERIOD_DAYS.keys()) + ["Custom Range"]
-        period_label = st.selectbox("Date Range", period_options, index=1)
+        period_options = (
+            list(PERIOD_DAYS.keys())
+            + ["─── Calendar ───"]
+            + CALENDAR_PERIODS
+            + ["─── Custom ───", "Custom Range"]
+        )
+        period_label = st.selectbox(
+            "Date Range",
+            period_options,
+            index=2,  # default: Last 30 Days
+            label_visibility="collapsed",
+        )
 
+        # Separators are non-selectable labels — skip back to default if chosen
+        if period_label.startswith("───"):
+            period_label = "Last 30 Days"
+
+        today = datetime.now(timezone.utc).date()
         start_date, end_date = None, None
+
         if period_label == "Custom Range":
-            today = datetime.now(timezone.utc).date()
             c1, c2 = st.columns(2)
             start_val = c1.date_input("Start", today - timedelta(days=30))
             end_val = c2.date_input("End", today)
             start_date, end_date = str(start_val), str(end_val)
             days = (end_val - start_val).days
-        else:
+
+        elif period_label in PERIOD_DAYS:
             days = PERIOD_DAYS[period_label]
+
+        else:
+            # ── Calendar-based periods ────────────────────────────────────────
+            import calendar as _cal
+
+            def _quarter(d):
+                return (d.month - 1) // 3 + 1
+
+            if period_label == "Today":
+                s, e = today, today
+            elif period_label == "Yesterday":
+                s = today - timedelta(days=1)
+                e = s
+            elif period_label == "This Week":
+                s = today - timedelta(days=today.weekday())   # Monday
+                e = today
+            elif period_label == "Last Week":
+                e = today - timedelta(days=today.weekday() + 1)  # last Sunday
+                s = e - timedelta(days=6)                         # last Monday
+            elif period_label == "This Month":
+                s = today.replace(day=1)
+                e = today
+            elif period_label == "Last Month":
+                e = today.replace(day=1) - timedelta(days=1)
+                s = e.replace(day=1)
+            elif period_label == "This Quarter":
+                q = _quarter(today)
+                s = today.replace(month=(q - 1) * 3 + 1, day=1)
+                e = today
+            elif period_label == "Last Quarter":
+                q = _quarter(today)
+                lq = q - 1 if q > 1 else 4
+                lq_year = today.year if q > 1 else today.year - 1
+                s = today.replace(year=lq_year, month=(lq - 1) * 3 + 1, day=1)
+                last_month = (lq - 1) * 3 + 3
+                _, last_day = _cal.monthrange(lq_year, last_month)
+                e = today.replace(year=lq_year, month=last_month, day=last_day)
+            elif period_label == "This Year":
+                s = today.replace(month=1, day=1)
+                e = today
+            elif period_label == "Last Year":
+                s = today.replace(year=today.year - 1, month=1, day=1)
+                e = today.replace(year=today.year - 1, month=12, day=31)
+            else:
+                s, e = today - timedelta(days=30), today
+
+            start_date, end_date = str(s), str(e)
+            days = (e - s).days or 1
 
         if st.button("🔄 Refresh Data", width="stretch"):
             st.cache_data.clear()

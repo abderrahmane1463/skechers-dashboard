@@ -44,11 +44,29 @@ FOOTLAND_CAMPAIGN_KEYWORDS = [
 BLOCKED_AD_ACCOUNTS = ["act_765947885726761"]
 
 # ─── Date Period Mapping ───────────────────────────────────────────────────────
+# Simple rolling windows (days back from today). Calendar-based periods
+# (Today, Yesterday, This Week, etc.) are computed dynamically in sidebar.py.
 PERIOD_DAYS = {
-    "Last 7 Days": 7,
+    "Last 7 Days":  7,
+    "Last 14 Days": 14,
     "Last 30 Days": 30,
+    "Last 60 Days": 60,
     "Last 90 Days": 90,
 }
+
+# Calendar-based presets resolved to (start, end) in sidebar.py
+CALENDAR_PERIODS = [
+    "Today",
+    "Yesterday",
+    "This Week",
+    "Last Week",
+    "This Month",
+    "Last Month",
+    "This Quarter",
+    "Last Quarter",
+    "This Year",
+    "Last Year",
+]
 
 # ─── API Settings ──────────────────────────────────────────────────────────────
 REQUEST_TIMEOUT = 30        # seconds
