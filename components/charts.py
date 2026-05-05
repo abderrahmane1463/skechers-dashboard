@@ -105,6 +105,8 @@ def render_top3_podium(
             caption = post.get("text", "") or ""
             display_caption = (caption[:45] + "…") if len(caption) > 45 else caption
             date = post.get("created_time", "")
+            post_id  = post.get("id", "")
+            post_url = f"https://www.facebook.com/{post_id.replace('_', '/posts/')}" if post_id else "#"
 
             reach     = post.get("reach", 0)
             reactions = post.get("reactions", 0)
@@ -158,6 +160,14 @@ def render_top3_podium(
                 # Rank badge
                 f'<div style="text-align:center;font-size:1.5rem;font-weight:900;'
                 f'color:{color};letter-spacing:0.04em;">{rank}</div>'
+
+                # Post link
+                f'<div style="text-align:center;margin-top:0.6rem;">'
+                f'<a href="{post_url}" target="_blank" style="font-size:0.72rem;'
+                f'color:rgba(255,255,255,0.45);text-decoration:none;'
+                f'border:1px solid rgba(255,255,255,0.15);border-radius:6px;'
+                f'padding:3px 10px;transition:all 0.2s;">'
+                f'Voir le post →</a></div>'
 
                 f'</div>',
                 unsafe_allow_html=True,
