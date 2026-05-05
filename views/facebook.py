@@ -565,14 +565,14 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 posts,
                 sort_key="reach",
                 title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
-                view_label="Vues",
+                view_label="Reach",
             )
             st.divider()
             render_top3_podium(
                 posts,
                 sort_key="total_interactions",
                 title="TOP #3 PUBLICATIONS PAR ENGAGEMENT",
-                view_label="Vues",
+                view_label="Reach",
             )
 
             with st.expander("📋 Toutes les publications"):
