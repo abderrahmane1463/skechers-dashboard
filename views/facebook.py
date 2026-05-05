@@ -403,34 +403,28 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
     with tab2:
+        # Use real daily engagement series from page_post_engagements (Meta Insights)
         eng_df = series_to_df(eng.get("engagements", []))
 
-        # ── Content interactions daily chart ────────────────────────────────────
-        _ci_d = {}
-        for p in posts:
-            d = p.get("created_time", "")[:10]
-            if not d:
-                continue
-            _ci_d[d] = _ci_d.get(d, 0) + p.get("total_interactions", 0)
+        chart_df = eng_df.copy() if not eng_df.empty else pd.DataFrame()
 
-        ci_df = pd.DataFrame(
-            [{"date": pd.Timestamp(k), "value": v} for k, v in sorted(_ci_d.items())]
-        ) if _ci_d else pd.DataFrame()
-
-        if not ci_df.empty and (start_date or days):
+        # Fill full date range with zeros so gaps show correctly
+        if not chart_df.empty and (start_date or days):
             _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
             _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
             _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
-            ci_df = _full_range.merge(ci_df, on="date", how="left").fillna(0)
+            chart_df = _full_range.merge(chart_df, on="date", how="left").fillna(0)
 
-        ci_total = int(ci_df["value"].sum()) if not ci_df.empty else total_engagements
+        chart_total = int(chart_df["value"].sum()) if not chart_df.empty else total_engagements
 
-        if not ci_df.empty:
+        if not chart_df.empty:
             fig_ci = go.Figure()
             fig_ci.add_trace(go.Scatter(
-                x=ci_df["date"], y=ci_df["value"],
+                x=chart_df["date"], y=chart_df["value"],
                 name="Total interactions",
                 line=dict(color="#FF6B35", width=3),
+                fill="tozeroy",
+                fillcolor="rgba(232,66,10,0.08)",
                 mode="lines",
             ))
             ci_layout = {
@@ -444,8 +438,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     gridcolor="rgba(255,255,255,0.06)",
                     showline=False,
                     tickmode="array",
-                    tickvals=[ci_df["date"].iloc[i]
-                              for i in range(0, len(ci_df), max(len(ci_df)//6, 1))][:7],
+                    tickvals=[chart_df["date"].iloc[i]
+                              for i in range(0, len(chart_df), max(len(chart_df)//6, 1))][:7],
                     tickangle=0,
                 ),
                 "showlegend": False,
@@ -455,7 +449,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             fig_ci.update_layout(**ci_layout)
             st.plotly_chart(fig_ci, width="stretch")
 
-            st.metric("Total interactions", f"{ci_total:,}")
+            st.metric("⚡ Total interactions", f"{chart_total:,}")
 
 
     # ── TAB 3: Visibility ────────────────────────────────────────────────────
