@@ -168,19 +168,21 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── TAB 1: Audience ───────────────────────────────────────────────────────
     with tab1:
-        fa_df = series_to_df(follower_additions)
+        pv_series = ig_profile.get("profile_views", [])
+        pv_df = series_to_df(pv_series)
+        total_pv = int(pv_df["value"].sum()) if not pv_df.empty else 0
 
-        if not fa_df.empty:
-            chart_col, stats_col = st.columns([3, 1])
+        chart_col, stats_col = st.columns([3, 1])
 
-            with chart_col:
+        with chart_col:
+            if not pv_df.empty:
                 fig_aud = go.Figure()
                 fig_aud.add_trace(go.Scatter(
-                    x=fa_df["date"], y=fa_df["value"],
-                    name="Followers",
-                    line=dict(color="#7EC8E3", width=2.5),
+                    x=pv_df["date"], y=pv_df["value"],
+                    name="Profile Views",
+                    line=dict(color="#a78bfa", width=2.5),
                     fill="tozeroy",
-                    fillcolor="rgba(126,200,227,0.08)",
+                    fillcolor="rgba(167,139,250,0.08)",
                     mode="lines"
                 ))
                 fig_aud.update_layout(**{
@@ -198,41 +200,35 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 st.markdown(
                     '<div style="text-align:center;margin-top:-12px;">'
                     '<span style="display:inline-block;width:28px;height:2px;'
-                    'background:#7EC8E3;vertical-align:middle;margin-right:6px;"></span>'
-                    '<span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Followers</span>'
+                    'background:#a78bfa;vertical-align:middle;margin-right:6px;"></span>'
+                    '<span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Profile Views</span>'
                     '</div>',
                     unsafe_allow_html=True
                 )
-
-            with stats_col:
-                _nf = _new_followers_str
+            else:
                 st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;'
-                    f'padding:1.2rem 1rem;display:flex;flex-direction:column;gap:1.2rem;">'
-                    f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
-                    f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Nouveaux followers</div>'
-                    f'<div style="font-size:1.5rem;font-weight:800;color:#4ade80;">{_nf}</div>'
-                    f'</div>'
-                    f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
-                    f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Followers (Lifetime)</div>'
-                    f'<div style="font-size:1.5rem;font-weight:800;color:#FF6B35;">{followers:,}</div>'
-                    f'</div>'
-                    f'</div>',
-                    unsafe_allow_html=True
+                    '<div style="background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.25);'
+                    'border-radius:10px;padding:1rem 1.2rem;color:rgba(255,165,0,0.9);font-size:0.85rem;">'
+                    '⚠️ Aucune donnée de vues de profil disponible pour cette période.</div>',
+                    unsafe_allow_html=True,
                 )
-        else:
+
+        with stats_col:
             st.markdown(
-                f'<div style="background:rgba(255,255,255,0.05);border-radius:16px;'
-                f'padding:1.4rem 1.6rem;text-align:center;max-width:280px;">'
-                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
-                f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem;">'
-                f'👥 Followers (total actuel)</div>'
-                f'<div style="font-size:2.4rem;font-weight:900;color:#7EC8E3;line-height:1;">'
-                f'{followers:,}</div>'
+                f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;'
+                f'padding:1.2rem 1rem;display:flex;flex-direction:column;gap:1.2rem;">'
+                f'<div>'
+                f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Vues du profil</div>'
+                f'<div style="font-size:1.5rem;font-weight:800;color:#a78bfa;">{total_pv:,}</div>'
+                f'</div>'
+                f'<div>'
+                f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Followers (total)</div>'
+                f'<div style="font-size:1.5rem;font-weight:800;color:#FF6B35;">{followers:,}</div>'
+                f'</div>'
                 f'</div>',
-                unsafe_allow_html=True,
+                unsafe_allow_html=True
             )
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
