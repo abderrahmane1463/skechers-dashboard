@@ -306,23 +306,22 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     _until_dt = _dt2.strptime(until, "%Y-%m-%d").date()
     _window   = (_until_dt - _since_dt).days + 1
 
-    if _window == 1:
-        # Single-day window (Today / Yesterday): reuse the already-fetched
-        # page_impressions_unique period=day series — no extra API call needed
-        # and avoids the 7-day rolling window distorting a 1-day selection.
-        _daily = result.get("reach", [])
-        result["period_reach"] = _daily[0]["value"] if _daily else 0
-        print(f"DEBUG: period_reach (day, direct) = {result['period_reach']}")
+    if _window <= 7:
+        # Short windows (1–7 days): sum the already-fetched daily unique reach series.
+        # Using period=week (7-day rolling) for a 2- or 3-day window inflates the number
+        # (it covers 7 days regardless of the actual selection) and can produce the
+        # physically-impossible situation where reach > impressions.
+        # Daily sum ensures: reach ≤ impressions, and longer windows always show higher
+        # reach than shorter windows within this range.
+        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
+        print(f"DEBUG: period_reach (daily sum, {_window}d) = {result['period_reach']}")
     else:
-        # Multi-day windows: use the appropriate rolling-window unique metric.
-        #   period=week  (7-day rolling)  for windows of 2–7 days
-        #   period=month (28-day rolling) for windows of 8+ days
-        # We take the LAST value = rolling window ending at `until` date.
-        _reach_period = "week" if _window <= 7 else "month"
+        # Longer windows (8+ days): use the 28-day rolling deduplicated unique reach.
+        # Take the last value = rolling window ending at the `until` date.
         try:
             data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
                 "metric": "page_impressions_unique",
-                "period": _reach_period,
+                "period": "month",
                 "since": since,
                 "until": until,
             })
@@ -331,9 +330,9 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
                     vals = m.get("values", [])
                     if vals:
                         result["period_reach"] = vals[-1].get("value", 0)
-            print(f"DEBUG: period_reach ({_reach_period}, last val) = {result['period_reach']}")
+            print(f"DEBUG: period_reach (month rolling, last val) = {result['period_reach']}")
         except Exception as e:
-            print(f"DEBUG: period_reach ({_reach_period}) error: {e}")
+            print(f"DEBUG: period_reach (month) error: {e}")
             result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
 
     return result
