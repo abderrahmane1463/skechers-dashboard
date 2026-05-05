@@ -62,16 +62,13 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
                 "since": since_ts,
                 "until": until_ts,
             }
-            # Special params for newer API versions
-            if metric == "profile_views":
-                params["metric_type"] = "total_value"
-
             data = _get(f"{INSTAGRAM_USER_ID}/insights", params)
             for m in data.get("data", []):
                 if m["name"] == metric:
                     result[key] = [
                         {"date": v["end_time"][:10], "value": v["value"]}
-                        for v in m["values"]
+                        for v in m.get("values", [])
+                        if isinstance(v.get("value"), (int, float))
                     ]
         except Exception as e:
             print(f"DEBUG: IG {metric} fetch error: {e}")
@@ -85,6 +82,27 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
                     for m in data.get("data", []):
                         result["impressions"] = [{"date": v["end_time"][:10], "value": v["value"]} for v in m["values"]]
                 except: pass
+
+    # Fallback for profile_views: try metric_type=time_series
+    if not result["profile_views"]:
+        try:
+            data = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                "metric": "profile_views",
+                "period": "day",
+                "metric_type": "time_series",
+                "since": since_ts,
+                "until": until_ts,
+            })
+            for m in data.get("data", []):
+                if m["name"] == "profile_views":
+                    result["profile_views"] = [
+                        {"date": v["end_time"][:10], "value": v["value"]}
+                        for v in m.get("values", [])
+                        if isinstance(v.get("value"), (int, float))
+                    ]
+            print(f"DEBUG IG profile_views (time_series): {len(result['profile_views'])} points")
+        except Exception as e:
+            print(f"DEBUG: IG profile_views time_series fallback error: {e}")
 
     # 3. Deduplicated Period Reach — try multiple approaches to get the closest
     # value to what Meta Business Suite reports.
