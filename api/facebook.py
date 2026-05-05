@@ -283,39 +283,47 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     result["period_impressions"] = sum(v["value"] for v in result.get("impressions", []))
     print(f"DEBUG: period_impressions (daily sum) = {result['period_impressions']}")
 
-    # period_reach — use monthly deduplicated metric only for periods >= 28 days.
-    # For shorter windows (Today, Yesterday, This Week, etc.) the monthly metric
-    # returns the entire calendar month and is misleading. Use the daily series
-    # sum instead so the number reflects the actual selected window.
-    from datetime import date as _date
-    import calendar as _cal
-    _since_dt = datetime.strptime(since, "%Y-%m-%d").date()
-    _until_dt = datetime.strptime(until, "%Y-%m-%d").date()
+    # period_reach — true deduplicated unique reach via Facebook's rolling window metrics.
+    #
+    # Facebook's Graph API does NOT provide truly unique reach for arbitrary date ranges.
+    # The only deduplicated unique metrics available are rolling windows:
+    #   - period=week  → 7-day rolling unique reach  (use for windows ≤ 7 days)
+    #   - period=month → 28-day rolling unique reach (use for windows  > 7 days)
+    #
+    # We take the LAST value in the API response, which is the rolling window
+    # ending at `until` (the most recent date in the selected period).
+    # This is the closest approximation to "unique people who saw the page
+    # in the selected period" that the Graph API exposes.
+    #
+    # Note: for very short windows (e.g. Today = 1 day) the 7-day rolling
+    # reach will be larger than the true 1-day reach — this is a known API
+    # limitation. For 14 days and 30 days ending on the same date the values
+    # will be similar (both using the same 28-day rolling window), which is
+    # correct: the page's deduplicated audience does not change much based on
+    # whether the user selected 14 or 30 days.
+    from datetime import datetime as _dt2
+    _since_dt = _dt2.strptime(since, "%Y-%m-%d").date()
+    _until_dt = _dt2.strptime(until, "%Y-%m-%d").date()
     _window   = (_until_dt - _since_dt).days + 1
-
-    if _window >= 28:
-        _, _last_d = _cal.monthrange(_since_dt.year, _since_dt.month)
-        _month_since = f"{_since_dt.year}-{_since_dt.month:02d}-01"
-        _month_until = f"{_since_dt.year}-{_since_dt.month:02d}-{_last_d:02d}"
-        try:
-            data_p = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-                "metric": "page_impressions_unique",
-                "period": "month",
-                "since": _month_since,
-                "until": _month_until,
-            })
-            for m in data_p.get("data", []):
-                if m["name"] == "page_impressions_unique":
-                    vals = m.get("values", [])
-                    if vals:
-                        result["period_reach"] = max(v["value"] for v in vals)
-            print(f"DEBUG: period_reach (month) = {result['period_reach']}")
-        except Exception as e:
-            print(f"DEBUG: period_reach month error: {e}")
-    else:
-        # Short window: sum the daily unique reach series
+    _reach_period = "week" if _window <= 7 else "month"
+    try:
+        data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+            "metric": "page_impressions_unique",
+            "period": _reach_period,
+            "since": since,
+            "until": until,
+        })
+        for m in data_r.get("data", []):
+            if m["name"] == "page_impressions_unique":
+                vals = m.get("values", [])
+                if vals:
+                    # last value = rolling window ending at the most recent date
+                    result["period_reach"] = vals[-1].get("value", 0)
+        print(f"DEBUG: period_reach ({_reach_period}, last val) = {result['period_reach']}")
+    except Exception as e:
+        print(f"DEBUG: period_reach ({_reach_period}) error: {e}")
+        # Fallback: sum of daily unique series (overcounts multi-day users)
         result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
-        print(f"DEBUG: period_reach (daily sum, {_window}d) = {result['period_reach']}")
 
     return result
 
