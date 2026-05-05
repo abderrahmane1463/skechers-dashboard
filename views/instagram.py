@@ -405,8 +405,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     # ── TAB 3: Top Content ────────────────────────────────────────────────────
     with tab3:
         _ig_metrics = [
-            ("📢", "Impressions",      "impressions"),
-            ("👁️", "Couverture",       "reach"),
+            ("👁️", "Vues",             "impressions"),
             ("❤️", "Réactions",        "reactions"),
             ("💬", "Commentaires",     "comments"),
             ("🔖", "Enregistrements",  "saves"),
