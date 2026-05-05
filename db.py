@@ -117,6 +117,27 @@ def load_fetched_at(metric_key: str, period_start: str, period_end: str):
         return None
 
 
+# ── Delete ─────────────────────────────────────────────────────────────────────
+def delete_period(period_start: str, period_end: str) -> bool:
+    """
+    Delete all cached rows for a given (period_start, period_end) from Supabase.
+    Called by the Refresh button so the next db._get() is forced to hit the API.
+    """
+    try:
+        params = {
+            "period_start": f"eq.{period_start}",
+            "period_end":   f"eq.{period_end}",
+        }
+        del_headers = {**_get_headers(), "Prefer": "return=minimal"}
+        resp = requests.delete(ENDPOINT, headers=del_headers, params=params, timeout=15)
+        resp.raise_for_status()
+        print(f"DEBUG db.delete_period: cleared [{period_start} → {period_end}]")
+        return True
+    except Exception as e:
+        print(f"DEBUG db.delete_period error: {e}")
+        return False
+
+
 # ── High-level getters (cache → API fallback) ──────────────────────────────────
 import api
 from api.base import _date_range
