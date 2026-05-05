@@ -329,12 +329,13 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     "xaxis": dict(
                         gridcolor="rgba(255,255,255,0.06)",
                         showline=False,
-                        tickmode="linear",
-                        dtick=86400000,  # 1 day in milliseconds
-                        tickangle=-45,
+                        tickmode="array",
+                        tickvals=[merged["date"].iloc[i]
+                                  for i in range(0, len(merged), max(len(merged)//6, 1))][:7],
+                        tickangle=0,
                     ),
                     "showlegend": False,
-                    "margin": dict(l=0, r=0, t=10, b=30),
+                    "margin": dict(l=0, r=0, t=10, b=40),
                     "height": 280,
                 }
                 fig.update_layout(**audience_layout)
