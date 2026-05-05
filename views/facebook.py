@@ -607,33 +607,4 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             unsafe_allow_html=True
         )
 
-    # ── Top Publications Section ─────────────────────────────────────────────
-    if posts:
-        st.markdown("---")
-        st.markdown(
-            '<div style="text-align:center; font-size:1.1rem; font-weight:700; '
-            'letter-spacing:0.1em; color:rgba(255,255,255,0.6); margin-bottom:1.2rem;">'
-            '🏆 TOP PUBLICATIONS PAR VISIBILITÉ</div>',
-            unsafe_allow_html=True
-        )
-        sorted_posts = sorted(posts, key=lambda p: p.get("reach", 0), reverse=True)[:6]
-        cols = st.columns(3)
-        for idx, post in enumerate(sorted_posts):
-            with cols[idx % 3]:
-                _render_post_card(post, link_color="#6c8ebf")
-
-    # ── Top Publications by Engagement ───────────────────────────────────────
-    if posts:
-        st.markdown("---")
-        st.markdown(
-            '<div style="text-align:center; font-size:1.1rem; font-weight:700; '
-            'letter-spacing:0.1em; color:rgba(255,255,255,0.6); margin-bottom:1.2rem;">'
-            '⚡ TOP PUBLICATIONS PAR ENGAGEMENT</div>',
-            unsafe_allow_html=True
-        )
-        eng_sorted = sorted(posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:6]
-        eng_cols = st.columns(3)
-        for idx, post in enumerate(eng_sorted):
-            with eng_cols[idx % 3]:
-                _render_post_card(post, link_color="#FF6B35")
 
