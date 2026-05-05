@@ -44,6 +44,7 @@ def render_top3_podium(
     sort_key: str,
     title: str,
     view_label: str = "Vues",
+    metrics: list = None,
 ) -> None:
     """
     Render a 3-card podium matching the report's slide layout.
@@ -52,11 +53,12 @@ def render_top3_podium(
 
     Parameters
     ----------
-    posts      : list of post dicts (fields: thumbnail, text, created_time,
-                 reach, reactions, comments, shares)
+    posts      : list of post dicts
     sort_key   : field to rank by (e.g. "reach" or "total_interactions")
     title      : section header text
-    view_label : label for the reach/views metric (default "Vues")
+    view_label : label for the first metric when using default Facebook layout
+    metrics    : optional list of (icon, label, field) tuples to override the
+                 default metrics grid. e.g. [("❤️", "Réactions", "reactions")]
     """
     # Section header
     st.markdown(
@@ -111,12 +113,21 @@ def render_top3_podium(
                 or (f"https://www.facebook.com/{post_id.replace('_', '/posts/')}" if post_id else "#")
             )
 
-            reach        = post.get("reach", 0)
-            reactions    = post.get("reactions", 0)
-            comments     = post.get("comments", 0)
-            shares       = post.get("shares", 0)
-            clicks       = post.get("clicks", 0)
-            interactions = post.get("total_interactions", 0)
+            # ── Resolve metrics ────────────────────────────────────────────────
+            _metrics = metrics or [
+                ("👁️", view_label,  "reach"),
+                ("❤️", "",          "reactions"),
+                ("💬", "",          "comments"),
+                ("🔁", "",          "shares"),
+                ("🖱️", "Clics",     "clicks"),
+                ("⚡", "Total",     "total_interactions"),
+            ]
+            metrics_html = "".join(
+                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
+                f'{icon} <b style="color:rgba(255,255,255,0.9);">{_fmt_big(post.get(field, 0))}</b>'
+                f'{" " + label if label else ""}</div>'
+                for icon, label, field in _metrics
+            )
 
             # ── Thumbnail ──────────────────────────────────────────────────────
             if thumb:
@@ -152,18 +163,7 @@ def render_top3_podium(
                 # Metrics row
                 f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 0.5rem;'
                 f'margin-bottom:0.75rem;">'
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'👁️ <b style="color:rgba(255,255,255,0.9);">{_fmt_big(reach)}</b> {view_label}</div>'
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'❤️ <b style="color:rgba(255,255,255,0.9);">{_fmt_big(reactions)}</b></div>'
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'💬 <b style="color:rgba(255,255,255,0.9);">{_fmt_big(comments)}</b></div>'
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'🔁 <b style="color:rgba(255,255,255,0.9);">{_fmt_big(shares)}</b></div>'
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'🖱️ <b style="color:rgba(255,255,255,0.9);">{_fmt_big(clicks)}</b> Clics</div>'
-                f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.65);">'
-                f'⚡ <b style="color:rgba(255,255,255,0.9);">{_fmt_big(interactions)}</b> Total</div>'
+                + metrics_html +
                 f'</div>'
 
                 # Rank badge

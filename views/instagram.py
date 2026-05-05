@@ -404,19 +404,27 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── TAB 3: Top Content ────────────────────────────────────────────────────
     with tab3:
+        _ig_metrics = [
+            ("📢", "Impressions",      "impressions"),
+            ("👁️", "Couverture",       "reach"),
+            ("❤️", "Réactions",        "reactions"),
+            ("💬", "Commentaires",     "comments"),
+            ("🔖", "Enregistrements",  "saves"),
+            ("↗️", "Partages",         "shares"),
+        ]
         if ig_posts:
             render_top3_podium(
                 ig_posts,
                 sort_key="impressions",
                 title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
-                view_label="Impressions",
+                metrics=_ig_metrics,
             )
             st.divider()
             render_top3_podium(
                 ig_posts,
                 sort_key="total_interactions",
                 title="TOP #3 PUBLICATIONS PAR ENGAGEMENT",
-                view_label="Impressions",
+                metrics=_ig_metrics,
             )
 
             with st.expander("📋 Toutes les publications"):
