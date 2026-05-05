@@ -121,11 +121,6 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
     total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
 
-    if follower_additions:
-        ig_new_followers = sum(p["value"] for p in follower_additions)
-    else:
-        ig_new_followers = None
-
     ig_eng_rate = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
 
     log_refresh_fn(
@@ -228,42 +223,14 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     unsafe_allow_html=True
                 )
         else:
-            # Daily series unavailable — show static summary card instead
-            _net_color  = "#4ade80" if (ig_new_followers or 0) >= 0 else "#f87171"
-            _net_arrow  = "▲" if (ig_new_followers or 0) >= 0 else "▼"
-            _net_label  = _new_followers_str if ig_new_followers is not None else "—"
             st.markdown(
-                f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.8rem;">'
-
-                # Card 1 — current total
                 f'<div style="background:rgba(255,255,255,0.05);border-radius:16px;'
-                f'padding:1.4rem 1.6rem;text-align:center;">'
+                f'padding:1.4rem 1.6rem;text-align:center;max-width:280px;">'
                 f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
                 f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem;">'
                 f'👥 Followers (total actuel)</div>'
                 f'<div style="font-size:2.4rem;font-weight:900;color:#7EC8E3;line-height:1;">'
                 f'{followers:,}</div>'
-                f'</div>'
-
-                # Card 2 — net change
-                f'<div style="background:rgba(255,255,255,0.05);border-radius:16px;'
-                f'padding:1.4rem 1.6rem;text-align:center;">'
-                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
-                f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem;">'
-                f'➕ Variation nette sur la période</div>'
-                f'<div style="font-size:2.4rem;font-weight:900;color:{_net_color};line-height:1;">'
-                f'{_net_arrow} {_net_label}</div>'
-                f'</div>'
-
-                f'</div>'
-
-                # API limitation note
-                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(255,255,255,0.15);'
-                f'border-radius:0 8px 8px 0;padding:0.55rem 1rem;'
-                f'font-size:0.76rem;color:rgba(255,255,255,0.35);line-height:1.5;">'
-                f'ℹ️ La série journalière (<code>follower_count</code>) n\'est pas disponible via l\'API '
-                f'Meta pour ce type de compte. Les données ci-dessus sont calculées à partir du total '
-                f'de la page et de la différence entre la première et la dernière valeur de la période.'
                 f'</div>',
                 unsafe_allow_html=True,
             )
