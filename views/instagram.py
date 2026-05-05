@@ -4,7 +4,7 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
-from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
+from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -27,6 +27,8 @@ def get_ig_post_totals(days, start=None, end=None):
 
 # ─── Post card helper ─────────────────────────────────────────────────────────
 def _render_ig_post_card(post: dict):
+    _dark = st.session_state.get("theme", "dark") == "dark"
+
     thumbnail = post.get("thumbnail", "")
     text      = post.get("text", "")[:100] or "*(No caption)*"
     date      = post.get("created_time", "")
@@ -39,27 +41,40 @@ def _render_ig_post_card(post: dict):
     reach_val = post.get("reach", 0)
     permalink = post.get("permalink", "#")
 
+    # ── Theme tokens ──
+    _cell_bg   = "rgba(255,255,255,0.05)" if _dark else "#f8fafc"
+    _cell_brd  = "" if _dark else "border:1px solid #e5e7eb;"
+    _cell_lc   = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _cell_vc   = "#ffffff" if _dark else "#111827"
+    _date_c    = "rgba(255,255,255,0.45)" if _dark else "#9ca3af"
+    _text_c    = "rgba(255,255,255,0.85)" if _dark else "#111827"
+    _no_img_bg = "rgba(255,255,255,0.05)" if _dark else "#f3f4f6"
+    _no_img_tc = "rgba(255,255,255,0.3)"  if _dark else "#d1d5db"
+    _total_lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _total_bg  = "rgba(232,66,10,0.15)"   if _dark else "rgba(232,66,10,0.08)"
+
     if thumbnail:
         st.image(thumbnail, use_container_width=True)
     else:
         st.markdown(
-            '<div style="height:160px;background:rgba(255,255,255,0.05);'
-            'border-radius:12px;display:flex;align-items:center;'
-            'justify-content:center;color:rgba(255,255,255,0.3);">📷 No image</div>',
+            f'<div style="height:160px;background:{_no_img_bg};'
+            f'border-radius:12px;display:flex;align-items:center;'
+            f'justify-content:center;color:{_no_img_tc};">📷 No image</div>',
             unsafe_allow_html=True
         )
 
     st.markdown(
-        f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
-        f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
+        f'<p style="font-size:0.75rem;color:{_date_c};margin:0.3rem 0 0.1rem;">{date}</p>'
+        f'<p style="font-size:0.82rem;color:{_text_c};line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
         unsafe_allow_html=True
     )
 
-    def _cell(icon, label, value, color="#fff"):
+    def _cell(icon, label, value, color=None):
+        _vc = color if color else _cell_vc
         return (
-            f'<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">'
-            f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">{icon} {label}</div>'
-            f'<div style="font-size:1rem;font-weight:700;color:{color};">{value:,}</div>'
+            f'<div style="background:{_cell_bg};{_cell_brd}border-radius:8px;padding:0.5rem 0.6rem;">'
+            f'<div style="font-size:0.7rem;color:{_cell_lc};">{icon} {label}</div>'
+            f'<div style="font-size:1rem;font-weight:700;color:{_vc};">{value:,}</div>'
             f'</div>'
         )
 
@@ -72,8 +87,8 @@ def _render_ig_post_card(post: dict):
         f'{_cell("🔖", "Enregistrements", saves, "#60a5fa")}'
         f'{_cell("↗️", "Partages",    shares, "#34d399")}'
         f'</div>'
-        f'<div style="background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.5rem;">'
-        f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>'
+        f'<div style="background:{_total_bg};border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.5rem;">'
+        f'<div style="font-size:0.7rem;color:{_total_lc};">⚡ Total interactions</div>'
         f'<div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>'
         f'</div>'
         f'<a href="{permalink}" target="_blank" style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">'
@@ -249,17 +264,17 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 yaxis="y2",
             ))
             fig_eng.update_layout(**{
-                **CHART_LAYOUT,
+                **get_chart_layout(),
                 "yaxis": dict(
-                    gridcolor="rgba(255,255,255,0.06)", showline=False,
+                    gridcolor="rgba(255,255,255,0.06)" if _dark else "#e5e7eb", showline=False,
                     tickformat=",", range=[0, _y1_max],
-                    title=dict(text="Interactions", font=dict(size=10, color="rgba(255,255,255,0.3)")),
+                    title=dict(text="Interactions", font=dict(size=10, color="rgba(255,255,255,0.3)" if _dark else "#9ca3af")),
                 ),
                 "yaxis2": dict(
                     overlaying="y", side="right",
                     gridcolor="rgba(255,255,255,0)", showline=False,
                     tickformat=",", range=[0, _y2_max],
-                    title=dict(text="Commentaires / Enreg.", font=dict(size=10, color="rgba(255,255,255,0.3)")),
+                    title=dict(text="Commentaires / Enreg.", font=dict(size=10, color="rgba(255,255,255,0.3)" if _dark else "#9ca3af")),
                 ),
                 "xaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)", showline=False,
@@ -272,7 +287,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 "legend": dict(
                     orientation="h", yanchor="bottom", y=-0.28,
                     xanchor="center", x=0.5,
-                    font=dict(size=11, color="rgba(255,255,255,0.6)"),
+                    font=dict(size=11, color="rgba(255,255,255,0.6)" if _dark else "#6b7280"),
                     bgcolor="rgba(0,0,0,0)",
                 ),
                 "margin": dict(l=0, r=40, t=10, b=70),
@@ -326,10 +341,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 'font-weight:400;letter-spacing:0;">(estimé — agrégé depuis les publications)</span>'
                 if _reach_from_posts else ""
             )
+            _vis_hdr_c   = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+            _vis_hdr_brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
             st.markdown(
-                f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                f'<div style="font-size:0.68rem;color:{_vis_hdr_c};'
                 f'text-transform:uppercase;letter-spacing:0.08em;'
-                f'margin:0 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                f'margin:0 0 0.6rem;border-bottom:1px solid {_vis_hdr_brd};'
                 f'padding-bottom:0.4rem;">👁️ COUVERTURES (REACH){_reach_src}</div>',
                 unsafe_allow_html=True
             )
@@ -343,7 +360,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 marker=dict(size=4, color="#6366f1"),
             ))
             fig_reach.update_layout(**{
-                **CHART_LAYOUT,
+                **get_chart_layout(),
                 "showlegend": False,
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,
@@ -363,21 +380,25 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 'font-weight:400;letter-spacing:0;">(estimé — agrégé depuis les publications)</span>'
                 if _impressions_from_posts else ""
             )
+            _imp_hdr_c   = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+            _imp_hdr_brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
+            _note_tc     = "rgba(255,255,255,0.45)"  if _dark else "#6b7280"
+            _note_bc     = "rgba(255,255,255,0.6)"   if _dark else "#374151"
             st.markdown(
-                f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
+                f'<div style="font-size:0.68rem;color:{_imp_hdr_c};'
                 f'text-transform:uppercase;letter-spacing:0.08em;'
-                f'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
+                f'margin:1.4rem 0 0.6rem;border-bottom:1px solid {_imp_hdr_brd};'
                 f'padding-bottom:0.4rem;">📢 IMPRESSIONS *{_imp_src}</div>',
                 unsafe_allow_html=True
             )
             st.markdown(
-                '<div style="background:rgba(99,102,241,0.07);border-left:3px solid rgba(99,102,241,0.5);'
-                'border-radius:0 8px 8px 0;padding:0.45rem 0.85rem;margin-bottom:0.7rem;'
-                'font-size:0.76rem;color:rgba(255,255,255,0.45);line-height:1.5;">'
-                '* Les impressions des <b style="color:rgba(255,255,255,0.6);">Stories passées</b> '
-                'ne sont pas disponibles via l\'API Meta après 24h — ce graphique couvre '
-                'uniquement le feed &amp; les Reels.'
-                '</div>',
+                f'<div style="background:rgba(99,102,241,0.07);border-left:3px solid rgba(99,102,241,0.5);'
+                f'border-radius:0 8px 8px 0;padding:0.45rem 0.85rem;margin-bottom:0.7rem;'
+                f'font-size:0.76rem;color:{_note_tc};line-height:1.5;">'
+                f'* Les impressions des <b style="color:{_note_bc};">Stories passées</b> '
+                f'ne sont pas disponibles via l\'API Meta après 24h — ce graphique couvre '
+                f'uniquement le feed &amp; les Reels.'
+                f'</div>',
                 unsafe_allow_html=True,
             )
             fig_imp = go.Figure()
@@ -390,7 +411,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 marker=dict(size=4, color="#ec4899"),
             ))
             fig_imp.update_layout(**{
-                **CHART_LAYOUT,
+                **get_chart_layout(),
                 "showlegend": False,
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,

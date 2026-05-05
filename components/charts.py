@@ -12,6 +12,22 @@ CHART_LAYOUT = dict(
 )
 
 
+def get_chart_layout() -> dict:
+    """Return a theme-aware chart layout dict (call at render time)."""
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    _font_c = "rgba(255,255,255,0.7)" if _dark else "#6b7280"
+    _grid_c = "rgba(255,255,255,0.06)" if _dark else "#e5e7eb"
+    return dict(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=_font_c, family="Inter"),
+        xaxis=dict(gridcolor=_grid_c, showline=False),
+        yaxis=dict(gridcolor=_grid_c, showline=False),
+        margin=dict(l=0, r=0, t=30, b=0),
+        legend=dict(bgcolor="rgba(0,0,0,0)"),
+    )
+
+
 def series_to_df(series: list, value_col="value") -> pd.DataFrame:
     if not series:
         return pd.DataFrame(columns=["date", value_col])

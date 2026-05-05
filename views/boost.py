@@ -19,7 +19,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from components.charts import CHART_LAYOUT
+from components.charts import get_chart_layout
 
 
 # ─── Placeholder data structure ───────────────────────────────────────────────
@@ -447,7 +447,7 @@ def _render_demographics(demo: dict):
     ))
     _ymax = max(max(men_pcts + women_pcts, default=0) * 1.25, 10)
     fig.update_layout(**{
-        **CHART_LAYOUT,
+        **get_chart_layout(),
         "barmode": "group",
         "yaxis": dict(
             gridcolor="rgba(255,255,255,0.06)", showline=False,

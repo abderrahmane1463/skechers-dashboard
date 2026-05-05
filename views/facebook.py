@@ -6,51 +6,54 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
-from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
+from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
 
 
 # ─── Post card helper ─────────────────────────────────────────────────────────
 def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
     """Renders a full-detail post card with all available metrics."""
+    _dark = st.session_state.get("theme", "dark") == "dark"
+
     thumbnail        = post.get("thumbnail", "")
     text             = post.get("text", "")[:100] or "*(No caption)*"
     date             = post.get("created_time", "")
     post_id          = post.get("id", "")
     post_url         = f"https://www.facebook.com/{post_id.replace('_', '/posts/')}" if post_id else "#"
 
-    reach            = post.get("reach", 0)
     total_views      = post.get("total_views", 0)
-    impressions      = post.get("impressions", 0)
     imp_org          = post.get("impressions_organic", 0)
     imp_paid         = post.get("impressions_paid", 0)
-
     reacs            = post.get("reactions", 0)
     comms            = post.get("comments", 0)
     shars            = post.get("shares", 0)
     clicks           = post.get("clicks", 0)
-    clicks_uniq      = post.get("clicks_unique", 0)
-    engaged          = post.get("engaged_users", 0)
-    negative         = post.get("negative_feedback", 0)
     total            = post.get("total_interactions", 0)
-
-    reactions_by_type = post.get("reactions_by_type", {}) or {}
-
     video_views      = post.get("video_views", 0)
     video_uniq       = post.get("video_views_unique", 0)
     video_complete   = post.get("video_complete_views", 0)
     video_avg        = post.get("video_avg_watch_sec", 0)
     is_video         = video_views > 0
 
-    def _cell(icon, label, value, color="#fff"):
+    # ── Theme tokens ──
+    _cell_bg   = "rgba(255,255,255,0.05)" if _dark else "#f8fafc"
+    _cell_brd  = "" if _dark else "border:1px solid #e5e7eb;"
+    _cell_lc   = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _cell_vc   = "#ffffff" if _dark else "#111827"
+    _date_c    = "rgba(255,255,255,0.45)" if _dark else "#9ca3af"
+    _text_c    = "rgba(255,255,255,0.85)" if _dark else "#111827"
+    _shdr_c    = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+    _no_img_bg = "rgba(255,255,255,0.05)" if _dark else "#f3f4f6"
+    _no_img_tc = "rgba(255,255,255,0.3)"  if _dark else "#d1d5db"
+    _total_lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _total_bg  = "rgba(232,66,10,0.15)"   if _dark else "rgba(232,66,10,0.08)"
+
+    def _cell(icon, label, value, color=None):
+        _vc  = color if color else _cell_vc
+        _val = f"{value:,}" if isinstance(value, int) else str(value)
         return (
-            f'<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">'
-            f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">{icon} {label}</div>'
-            f'<div style="font-size:1rem;font-weight:700;color:{color};">{value:,}</div>'
-            f'</div>'
-        ) if isinstance(value, int) else (
-            f'<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">'
-            f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">{icon} {label}</div>'
-            f'<div style="font-size:1rem;font-weight:700;color:{color};">{value}</div>'
+            f'<div style="background:{_cell_bg};{_cell_brd}border-radius:8px;padding:0.5rem 0.6rem;">'
+            f'<div style="font-size:0.7rem;color:{_cell_lc};">{icon} {label}</div>'
+            f'<div style="font-size:1rem;font-weight:700;color:{_vc};">{_val}</div>'
             f'</div>'
         )
 
@@ -58,22 +61,22 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
         st.image(thumbnail, width="stretch")
     else:
         st.markdown(
-            '<div style="height:140px;background:rgba(255,255,255,0.05);border-radius:12px;'
-            'display:flex;align-items:center;justify-content:center;'
-            'color:rgba(255,255,255,0.3);">📷 No image</div>',
+            f'<div style="height:140px;background:{_no_img_bg};border-radius:12px;'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'color:{_no_img_tc};">📷 No image</div>',
             unsafe_allow_html=True
         )
 
     st.markdown(
-        f'<p style="font-size:0.75rem;color:rgba(255,255,255,0.45);margin:0.3rem 0 0.1rem;">{date}</p>'
-        f'<p style="font-size:0.82rem;color:rgba(255,255,255,0.85);line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
+        f'<p style="font-size:0.75rem;color:{_date_c};margin:0.3rem 0 0.1rem;">{date}</p>'
+        f'<p style="font-size:0.82rem;color:{_text_c};line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
         unsafe_allow_html=True
     )
 
     # ── Portée & Impressions ──
     st.markdown(
-        '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
-        'text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.25rem;">Portée & Impressions</div>',
+        f'<div style="font-size:0.68rem;color:{_shdr_c};'
+        f'text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.25rem;">Portée & Impressions</div>',
         unsafe_allow_html=True
     )
     st.markdown(
@@ -87,8 +90,8 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
 
     # ── Engagement ──
     st.markdown(
-        '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
-        'text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.25rem;">Engagement</div>',
+        f'<div style="font-size:0.68rem;color:{_shdr_c};'
+        f'text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.25rem;">Engagement</div>',
         unsafe_allow_html=True
     )
     st.markdown(
@@ -101,29 +104,28 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
         unsafe_allow_html=True
     )
 
-
     # ── Vidéo (si applicable) ──
     if is_video:
         avg_str = f"{video_avg:.1f}s" if video_avg else "—"
         st.markdown(
-            '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
-            'text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.25rem;">Vidéo / Reels</div>'
+            f'<div style="font-size:0.68rem;color:{_shdr_c};'
+            f'text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.25rem;">Vidéo / Reels</div>'
             f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;">'
             f'{_cell("▶️", "Vues (≥3s)", video_views)}'
             f'{_cell("👤", "Vues uniques", video_uniq)}'
             f'{_cell("✅", "Vues complètes", video_complete)}'
-            f'<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.6rem;">'
-            f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⏱️ Temps moyen</div>'
-            f'<div style="font-size:1rem;font-weight:700;color:#fff;">{avg_str}</div>'
+            f'<div style="background:{_cell_bg};{_cell_brd}border-radius:8px;padding:0.5rem 0.6rem;">'
+            f'<div style="font-size:0.7rem;color:{_cell_lc};">⏱️ Temps moyen</div>'
+            f'<div style="font-size:1rem;font-weight:700;color:{_cell_vc};">{avg_str}</div>'
             f'</div>'
             f'</div>',
             unsafe_allow_html=True
         )
 
-    # ── Total + feedback négatif ──
+    # ── Total interactions ──
     st.markdown(
-        f'<div style="margin-top:0.4rem;background:rgba(232,66,10,0.15);border-radius:8px;padding:0.5rem 0.7rem;">'
-        f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">⚡ Total interactions</div>'
+        f'<div style="margin-top:0.4rem;background:{_total_bg};border-radius:8px;padding:0.5rem 0.7rem;">'
+        f'<div style="font-size:0.7rem;color:{_total_lc};">⚡ Total interactions</div>'
         f'<div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>'
         f'</div>',
         unsafe_allow_html=True
@@ -262,20 +264,22 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # ── TAB 1: Audience ───────────────────────────────────────────────────────
     with tab1:
         hcol1, hcol2 = st.columns([1, 1])
+        _h1c = "#ffffff" if _dark else "#111827"
+        _h2c = "rgba(255,255,255,0.6)" if _dark else "#6b7280"
         with hcol1:
             st.markdown(
-                '<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;'
-                'color:#fff;margin:0;">AUDIENCE</p>',
+                f'<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;'
+                f'color:{_h1c};margin:0;">AUDIENCE</p>',
                 unsafe_allow_html=True
             )
         with hcol2:
             st.markdown(
-                '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">'
-                '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#1877F2">'
-                '<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>'
-                '</svg>'
-                '<span style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.6);">FACEBOOK PERFORMANCE</span>'
-                '</div>',
+                f'<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">'
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#1877F2">'
+                f'<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>'
+                f'</svg>'
+                f'<span style="font-size:0.85rem;font-weight:600;color:{_h2c};">FACEBOOK PERFORMANCE</span>'
+                f'</div>',
                 unsafe_allow_html=True
             )
 
@@ -325,7 +329,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     mode="lines"
                 ))
                 audience_layout = {
-                    **CHART_LAYOUT,
+                    **get_chart_layout(),
                     "yaxis": dict(
                         gridcolor="rgba(255,255,255,0.06)",
                         showline=False,
@@ -346,36 +350,41 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 fig.update_layout(**audience_layout)
                 st.plotly_chart(fig, width="stretch")
 
+                _legend_c = "rgba(255,255,255,0.5)" if _dark else "#6b7280"
                 st.markdown(
-                    '<div style="text-align:center;margin-top:-12px;">'
-                    '<span style="display:inline-block;width:28px;height:2px;'
-                    'background:#7EC8E3;vertical-align:middle;margin-right:6px;"></span>'
-                    '<span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">Follows</span>'
-                    '</div>',
+                    f'<div style="text-align:center;margin-top:-12px;">'
+                    f'<span style="display:inline-block;width:28px;height:2px;'
+                    f'background:#7EC8E3;vertical-align:middle;margin-right:6px;"></span>'
+                    f'<span style="font-size:0.75rem;color:{_legend_c};">Follows</span>'
+                    f'</div>',
                     unsafe_allow_html=True
                 )
 
             with sidebar_col:
+                _sb_bg  = "rgba(255,255,255,0.04)" if _dark else "#f8fafc"
+                _sb_brd = "" if _dark else "border:1px solid #e5e7eb;"
+                _sb_lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+                _sb_vc  = "#ffffff" if _dark else "#111827"
                 st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;'
+                    f'<div style="background:{_sb_bg};{_sb_brd}border-radius:12px;'
                     f'padding:1.2rem 1rem;display:flex;flex-direction:column;gap:1.2rem;">'
 
                     f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                    f'<div style="font-size:0.7rem;color:{_sb_lc};'
                     f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Unfollows</div>'
-                    f'<div style="font-size:1.5rem;font-weight:800;color:#fff;">{total_unfollows:,}</div>'
+                    f'<div style="font-size:1.5rem;font-weight:800;color:{_sb_vc};">{total_unfollows:,}</div>'
                     f'{_trend_html(pct_removes)}'
                     f'</div>'
 
                     f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                    f'<div style="font-size:0.7rem;color:{_sb_lc};'
                     f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Net follows</div>'
-                    f'<div style="font-size:1.5rem;font-weight:800;color:#fff;">{net_follows:,}</div>'
+                    f'<div style="font-size:1.5rem;font-weight:800;color:{_sb_vc};">{net_follows:,}</div>'
                     f'{_trend_html(pct_net)}'
                     f'</div>'
 
                     f'<div>'
-                    f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.45);'
+                    f'<div style="font-size:0.7rem;color:{_sb_lc};'
                     f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Followers (Lifetime)</div>'
                     f'<div style="font-size:1.5rem;font-weight:800;color:#FF6B35;">{total_fans:,}</div>'
                     f'</div>'
@@ -394,12 +403,15 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             peak_val    = int(peak_row["adds"])
             direction   = "▲" if net_total >= 0 else "▼"
             dir_color   = "#4ade80" if net_total >= 0 else "#f87171"
+            _ana_bg = "rgba(255,255,255,0.03)" if _dark else "#f8fafc"
+            _ana_tc = "rgba(255,255,255,0.6)"  if _dark else "#4b5563"
+            _ana_vc = "#ffffff" if _dark else "#111827"
             st.markdown(
-                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(126,200,227,0.5);'
+                f'<div style="background:{_ana_bg};border-left:3px solid rgba(126,200,227,0.5);'
                 f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
-                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'font-size:0.82rem;color:{_ana_tc};line-height:1.6;">'
                 f'Pic d\'abonnements : <b style="color:#7EC8E3;">{peak_date}</b> avec '
-                f'<b style="color:#fff;">{peak_val:,}</b> nouveaux follows. '
+                f'<b style="color:{_ana_vc};">{peak_val:,}</b> nouveaux follows. '
                 f'Solde net sur la période : '
                 f'<b style="color:{dir_color};">{direction} {abs(net_total):,}</b>.'
                 f'</div>',
@@ -431,7 +443,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 mode="lines",
             ))
             ci_layout = {
-                **CHART_LAYOUT,
+                **get_chart_layout(),
                 "yaxis": dict(
                     gridcolor="rgba(255,255,255,0.06)",
                     showline=False,
@@ -485,7 +497,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
             fig4.update_layout(
                 title="Reach (peaks highlighted)",
-                **CHART_LAYOUT
+                **get_chart_layout()
             )
             st.plotly_chart(fig4, width="stretch")
 
@@ -498,13 +510,16 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             peak_reach_date = peak_row["date"].strftime("%d/%m")
             peak_reach_val  = int(peak_row["value"])
             avg_reach       = int(reach_df["value"].mean())
+            _ana_bg2 = "rgba(255,255,255,0.03)" if _dark else "#f8fafc"
+            _ana_tc2 = "rgba(255,255,255,0.6)"  if _dark else "#4b5563"
+            _ana_vc2 = "#ffffff" if _dark else "#111827"
             st.markdown(
-                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(99,102,241,0.6);'
+                f'<div style="background:{_ana_bg2};border-left:3px solid rgba(99,102,241,0.6);'
                 f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
-                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'font-size:0.82rem;color:{_ana_tc2};line-height:1.6;">'
                 f'Pic de couverture : <b style="color:#6366f1;">{peak_reach_date}</b> avec '
-                f'<b style="color:#fff;">{peak_reach_val:,}</b> comptes uniques atteints. '
-                f'Moyenne journalière : <b style="color:#fff;">{avg_reach:,}</b>.'
+                f'<b style="color:{_ana_vc2};">{peak_reach_val:,}</b> comptes uniques atteints. '
+                f'Moyenne journalière : <b style="color:{_ana_vc2};">{avg_reach:,}</b>.'
                 f'</div>',
                 unsafe_allow_html=True
             )
@@ -513,11 +528,13 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
         # ── IMPRESSIONS — dedicated section ──────────────────────────────────
         if not impressions_df.empty:
+            _shdr_c2  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+            _shdr_brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
             st.markdown(
-                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);'
-                'text-transform:uppercase;letter-spacing:0.08em;'
-                'margin:1.4rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);'
-                'padding-bottom:0.4rem;">📢 IMPRESSIONS</div>',
+                f'<div style="font-size:0.68rem;color:{_shdr_c2};'
+                f'text-transform:uppercase;letter-spacing:0.08em;'
+                f'margin:1.4rem 0 0.6rem;border-bottom:1px solid {_shdr_brd};'
+                f'padding-bottom:0.4rem;">📢 IMPRESSIONS</div>',
                 unsafe_allow_html=True
             )
             fig_imp = go.Figure()
@@ -531,7 +548,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 marker=dict(size=4, color="#ec4899"),
             ))
             imp_layout = {
-                **CHART_LAYOUT,
+                **get_chart_layout(),
                 "showlegend": False,
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,
@@ -551,13 +568,16 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             pi2.metric("Pic", peak_imp_row["date"].strftime("%b %d"), delta=f"{peak_imp_v:,}")
             pi3.metric("Moy. journalière", f"{avg_imp_v:,}")
 
+            _ana_bg3 = "rgba(255,255,255,0.03)" if _dark else "#f8fafc"
+            _ana_tc3 = "rgba(255,255,255,0.6)"  if _dark else "#4b5563"
+            _ana_vc3 = "#ffffff" if _dark else "#111827"
             st.markdown(
-                f'<div style="background:rgba(255,255,255,0.03);border-left:3px solid rgba(236,72,153,0.6);'
+                f'<div style="background:{_ana_bg3};border-left:3px solid rgba(236,72,153,0.6);'
                 f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin:0.5rem 0 0.3rem;'
-                f'font-size:0.82rem;color:rgba(255,255,255,0.6);line-height:1.6;">'
+                f'font-size:0.82rem;color:{_ana_tc3};line-height:1.6;">'
                 f'Pic d\'impressions : <b style="color:#ec4899;">{peak_imp_d}</b> avec '
-                f'<b style="color:#fff;">{peak_imp_v:,}</b> impressions. '
-                f'Total sur la période : <b style="color:#fff;">{total_impressions:,}</b> '
+                f'<b style="color:{_ana_vc3};">{peak_imp_v:,}</b> impressions. '
+                f'Total sur la période : <b style="color:{_ana_vc3};">{total_impressions:,}</b> '
                 f'(moy. {avg_imp_v:,}/jour).'
                 f'</div>',
                 unsafe_allow_html=True
@@ -594,13 +614,17 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         st.markdown('<div class="section-header">Community Management</div>', unsafe_allow_html=True)
         new_t = msg_stats.get("new_conversations", 0)
 
-        def _cm_kpi(icon, label, value, color="#ffffff"):
+        def _cm_kpi(icon, label, value, color=None):
+            _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
+            _brd = "none" if _dark else "1px solid #e5e7eb"
+            _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+            _vc  = color if color else ("#ffffff" if _dark else "#111827")
             return (
-                f'<div style="background:rgba(255,255,255,0.05);border-radius:12px;'
+                f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
                 f'padding:0.9rem 1rem;text-align:center;">'
-                f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                f'<div style="font-size:0.72rem;color:{_lc};'
                 f'margin-bottom:0.25rem;">{icon} {label}</div>'
-                f'<div style="font-size:1.35rem;font-weight:800;color:{color};'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{_vc};'
                 f'white-space:nowrap;">{value}</div>'
                 f'</div>'
             )
