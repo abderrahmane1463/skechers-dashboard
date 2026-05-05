@@ -251,7 +251,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── Tabs ─────────────────────────────────────────────────────────────────
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content", "🤝 Community"
+        "👥 Audience", "📡 Visibility", "💬 Engagement", "🏆 Top Content", "🤝 Community"
     ])
 
     # ── TAB 1: Audience ───────────────────────────────────────────────────────
@@ -402,8 +402,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             )
 
 
-    # ── TAB 2: Engagement ─────────────────────────────────────────────────────
-    with tab2:
+    # ── TAB 2: Visibility ────────────────────────────────────────────────────
+    with tab3:
         # Use daily Content Interactions series — same source as 🤝 Content Interactions KPI
         chart_df = series_to_df(eng.get("engagements", []))
 
@@ -450,8 +450,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             st.metric("🤝 Content Interactions", f"{chart_total:,}")
 
 
-    # ── TAB 3: Visibility ────────────────────────────────────────────────────
-    with tab3:
+    # ── TAB 3: Engagement ─────────────────────────────────────────────────────
+    with tab2:
         st.markdown('<div class="section-header">Reach & Page View Fluctuations</div>', unsafe_allow_html=True)
         reach_df      = series_to_df(vis.get("reach", []))
         views_df      = series_to_df(vis.get("page_views", []))
