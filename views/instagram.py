@@ -175,7 +175,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
     tab1, tab2, tab3, tab4 = st.tabs([
-        "👥 Audience", "💬 Engagement", "📡 Visibility", "🏆 Top Content"
+        "👥 Audience", "📡 Visibility", "💬 Engagement", "🏆 Top Content"
     ])
 
     # ── TAB 1: Audience ───────────────────────────────────────────────────────
@@ -276,7 +276,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             )
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
-    with tab2:
+    with tab3:
         # Build daily series from posts
         _ci_d, _likes_d, _comms_d, _saves_d = {}, {}, {}, {}
         for p in ig_posts:
@@ -393,7 +393,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             st.info("No engagement data available for this period.")
 
     # ── TAB 3: Visibility ─────────────────────────────────────────────────────
-    with tab3:
+    with tab2:
         reach_df       = series_to_df(ig_profile.get("reach", []))
         impressions_df = series_to_df(ig_profile.get("impressions", []))
 
