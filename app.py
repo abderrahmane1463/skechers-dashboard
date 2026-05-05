@@ -187,7 +187,7 @@ platform, period_label, days, start_date, end_date = render_sidebar(log_refresh)
 # ─── Page Title ───────────────────────────────────────────────────────────────
 col_t1, col_t2 = st.columns([3, 1])
 with col_t1:
-    _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost"}[platform]
+    _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost", "Documentation": "📖 Documentation"}[platform]
     st.markdown(f"## {_icon} — {period_label}")
 with col_t2:
     st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
