@@ -4,7 +4,7 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
-from components.charts import CHART_LAYOUT, series_to_df, safe_sum
+from components.charts import CHART_LAYOUT, series_to_df, safe_sum, render_top3_podium
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -405,32 +405,25 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     # ── TAB 3: Top Content ────────────────────────────────────────────────────
     with tab3:
         if ig_posts:
-            # Top by visibility
-            st.markdown(
-                '<div style="text-align:center;font-size:1.1rem;font-weight:700;'
-                'letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:1.2rem;">'
-                '🏆 TOP PUBLICATIONS PAR VISIBILITÉ</div>',
-                unsafe_allow_html=True
+            render_top3_podium(
+                ig_posts,
+                sort_key="impressions",
+                title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
+                view_label="Impressions",
             )
-            vis_sorted = sorted(ig_posts, key=lambda p: p.get("impressions", 0), reverse=True)[:6]
-            vis_cols   = st.columns(3)
-            for idx, post in enumerate(vis_sorted):
-                with vis_cols[idx % 3]:
-                    _render_ig_post_card(post)
-
             st.divider()
-
-            # Top by engagement
-            st.markdown(
-                '<div style="text-align:center;font-size:1.1rem;font-weight:700;'
-                'letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:1.2rem;">'
-                '⚡ TOP PUBLICATIONS PAR ENGAGEMENT</div>',
-                unsafe_allow_html=True
+            render_top3_podium(
+                ig_posts,
+                sort_key="total_interactions",
+                title="TOP #3 PUBLICATIONS PAR ENGAGEMENT",
+                view_label="Impressions",
             )
-            eng_sorted = sorted(ig_posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:6]
-            eng_cols   = st.columns(3)
-            for idx, post in enumerate(eng_sorted):
-                with eng_cols[idx % 3]:
-                    _render_ig_post_card(post)
+
+            with st.expander("📋 Toutes les publications"):
+                posts_df = pd.DataFrame(ig_posts)
+                st.dataframe(
+                    posts_df[["created_time", "text", "impressions", "reactions", "comments", "shares", "total_interactions"]],
+                    use_container_width=True,
+                )
         else:
             st.info("No post data available.")

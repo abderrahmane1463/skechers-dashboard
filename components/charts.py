@@ -106,7 +106,10 @@ def render_top3_podium(
             display_caption = (caption[:45] + "…") if len(caption) > 45 else caption
             date = post.get("created_time", "")
             post_id  = post.get("id", "")
-            post_url = f"https://www.facebook.com/{post_id.replace('_', '/posts/')}" if post_id else "#"
+            post_url = (
+                post.get("permalink")
+                or (f"https://www.facebook.com/{post_id.replace('_', '/posts/')}" if post_id else "#")
+            )
 
             reach        = post.get("reach", 0)
             reactions    = post.get("reactions", 0)
