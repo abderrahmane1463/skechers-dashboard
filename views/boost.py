@@ -94,12 +94,24 @@ def _fmt_int(value: int) -> str:
     return f"{value:,}"
 
 
-def _kpi_card(icon: str, label: str, value: str, color: str | None = None) -> str:
+def _kpi_card(icon: str, label: str, value: str, color: str | None = None,
+              delta: float | None = None, lower_is_better: bool = False) -> str:
     _dark = st.session_state.get("theme", "dark") == "dark"
     _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
     _brd = "none"                    if _dark else "1px solid #e5e7eb"
     _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
     _vc  = color if color else ("#ffffff" if _dark else "#111827")
+    if delta is not None:
+        _good = (delta < 0) if lower_is_better else (delta > 0)
+        _dc   = "#4ade80" if _good else "#f87171" if delta != 0 else "#a1a1aa"
+        _arrow = "↑" if delta > 0 else "↓" if delta < 0 else "→"
+        _sign  = "+" if delta > 0 else ""
+        _delta_html = (
+            f'<div style="font-size:0.65rem;color:{_dc};margin-top:0.15rem;">'
+            f'{_arrow} {_sign}{delta:.1f}%</div>'
+        )
+    else:
+        _delta_html = ""
     return (
         f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
         f'padding:0.9rem 1rem;text-align:center;">'
@@ -107,6 +119,7 @@ def _kpi_card(icon: str, label: str, value: str, color: str | None = None) -> st
         f'margin-bottom:0.25rem;">{icon} {label}</div>'
         f'<div style="font-size:1.3rem;font-weight:800;color:{_vc};'
         f'white-space:nowrap;">{value}</div>'
+        f'{_delta_html}'
         f'</div>'
     )
 
@@ -138,26 +151,41 @@ def _section_header(title: str):
 
 
 # ─── Section renderers ─────────────────────────────────────────────────────────
-def _render_global_kpis(totals: dict):
+def _render_global_kpis(totals: dict, prev_totals: dict | None = None):
     """Top-level ad account KPI row."""
     _section_header("📊 STATISTIQUES DU BOOST")
 
     no_data = totals.get("campaigns_count", 0) == 0
+    pt = prev_totals or {}
+
+    def _d(curr, prev):
+        try:
+            return round((curr - prev) / abs(prev) * 100, 1) if prev else None
+        except Exception:
+            return None
 
     row1 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("📁", "Total des campagnes", _fmt_int(totals.get("campaigns_count", 0)))}
-  {_kpi_card("🖱️", "Clics sur le lien",  _fmt_int(totals.get("link_clicks", 0)))}
-  {_kpi_card("👁️", "Comptes touchés",    _fmt_int(totals.get("reach", 0)))}
-  {_kpi_card("📢", "Impressions",         _fmt_int(totals.get("impressions", 0)))}
+  {_kpi_card("📁", "Total des campagnes", _fmt_int(totals.get("campaigns_count", 0)),
+             delta=_d(totals.get("campaigns_count",0), pt.get("campaigns_count",0)))}
+  {_kpi_card("🖱️", "Clics sur le lien",  _fmt_int(totals.get("link_clicks", 0)),
+             delta=_d(totals.get("link_clicks",0), pt.get("link_clicks",0)))}
+  {_kpi_card("👁️", "Comptes touchés",    _fmt_int(totals.get("reach", 0)),
+             delta=_d(totals.get("reach",0), pt.get("reach",0)))}
+  {_kpi_card("📢", "Impressions",         _fmt_int(totals.get("impressions", 0)),
+             delta=_d(totals.get("impressions",0), pt.get("impressions",0)))}
 </div>"""
 
     row2 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi_card("💸", "Coût par clic",    _fmt_currency(totals.get("cpc", 0.0)),   "#facc15")}
-  {_kpi_card("📈", "CTR",              _fmt_pct(totals.get("ctr", 0.0)),         "#4ade80")}
-  {_kpi_card("💰", "Montant dépensé",  _fmt_currency(totals.get("spend", 0.0)), "#f97316")}
-  {_kpi_card("🔁", "Répétition",       f"{totals.get('frequency', 0.0):.2f}x")}
+  {_kpi_card("💸", "Coût par clic",   _fmt_currency(totals.get("cpc", 0.0)),   "#facc15",
+             delta=_d(totals.get("cpc",0.0), pt.get("cpc",0.0)),   lower_is_better=True)}
+  {_kpi_card("📈", "CTR",             _fmt_pct(totals.get("ctr", 0.0)),         "#4ade80",
+             delta=_d(totals.get("ctr",0.0), pt.get("ctr",0.0)))}
+  {_kpi_card("💰", "Montant dépensé", _fmt_currency(totals.get("spend", 0.0)), "#f97316",
+             delta=_d(totals.get("spend",0.0), pt.get("spend",0.0)), lower_is_better=True)}
+  {_kpi_card("🔁", "Répétition",      f"{totals.get('frequency', 0.0):.2f}x",
+             delta=_d(totals.get("frequency",0.0), pt.get("frequency",0.0)), lower_is_better=True)}
 </div>"""
 
     st.markdown(row1 + row2, unsafe_allow_html=True)
@@ -169,27 +197,43 @@ def _render_global_kpis(totals: dict):
         )
 
 
-def _render_conversion_campaigns(conv: dict):
+def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
     """Conversion-objective campaigns subsection."""
     _section_header("🎯 AVEC L'OBJECTIF CONVERSION")
 
     no_data = conv.get("campaigns_count", 0) == 0
+    pc = prev_conv or {}
+
+    def _d(curr, prev):
+        try:
+            return round((curr - prev) / abs(prev) * 100, 1) if prev else None
+        except Exception:
+            return None
 
     row1 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("📁", "Campagnes",       _fmt_int(conv.get("campaigns_count", 0)))}
-  {_kpi_card("🖱️", "Clics sur le lien", _fmt_int(conv.get("link_clicks", 0)))}
-  {_kpi_card("👁️", "Comptes touchés",   _fmt_int(conv.get("reach", 0)))}
-  {_kpi_card("📢", "Impressions",        _fmt_int(conv.get("impressions", 0)))}
+  {_kpi_card("📁", "Campagnes",         _fmt_int(conv.get("campaigns_count", 0)),
+             delta=_d(conv.get("campaigns_count",0), pc.get("campaigns_count",0)))}
+  {_kpi_card("🖱️", "Clics sur le lien", _fmt_int(conv.get("link_clicks", 0)),
+             delta=_d(conv.get("link_clicks",0), pc.get("link_clicks",0)))}
+  {_kpi_card("👁️", "Comptes touchés",   _fmt_int(conv.get("reach", 0)),
+             delta=_d(conv.get("reach",0), pc.get("reach",0)))}
+  {_kpi_card("📢", "Impressions",        _fmt_int(conv.get("impressions", 0)),
+             delta=_d(conv.get("impressions",0), pc.get("impressions",0)))}
 </div>"""
 
     row2 = f"""
 <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("💸", "Coût par clic",   _fmt_currency(conv.get("cpc", 0.0)),                  "#facc15")}
-  {_kpi_card("📈", "CTR",             _fmt_pct(conv.get("ctr", 0.0)),                        "#4ade80")}
-  {_kpi_card("💰", "Montant dépensé", _fmt_currency(conv.get("spend", 0.0)),                 "#f97316")}
-  {_kpi_card("🎁", "Coût par vente",  _fmt_currency(conv.get("cost_per_conversion", 0.0)),   "#fb7185")}
-  {_kpi_card("✅", "Commandes (conv.)", _fmt_int(conv.get("total_conversions", 0)),            "#a78bfa")}
+  {_kpi_card("💸", "Coût par clic",    _fmt_currency(conv.get("cpc", 0.0)),                "#facc15",
+             delta=_d(conv.get("cpc",0.0), pc.get("cpc",0.0)),                   lower_is_better=True)}
+  {_kpi_card("📈", "CTR",              _fmt_pct(conv.get("ctr", 0.0)),                     "#4ade80",
+             delta=_d(conv.get("ctr",0.0), pc.get("ctr",0.0)))}
+  {_kpi_card("💰", "Montant dépensé",  _fmt_currency(conv.get("spend", 0.0)),              "#f97316",
+             delta=_d(conv.get("spend",0.0), pc.get("spend",0.0)),               lower_is_better=True)}
+  {_kpi_card("🎁", "Coût par vente",   _fmt_currency(conv.get("cost_per_conversion",0.0)),"#fb7185",
+             delta=_d(conv.get("cost_per_conversion",0.0), pc.get("cost_per_conversion",0.0)), lower_is_better=True)}
+  {_kpi_card("✅", "Commandes (conv.)", _fmt_int(conv.get("total_conversions", 0)),         "#a78bfa",
+             delta=_d(conv.get("total_conversions",0), pc.get("total_conversions",0)))}
 </div>"""
 
     st.markdown(row1 + row2, unsafe_allow_html=True)
@@ -644,14 +688,16 @@ def _render_campaign_lookup(campaigns: list[dict]):
 
 
 # ─── Public entry point ────────────────────────────────────────────────────────
-def render_boost_tab(data: dict | None = None, demo: dict | None = None):
+def render_boost_tab(data: dict | None = None, demo: dict | None = None,
+                     prev_data: dict | None = None):
     """
     Render the full Boost (Ads Performance) tab.
 
     Parameters
     ----------
-    data : dict  — output of fetch_boost_insights()
-    demo : dict  — output of fetch_fb_demographics() (age/gender + geo)
+    data      : dict  — output of fetch_boost_insights()
+    demo      : dict  — output of fetch_fb_demographics() (age/gender + geo)
+    prev_data : dict  — same shape as data but for the previous equivalent period
     """
     if data is None:
         data = empty_boost_data()
@@ -661,6 +707,9 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None):
     totals    = data.get("totals",      {})
     conv      = data.get("conversions", {})
     campaigns = data.get("campaigns",   [])
+
+    prev_totals = (prev_data or {}).get("totals",      {})
+    prev_conv   = (prev_data or {}).get("conversions", {})
 
     # Header
     _dark   = st.session_state.get("theme", "dark") == "dark"
@@ -674,9 +723,9 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None):
         unsafe_allow_html=True,
     )
 
-    _render_global_kpis(totals)
+    _render_global_kpis(totals, prev_totals)
     st.divider()
-    _render_conversion_campaigns(conv)
+    _render_conversion_campaigns(conv, prev_conv)
     st.divider()
     _render_top_campaigns(campaigns)
     st.divider()

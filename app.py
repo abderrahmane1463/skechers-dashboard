@@ -209,12 +209,32 @@ elif platform == "Instagram":
 else:
     # ── Boost (paid campaigns) ────────────────────────────────────────────────
     from concurrent.futures import ThreadPoolExecutor, as_completed
+    from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
+
+    # Compute previous equivalent period
+    if start_date and end_date:
+        _bs = _bdt.strptime(start_date, "%Y-%m-%d").date()
+        _be = _bdt.strptime(end_date,   "%Y-%m-%d").date()
+        _bspan = (_be - _bs).days + 1
+        _prev_be = _bs - _btd(days=1)
+        _prev_bs = _prev_be - _btd(days=_bspan - 1)
+    else:
+        _prev_be = _bdt.now(_btz.utc).date() - _btd(days=days)
+        _prev_bs = _prev_be - _btd(days=days - 1)
+    _b_prev_start, _b_prev_end = str(_prev_bs), str(_prev_be)
 
     def _fetch_boost():
         try:
             return db.get_boost_insights(days, start_date, end_date)
         except Exception as e:
             print(f"DEBUG boost: fetch failed: {e}")
+            return empty_boost_data()
+
+    def _fetch_prev_boost():
+        try:
+            return db.get_boost_insights(days, _b_prev_start, _b_prev_end)
+        except Exception as e:
+            print(f"DEBUG boost prev: fetch failed: {e}")
             return empty_boost_data()
 
     def _fetch_demo():
@@ -225,10 +245,12 @@ else:
             return {}
 
     with st.spinner("Loading Boost data..."):
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            f_boost = pool.submit(_fetch_boost)
-            f_demo  = pool.submit(_fetch_demo)
-            boost_data = f_boost.result()
-            demo_data  = f_demo.result()
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            f_boost      = pool.submit(_fetch_boost)
+            f_prev_boost = pool.submit(_fetch_prev_boost)
+            f_demo       = pool.submit(_fetch_demo)
+            boost_data      = f_boost.result()
+            prev_boost_data = f_prev_boost.result()
+            demo_data       = f_demo.result()
 
-    render_boost_tab(boost_data, demo_data)
+    render_boost_tab(boost_data, demo_data, prev_boost_data)
