@@ -166,6 +166,19 @@ def get_fb_post_totals(days=30, start=None, end=None):
 
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_facebook_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
+    # ── Compute previous equivalent period dates ──────────────────────────────
+    from datetime import datetime as _vdt, timedelta as _vtd, timezone as _vtz
+    if start_date and end_date:
+        _s   = _vdt.strptime(start_date, "%Y-%m-%d").date()
+        _e   = _vdt.strptime(end_date,   "%Y-%m-%d").date()
+        _span = (_e - _s).days + 1
+        _prev_e = _s - _vtd(days=1)
+        _prev_s = _prev_e - _vtd(days=_span - 1)
+    else:
+        _prev_e = _vdt.now(_vtz.utc).date() - _vtd(days=days)
+        _prev_s = _prev_e - _vtd(days=days - 1)
+    _prev_start, _prev_end = str(_prev_s), str(_prev_e)
+
     with st.spinner("Loading Facebook data…"):
         fetchers = {
             "aud":         lambda: get_fb_audience(days, start_date, end_date),
@@ -174,6 +187,10 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             "posts":       lambda: get_fb_posts(days, start_date, end_date),
             "post_totals": lambda: get_fb_post_totals(days, start_date, end_date),
             "msg_stats":   lambda: get_fb_messaging_stats(days, start_date, end_date),
+            # Previous period (for delta arrows)
+            "prev_aud":        lambda: get_fb_audience(days, _prev_start, _prev_end),
+            "prev_vis":        lambda: get_fb_visibility(days, _prev_start, _prev_end),
+            "prev_post_totals": lambda: get_fb_post_totals(days, _prev_start, _prev_end),
         }
         results = {}
         with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
@@ -191,6 +208,9 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         posts       = results["posts"]
         post_totals = results.get("post_totals", {})
         msg_stats   = results["msg_stats"]
+        prev_aud        = results.get("prev_aud", {})
+        prev_vis        = results.get("prev_vis", {})
+        prev_post_totals = results.get("prev_post_totals", {})
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
     total_fans = aud.get("fans_total") or 0
@@ -242,6 +262,23 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     _reach_note      = "ℹ️ Indisponible pour cette période" if _reach_unavailable else None
     _eng_rate_display = "—" if _reach_unavailable else f"{eng_rate}%"
 
+    # ── Delta helpers ─────────────────────────────────────────────────────────
+    def _d(curr, prev):
+        try:
+            return round((curr - prev) / abs(prev) * 100, 1) if prev else None
+        except Exception:
+            return None
+
+    _prev_fans    = prev_aud.get("fans_total") or 0
+    _prev_adds    = safe_sum(prev_aud.get("fans_adds", []))
+    _prev_removes = safe_sum(prev_aud.get("fans_removes", []))
+    _prev_impr    = prev_vis.get("period_impressions") or safe_sum(prev_vis.get("impressions", []))
+    _prev_reacs   = prev_post_totals.get("total_reactions", 0)
+    _prev_comms   = prev_post_totals.get("total_comments",  0)
+    _prev_shars   = prev_post_totals.get("total_shares",    0)
+    _prev_engs    = prev_post_totals.get("total_interactions", _prev_reacs + _prev_comms + _prev_shars)
+    _prev_posts   = prev_post_totals.get("total_posts", 0)
+
     log_refresh_fn(
         "Facebook",
         period_label,
@@ -250,16 +287,26 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     )
 
     _dark = st.session_state.get("theme", "dark") == "dark"
-    def _kpi(icon, label, value, color=None, note=None):
+    def _kpi(icon, label, value, color=None, note=None, delta=None):
         _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
         _brd = "none" if _dark else "1px solid #e5e7eb"
         _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
         _nc  = "rgba(255,255,255,0.3)"  if _dark else "#9ca3af"
         _vc  = color if color else ("#ffffff" if _dark else "#111827")
         _note_html = (
-            f'<div style="font-size:0.62rem;color:{_nc};margin-top:0.25rem;'
+            f'<div style="font-size:0.62rem;color:{_nc};margin-top:0.15rem;'
             f'white-space:normal;line-height:1.35;">{note}</div>'
         ) if note else ""
+        if delta is not None:
+            _dc = "#4ade80" if delta > 0 else "#f87171" if delta < 0 else "#a1a1aa"
+            _arrow = "↑" if delta > 0 else "↓" if delta < 0 else "→"
+            _sign  = "+" if delta > 0 else ""
+            _delta_html = (
+                f'<div style="font-size:0.65rem;color:{_dc};margin-top:0.15rem;">'
+                f'{_arrow} {_sign}{delta:.1f}%</div>'
+            )
+        else:
+            _delta_html = ""
         return (
             f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
             f'padding:0.9rem 1rem;text-align:center;">'
@@ -267,28 +314,29 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             f'margin-bottom:0.25rem;">{icon} {label}</div>'
             f'<div style="font-size:1.35rem;font-weight:800;color:{_vc};'
             f'white-space:nowrap;">{value}</div>'
+            f'{_delta_html}'
             f'{_note_html}'
             f'</div>'
         )
 
     kpi_html = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_kpi("👥", "Followers",            f"{total_fans:,}")}
-  {_kpi("➕", "Nouveaux followers",   f"+{total_adds:,}", "#4ade80")}
-  {_kpi("➖", "Désabonnements",       f"-{total_removes:,}", "#f87171")}
-  {_kpi("📊", "Taux d'engagement",   _eng_rate_display, "#facc15")}
+  {_kpi("👥", "Followers",            f"{total_fans:,}",          delta=_d(total_fans,    _prev_fans))}
+  {_kpi("➕", "Nouveaux followers",   f"+{total_adds:,}",  "#4ade80", delta=_d(total_adds,    _prev_adds))}
+  {_kpi("➖", "Désabonnements",       f"-{total_removes:,}","#f87171", delta=_d(total_removes, _prev_removes))}
+  {_kpi("📊", "Taux d'engagement",   _eng_rate_display,   "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_kpi("👁️", "Spectateurs",             _reach_display, note=_reach_note)}
-  {_kpi("📢", "Impressions",              f"{total_impressions:,}")}
+  {_kpi("📢", "Impressions",              f"{total_impressions:,}",          delta=_d(total_impressions,        _prev_impr))}
   {_kpi("🤝", "Content Interactions",     f"{total_content_interactions:,}", "#a78bfa")}
-  {_kpi("📝", "Publications",             str(len(posts)))}
+  {_kpi("📝", "Publications",             str(len(posts)),                   delta=_d(len(posts), _prev_posts))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi("🔥", "Total interactions (posts)",   f"{total_engagements:,}", "#FF6B35")}
-  {_kpi("❤️", "Réactions",            f"{total_reacs:,}")}
-  {_kpi("💬", "Commentaires",         f"{total_comms:,}")}
-  {_kpi("🔁", "Partages",             f"{total_shars:,}")}
+  {_kpi("🔥", "Total interactions (posts)", f"{total_engagements:,}", "#FF6B35", delta=_d(total_engagements, _prev_engs))}
+  {_kpi("❤️", "Réactions",   f"{total_reacs:,}", delta=_d(total_reacs, _prev_reacs))}
+  {_kpi("💬", "Commentaires", f"{total_comms:,}", delta=_d(total_comms, _prev_comms))}
+  {_kpi("🔁", "Partages",     f"{total_shars:,}", delta=_d(total_shars, _prev_shars))}
 </div>
 """
     st.markdown(kpi_html, unsafe_allow_html=True)

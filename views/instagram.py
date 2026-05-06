@@ -99,12 +99,28 @@ def _render_ig_post_card(post: dict):
 
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_instagram_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
+    # ── Compute previous equivalent period dates ──────────────────────────────
+    from datetime import datetime as _vdt, timedelta as _vtd, timezone as _vtz
+    if start_date and end_date:
+        _s    = _vdt.strptime(start_date, "%Y-%m-%d").date()
+        _e    = _vdt.strptime(end_date,   "%Y-%m-%d").date()
+        _span = (_e - _s).days + 1
+        _prev_e = _s - _vtd(days=1)
+        _prev_s = _prev_e - _vtd(days=_span - 1)
+    else:
+        _prev_e = _vdt.now(_vtz.utc).date() - _vtd(days=days)
+        _prev_s = _prev_e - _vtd(days=days - 1)
+    _prev_start, _prev_end = str(_prev_s), str(_prev_e)
+
     with st.spinner("Loading Instagram data…"):
         fetchers = {
             "profile":     lambda: get_ig_profile(days, start_date, end_date),
             "eng":         lambda: get_ig_engagement(days, start_date, end_date),
             "posts":       lambda: get_ig_posts(days, start_date, end_date),
             "post_totals": lambda: get_ig_post_totals(days, start_date, end_date),
+            # Previous period (for delta arrows)
+            "prev_profile":     lambda: get_ig_profile(days, _prev_start, _prev_end),
+            "prev_posts":       lambda: get_ig_posts(days, _prev_start, _prev_end),
         }
         results = {}
         with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
@@ -116,10 +132,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 except Exception as e:
                     print(f"DEBUG fetch {key} error: {e}")
                     results[key] = {} if key != "posts" else []
-        ig_profile   = results["profile"]
-        ig_eng       = results["eng"]
-        ig_posts     = results["posts"]
+        ig_profile     = results["profile"]
+        ig_eng         = results["eng"]
+        ig_posts       = results["posts"]
         ig_post_totals = results.get("post_totals", {})
+        prev_profile   = results.get("prev_profile", {})
+        prev_ig_posts  = results.get("prev_posts", [])
 
     followers          = ig_profile.get("followers_count") or 0
     follower_additions = ig_profile.get("follower_additions", [])
@@ -130,7 +148,6 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         or ig_post_totals.get("total_impressions")
     )
 
-
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
     total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
@@ -139,6 +156,22 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     ig_eng_rate = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
 
+    # ── Delta helpers ─────────────────────────────────────────────────────────
+    def _d(curr, prev):
+        try:
+            return round((curr - prev) / abs(prev) * 100, 1) if prev else None
+        except Exception:
+            return None
+
+    _prev_followers  = prev_profile.get("followers_count") or 0
+    _prev_ig_reach   = prev_profile.get("period_reach", 0) or safe_sum(prev_profile.get("reach", []))
+    _prev_ig_impr    = sum(p.get("impressions", 0) for p in prev_ig_posts)
+    _prev_ig_likes   = sum(p.get("reactions",   0) for p in prev_ig_posts)
+    _prev_ig_comments = sum(p.get("comments",   0) for p in prev_ig_posts)
+    _prev_ig_shares  = sum(p.get("shares",      0) for p in prev_ig_posts)
+    _prev_ig_saves   = sum(p.get("saves",       0) for p in prev_ig_posts)
+    _prev_ig_interactions = _prev_ig_likes + _prev_ig_comments + _prev_ig_shares + _prev_ig_saves
+
     log_refresh_fn(
         "Instagram", period_label, "✅ Data Loaded",
         f"Followers: {followers}, Posts: {len(ig_posts)}, Reach: {total_ig_reach}"
@@ -146,11 +179,21 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── KPI Grid ──────────────────────────────────────────────────────────────
     _dark = st.session_state.get("theme", "dark") == "dark"
-    def _ig_kpi(icon, label, value, color=None):
+    def _ig_kpi(icon, label, value, color=None, delta=None):
         _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
         _brd = "none" if _dark else "1px solid #e5e7eb"
         _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
         _vc  = color if color else ("#ffffff" if _dark else "#111827")
+        if delta is not None:
+            _dc = "#4ade80" if delta > 0 else "#f87171" if delta < 0 else "#a1a1aa"
+            _arrow = "↑" if delta > 0 else "↓" if delta < 0 else "→"
+            _sign  = "+" if delta > 0 else ""
+            _delta_html = (
+                f'<div style="font-size:0.65rem;color:{_dc};margin-top:0.15rem;">'
+                f'{_arrow} {_sign}{delta:.1f}%</div>'
+            )
+        else:
+            _delta_html = ""
         return (
             f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
             f'padding:0.9rem 1rem;text-align:center;">'
@@ -158,25 +201,26 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             f'margin-bottom:0.25rem;">{icon} {label}</div>'
             f'<div style="font-size:1.35rem;font-weight:800;color:{_vc};'
             f'white-space:nowrap;">{value}</div>'
+            f'{_delta_html}'
             f'</div>'
         )
 
     st.markdown(f"""
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_ig_kpi("👥", "Followers",           f"{followers:,}")}
-  {_ig_kpi("📝", "Publications",        str(len(ig_posts)))}
-  {_ig_kpi("📊", "Taux d'engagement",   f"{ig_eng_rate}%", "#facc15")}
+  {_ig_kpi("👥", "Followers",         f"{followers:,}",       delta=_d(followers,             _prev_followers))}
+  {_ig_kpi("📝", "Publications",      str(len(ig_posts)),     delta=_d(len(ig_posts),          len(prev_ig_posts)))}
+  {_ig_kpi("📊", "Taux d'engagement", f"{ig_eng_rate}%",      "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_ig_kpi("👁️", "Couvertures",         f"{total_ig_reach:,}")}
-  {_ig_kpi("📢", "Impressions (Posts)",  f"{total_ig_impressions:,}")}
-  {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}", "#60a5fa")}
+  {_ig_kpi("👁️", "Couvertures",        f"{total_ig_reach:,}",       delta=_d(total_ig_reach,       _prev_ig_reach))}
+  {_ig_kpi("📢", "Impressions (Posts)", f"{total_ig_impressions:,}", delta=_d(total_ig_impressions, _prev_ig_impr))}
+  {_ig_kpi("🔖", "Enregistrements",    f"{total_ig_saves:,}", "#60a5fa", delta=_d(total_ig_saves,  _prev_ig_saves))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35")}
-  {_ig_kpi("❤️", "Réactions",          f"{total_ig_likes:,}",        "#f87171")}
-  {_ig_kpi("💬", "Commentaires",       f"{total_ig_comments:,}",     "#a78bfa")}
-  {_ig_kpi("↗️", "Partages",           f"{total_ig_shares:,}",       "#34d399")}
+  {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35", delta=_d(total_ig_interactions, _prev_ig_interactions))}
+  {_ig_kpi("❤️", "Réactions",   f"{total_ig_likes:,}",    "#f87171", delta=_d(total_ig_likes,    _prev_ig_likes))}
+  {_ig_kpi("💬", "Commentaires", f"{total_ig_comments:,}", "#a78bfa", delta=_d(total_ig_comments, _prev_ig_comments))}
+  {_ig_kpi("↗️", "Partages",     f"{total_ig_shares:,}",   "#34d399", delta=_d(total_ig_shares,   _prev_ig_shares))}
 </div>
 """, unsafe_allow_html=True)
 
