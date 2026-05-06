@@ -730,7 +730,6 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     marker_color=[_type_colors.get(t, "#6366f1") for t in _types],
                     text=[f"{v:,}" for v in _avg_reach],
                     textposition="outside",
-                    yaxis="y1",
                 ))
                 fig_type.add_trace(go.Bar(
                     name="Interactions moy.",
@@ -738,7 +737,6 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     marker_color=[_type_colors.get(t, "#E8420A") + "99" for t in _types],
                     text=[f"{v:,}" for v in _avg_inter],
                     textposition="outside",
-                    yaxis="y1",
                 ))
                 fig_type.update_layout(**{
                     **get_chart_layout(),
