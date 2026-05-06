@@ -371,6 +371,16 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             st.info("No engagement data available for this period.")
 
         # ── Best Time to Post heatmap ─────────────────────────────────────────
+        st.divider()
+        st.markdown(
+            f'<div style="text-align:center;margin:0.5rem 0 1rem;">'
+            f'<span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.08em;color:{"#ffffff" if _dark else "#111827"};">'
+            f'⏰ Meilleur moment pour publier</span>'
+            f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
+            f'border-radius:2px;margin:0.4rem auto 0;"></div></div>',
+            unsafe_allow_html=True,
+        )
         _hm_posts = [p for p in ig_posts if p.get("post_hour", -1) >= 0]
         if _hm_posts:
             st.divider()
@@ -462,8 +472,16 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-        elif ig_posts:
-            st.info("🔄 Cliquez sur Refresh Data pour activer le graphique Meilleur moment pour publier.")
+        else:
+            _nb = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+            _tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
+            st.markdown(
+                f'<div style="background:{_nb};border-left:3px solid #E8420A;border-radius:0 8px 8px 0;'
+                f'padding:0.8rem 1.2rem;font-size:0.9rem;color:{_tc};">'
+                f'🔄 Cliquez sur <b>Refresh Data</b> dans la barre latérale pour activer ce graphique.'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
     # ── TAB 2: Visibility ─────────────────────────────────────────────────────
     with tab1:
