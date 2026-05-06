@@ -222,7 +222,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
           - _vdt.strptime(start_date, "%Y-%m-%d").date()
         ).days + 1
     else:
-        _w = days + 1   # rolling window: Last Nd covers N+1 boundaries
+        _w = days   # Last Nd = N days
 
     _reach_unavailable = not (
         _w == 1
