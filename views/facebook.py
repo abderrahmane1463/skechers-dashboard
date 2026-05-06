@@ -207,17 +207,36 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_shars = post_totals.get("total_shares",    sum(p.get("shares",    0) for p in posts))
     total_engagements = post_totals.get("total_interactions", total_reacs + total_comms + total_shars)
 
-    # Reach availability — "N/A" means the selected period has no exact Meta API mapping
-    _reach_window_label = vis.get("reach_window_label")
-    _reach_unavailable  = _reach_window_label == "N/A"
+    # Reach availability — computed from the selected window size, NOT from cached data.
+    # This guarantees correct display even when old Supabase rows (pre-change) are returned.
+    #
+    # Exact Meta API windows:
+    #   1 day      → period=day   (Today, Yesterday)
+    #   2–7 days   → period=week  (This Week, Last Week, Last 7 Days)
+    #   28–31 days → period=month (Last 30 Days, This Month, Last Month)
+    #   All others → no exact window exists → show "—"
+    from datetime import datetime as _vdt
+    if start_date and end_date:
+        _w = (
+            _vdt.strptime(end_date,   "%Y-%m-%d").date()
+          - _vdt.strptime(start_date, "%Y-%m-%d").date()
+        ).days + 1
+    else:
+        _w = days + 1   # rolling window: Last Nd covers N+1 boundaries
 
-    # Engagement rate: only meaningful when reach is an exact value
+    _reach_unavailable = not (
+        _w == 1
+        or (2  <= _w <= 7)
+        or (28 <= _w <= 31)
+    )
+
+    # Engagement rate: only meaningful when reach is exact
     eng_rate = (
         round(total_content_interactions / total_reach * 100, 2)
         if total_reach and not _reach_unavailable else 0.0
     )
 
-    # KPI display values for reach
+    # KPI display
     _reach_display = "—" if _reach_unavailable else f"{total_reach:,}"
     _reach_note    = "ℹ️ Indisponible pour cette période" if _reach_unavailable else None
 
