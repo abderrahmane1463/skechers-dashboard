@@ -46,7 +46,7 @@ def render_sidebar(log_refresh_fn):
             )
         else:
             st.markdown('<div class="brand-header">⚽ Footland</div>', unsafe_allow_html=True)
-        st.markdown('<div class="brand-sub">Organic Analytics Dashboard</div>', unsafe_allow_html=True)
+        st.markdown('<div class="brand-sub">Analytics Dashboard</div>', unsafe_allow_html=True)
 
         platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram", "🚀 Boost", "📖 Documentation"], label_visibility="collapsed")
         if "Facebook" in platform:
