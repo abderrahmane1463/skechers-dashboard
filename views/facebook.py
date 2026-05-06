@@ -230,15 +230,17 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         or (28 <= _w <= 31)
     )
 
-    # Engagement rate: only meaningful when reach is exact
+    # Engagement rate = Interactions totales (réactions + commentaires + partages) ÷ portée × 100
+    # Only meaningful when reach is exact (same availability rules as Spectateurs)
     eng_rate = (
-        round(total_content_interactions / total_reach * 100, 2)
+        round(total_engagements / total_reach * 100, 2)
         if total_reach and not _reach_unavailable else 0.0
     )
 
     # KPI display
-    _reach_display = "—" if _reach_unavailable else f"{total_reach:,}"
-    _reach_note    = "ℹ️ Indisponible pour cette période" if _reach_unavailable else None
+    _reach_display   = "—"  if _reach_unavailable else f"{total_reach:,}"
+    _reach_note      = "ℹ️ Indisponible pour cette période" if _reach_unavailable else None
+    _eng_rate_display = "—" if _reach_unavailable else f"{eng_rate}%"
 
     log_refresh_fn(
         "Facebook",
@@ -274,7 +276,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("👥", "Followers",            f"{total_fans:,}")}
   {_kpi("➕", "Nouveaux followers",   f"+{total_adds:,}", "#4ade80")}
   {_kpi("➖", "Désabonnements",       f"-{total_removes:,}", "#f87171")}
-  {_kpi("📊", "Taux d'engagement",   f"{eng_rate}%", "#facc15")}
+  {_kpi("📊", "Taux d'engagement",   _eng_rate_display, "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_kpi("👁️", "Spectateurs",             _reach_display, note=_reach_note)}
