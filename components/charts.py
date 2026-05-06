@@ -82,10 +82,13 @@ def render_top3_podium(
 
     # Section header
     st.markdown(
-        f'<div style="font-size:0.68rem;color:{_hdr_color};'
-        f'text-transform:uppercase;letter-spacing:0.08em;'
-        f'margin:1.2rem 0 0.8rem;border-bottom:1px solid {_hdr_border};'
-        f'padding-bottom:0.4rem;">🏆 {title}</div>',
+        f'<div style="text-align:center;margin:1.4rem 0 1rem;">'
+        f'<span style="font-size:1.15rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.1em;'
+        f'color:{"#ffffff" if _dark else "#111827"};">🏆 {title}</span>'
+        f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
+        f'border-radius:2px;margin:0.4rem auto 0;"></div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
