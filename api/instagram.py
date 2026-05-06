@@ -34,7 +34,6 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "follower_series": [],
         "follower_additions": [],
         "period_reach": 0,
-        "period_impressions": 0,
         "story_impressions": 0,
         "username": "footland"
     }
@@ -175,40 +174,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         except Exception as e:
             print(f"DEBUG: IG follower_count total_value error: {e}")
 
-    # 5. Total Impressions — try total_value first, fall back to daily series sum
-    # Attempt A: metric_type=total_value (most accurate, not always supported)
-    try:
-        data_imp = _get(f"{INSTAGRAM_USER_ID}/insights", {
-            "metric": "impressions",
-            "period": "day",
-            "metric_type": "total_value",
-            "since": since_ts,
-            "until": until_ts,
-        })
-        for m in data_imp.get("data", []):
-            if m["name"] == "impressions":
-                tv = m.get("total_value", {})
-                if isinstance(tv, dict):
-                    val = tv.get("value", 0)
-                elif isinstance(tv, (int, float)):
-                    val = int(tv)
-                else:
-                    val = 0
-                if val:
-                    result["period_impressions"] = val
-                    print(f"DEBUG IG impressions total_value = {val}")
-    except Exception as e:
-        print(f"DEBUG: IG impressions total_value error: {e}")
-
-    # Attempt B: sum the daily series already fetched (always works)
-    if not result["period_impressions"] and result.get("impressions"):
-        result["period_impressions"] = sum(
-            v["value"] for v in result["impressions"]
-            if isinstance(v.get("value"), (int, float))
-        )
-        print(f"DEBUG IG impressions daily sum = {result['period_impressions']}")
-
-    # 6. Stories Impressions — Stories are NOT included in the account-level
+    # 5. Stories Impressions — Stories are NOT included in the account-level
     #    impressions metric. Fetch active stories and sum their view counts.
     try:
         stories_data = _get(f"{INSTAGRAM_USER_ID}/stories", {

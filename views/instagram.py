@@ -129,10 +129,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         sum(p.get("impressions", 0) for p in ig_posts)
         or ig_post_totals.get("total_impressions")
     )
-    total_ig_impressions_account = (
-        ig_profile.get("period_impressions")
-        or sum(v["value"] for v in ig_profile.get("impressions", []) if isinstance(v.get("value"), (int, float)))
-    )
+
 
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
@@ -170,11 +167,10 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
   {_ig_kpi("📝", "Publications",        str(len(ig_posts)))}
   {_ig_kpi("📊", "Taux d'engagement",   f"{ig_eng_rate}%", "#facc15")}
 </div>
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_ig_kpi("👁️", "Couvertures",              f"{total_ig_reach:,}")}
-  {_ig_kpi("📢", "Impressions (Compte)",      f"{total_ig_impressions_account:,}")}
-  {_ig_kpi("📋", "Impressions (Posts)",       f"{total_ig_impressions:,}")}
-  {_ig_kpi("🔖", "Enregistrements",          f"{total_ig_saves:,}", "#60a5fa")}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
+  {_ig_kpi("👁️", "Couvertures",         f"{total_ig_reach:,}")}
+  {_ig_kpi("📢", "Impressions (Posts)",  f"{total_ig_impressions:,}")}
+  {_ig_kpi("🔖", "Enregistrements",     f"{total_ig_saves:,}", "#60a5fa")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35")}
