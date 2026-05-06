@@ -290,18 +290,18 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             saves_df = _full_range.merge(saves_df, on="date", how="left").fillna(0)
 
         if not ci_df.empty:
-            # Dynamic Y-axis ceiling: never clip data, but keep a reasonable minimum
-            _y1_max = max(
-                float(ci_df["value"].max()) * 1.2 if not ci_df.empty else 0,
-                float(likes_df["value"].max()) * 1.2 if not likes_df.empty else 0,
-                20_000,
+            # Dynamic Y-axis ceiling scaled to actual data — no hardcoded minimums
+            _y1_raw = max(
+                float(ci_df["value"].max()) if not ci_df.empty else 0,
+                float(likes_df["value"].max()) if not likes_df.empty else 0,
             )
-            # Secondary axis ceiling for smaller metrics (comments, saves)
-            _y2_max = max(
-                float(comms_df["value"].max()) * 1.5 if not comms_df.empty else 0,
-                float(saves_df["value"].max()) * 1.5 if not saves_df.empty else 0,
-                500,
+            _y1_max = max(_y1_raw * 1.3, 10)
+
+            _y2_raw = max(
+                float(comms_df["value"].max()) if not comms_df.empty else 0,
+                float(saves_df["value"].max()) if not saves_df.empty else 0,
             )
+            _y2_max = max(_y2_raw * 1.5, 5)
 
             fig_eng = go.Figure()
             # ── Primary axis (left): Total interactions + Réactions ──────────
