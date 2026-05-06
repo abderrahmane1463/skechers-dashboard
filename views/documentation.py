@@ -67,6 +67,17 @@ _DOC_CSS = """
 
 
 def render_documentation():
+    _is_admin = st.session_state.get("user", {}).get("role") == "admin"
+
+    # Hide Endpoint column for viewers via CSS
+    if not _is_admin:
+        st.markdown("""
+<style>
+.kpi-table th:nth-child(3),
+.kpi-table td:nth-child(3) { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
     st.markdown(_DOC_CSS, unsafe_allow_html=True)
 
     st.markdown("""
@@ -278,8 +289,9 @@ def render_documentation():
 | **Payant (Boost)** | Contenu promu via un budget Meta Ads. |
 """)
 
-    with st.expander("🔄 Fréquence de mise à jour"):
-        st.markdown("""
+    if _is_admin:
+        with st.expander("🔄 Fréquence de mise à jour"):
+            st.markdown("""
 | Source | Fréquence |
 |---|---|
 | **Périodes standard** (7j, 30j, 90j, mois en cours, mois précédent) | Toutes les **6 heures** via GitHub Actions |

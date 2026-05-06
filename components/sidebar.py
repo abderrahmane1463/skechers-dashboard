@@ -154,20 +154,24 @@ def render_sidebar(log_refresh_fn):
             st.session_state.theme = "light" if _is_dark else "dark"
             st.rerun()
 
-        st.divider()
+        _is_admin = st.session_state.get("user", {}).get("role") == "admin"
 
-        health = _get_health()
-        if health.get("status") == "ok":
-            st.success(f"✅ Base de donnees connectee")
-        else:
-            st.error(f"❌ Erreur\n\n{health.get('message', 'Unknown error')}")
+        if _is_admin:
+            st.divider()
 
-        st.caption("Cache permanent • Supabase")
+            health = _get_health()
+            if health.get("status") == "ok":
+                st.success(f"✅ Base de donnees connectee")
+            else:
+                st.error(f"❌ Erreur\n\n{health.get('message', 'Unknown error')}")
+
+            st.caption("Cache permanent • Supabase")
 
         st.divider()
 
         user = st.session_state.get("user", {})
-        st.caption(f"Connecté : {user.get('display_name') or user.get('email', '')}")
+        if _is_admin:
+            st.caption(f"Connecté : {user.get('display_name') or user.get('email', '')}")
         if st.button("🚪 Se déconnecter", width="stretch"):
             del st.session_state["user"]
             st.rerun()
