@@ -207,16 +207,19 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_shars = post_totals.get("total_shares",    sum(p.get("shares",    0) for p in posts))
     total_engagements = post_totals.get("total_interactions", total_reacs + total_comms + total_shars)
 
-    # Engagement rate uses Content Interactions (page-level) as the numerator.
-    # This captures interactions on ALL content visible during the period
-    # (including older posts surfaced by the algorithm), not just posts
-    # published in the window — giving a meaningful rate even on days with
-    # no new publications or when only 1 post with few interactions exists.
-    eng_rate = round(total_content_interactions / total_reach * 100, 2) if total_reach else 0.0
-
-    # Reach window label — drives the note shown under 👁️ Spectateurs KPI
+    # Reach availability — "N/A" means the selected period has no exact Meta API mapping
     _reach_window_label = vis.get("reach_window_label")
-    _reach_note = _reach_window_label if _reach_window_label else None
+    _reach_unavailable  = _reach_window_label == "N/A"
+
+    # Engagement rate: only meaningful when reach is an exact value
+    eng_rate = (
+        round(total_content_interactions / total_reach * 100, 2)
+        if total_reach and not _reach_unavailable else 0.0
+    )
+
+    # KPI display values for reach
+    _reach_display = "—" if _reach_unavailable else f"{total_reach:,}"
+    _reach_note    = "ℹ️ Indisponible pour cette période" if _reach_unavailable else None
 
     log_refresh_fn(
         "Facebook",
@@ -255,7 +258,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("📊", "Taux d'engagement",   f"{eng_rate}%", "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_kpi("👁️", "Spectateurs",             f"{total_reach:,}", note=_reach_note)}
+  {_kpi("👁️", "Spectateurs",             _reach_display, note=_reach_note)}
   {_kpi("📢", "Impressions",              f"{total_impressions:,}")}
   {_kpi("🤝", "Content Interactions",     f"{total_content_interactions:,}", "#a78bfa")}
   {_kpi("📝", "Publications",             str(len(posts)))}

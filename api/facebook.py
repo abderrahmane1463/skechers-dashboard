@@ -288,19 +288,18 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     result["period_impressions"] = sum(v["value"] for v in result.get("impressions", []))
     print(f"DEBUG: period_impressions (daily sum) = {result['period_impressions']}")
 
-    # ── period_reach — deduplicated unique reach ──────────────────────────────
+    # ── period_reach — exact deduplicated unique reach ────────────────────────
     #
-    # Facebook Graph API does NOT expose arbitrary-period unique reach.
-    # Available deduplicated windows (always take the LAST value in the series):
-    #   period=day     → exact daily unique reach          (use for 1-day windows)
-    #   period=week    → 7-day rolling unique reach        (use for 2–7 day windows)
-    #   period=days_28 → 28-day rolling unique reach       (use for 8+ day windows)
+    # Only computed for windows that map EXACTLY to a Meta Graph API period.
+    # For all other windows, reach_window_label="N/A" signals the UI to show "—"
+    # instead of a misleading approximation.
     #
-    # Mapping:
-    #   Today / Yesterday (1 day)   → period=day   → exact, no label shown
-    #   This Week / Last 7d (2–7d)  → period=week  → 7-day rolling, no label
-    #   Last 14d / 30d (8–30d)      → period=days_28 → informational label
-    #   Last 60d / 90d / calendars  → period=days_28 → warning label (window < period)
+    # Exact windows:
+    #   1 day        → period=day   (Today, Yesterday, custom 1-day)
+    #   2–7 days     → period=week  (This Week, Last Week, Last 7 Days)
+    #   28–31 days   → period=month (Last 30 Days, This Month, Last Month)
+    #
+    # Everything else (Last 14d, Last 60d, Last 90d, quarters, years…) → "—"
     from datetime import datetime as _dt2
     _since_dt = _dt2.strptime(since, "%Y-%m-%d").date()
     _until_dt = _dt2.strptime(until, "%Y-%m-%d").date()
@@ -308,54 +307,48 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
 
     if _window == 1:
         _reach_api_period = "day"
-        _reach_label      = None                 # exact — no note needed
     elif _window <= 7:
         _reach_api_period = "week"
-        _reach_label      = None                 # 7-day rolling matches the selection
-    elif _window <= 30:
-        _reach_api_period = "days_28"
-        _reach_label      = "fenêtre glissante 28j"   # informational
+    elif 28 <= _window <= 31:
+        _reach_api_period = "month"
     else:
-        _reach_api_period = "days_28"
-        _reach_label      = "fenêtre glissante 28j ⚠️"  # mismatch — period > 28j
+        _reach_api_period = None   # no valid exact window → show "—" in UI
 
-    # Label is set unconditionally — only cleared if we fall all the way back to daily sum
-    result["reach_window_label"] = _reach_label
+    if _reach_api_period:
+        def _try_reach(period: str) -> int:
+            try:
+                d = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+                    "metric": "page_impressions_unique",
+                    "period": period,
+                    "since": since,
+                    "until": until,
+                })
+                for m in d.get("data", []):
+                    if m["name"] == "page_impressions_unique":
+                        vals = m.get("values", [])
+                        if vals:
+                            v = vals[-1].get("value", 0)
+                            print(f"DEBUG: period_reach ({period}, {_window}d) = {v}")
+                            return v
+            except Exception as e:
+                print(f"DEBUG: period_reach ({period}) failed: {e}")
+            return 0
 
-    def _try_reach(period: str) -> int:
-        """Try a single Graph API period call; return the last value or 0."""
-        try:
-            d = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-                "metric": "page_impressions_unique",
-                "period": period,
-                "since": since,
-                "until": until,
-            })
-            for m in d.get("data", []):
-                if m["name"] == "page_impressions_unique":
-                    vals = m.get("values", [])
-                    if vals:
-                        v = vals[-1].get("value", 0)
-                        print(f"DEBUG: period_reach ({period}, {_window}d) = {v}")
-                        return v
-        except Exception as e:
-            print(f"DEBUG: period_reach ({period}) failed: {e}")
-        return 0
+        reach_val = _try_reach(_reach_api_period)
+        # For month, also try days_28 if month returned 0
+        if reach_val == 0 and _reach_api_period == "month":
+            reach_val = _try_reach("days_28")
+        # Last resort: daily sum (still exact-ish for short windows)
+        if reach_val == 0:
+            reach_val = sum(v["value"] for v in result.get("reach", []))
+            print(f"DEBUG: period_reach (daily sum fallback, {_window}d) = {reach_val}")
 
-    # 1st attempt: preferred period (day / week / days_28)
-    reach_val = _try_reach(_reach_api_period)
-
-    # 2nd attempt: period=month (known to work on most page types)
-    if reach_val == 0 and _reach_api_period not in ("day", "week", "month"):
-        reach_val = _try_reach("month")
-
-    # Last resort: sum already-fetched daily unique series (slight overcount)
-    if reach_val == 0:
-        reach_val = sum(v["value"] for v in result.get("reach", []))
-        result["reach_window_label"] = None   # only cleared here
-        print(f"DEBUG: period_reach (daily sum fallback, {_window}d) = {reach_val}")
-
-    result["period_reach"] = reach_val
+        result["period_reach"]      = reach_val
+        result["reach_window_label"] = None   # exact — UI shows the number
+    else:
+        result["period_reach"]      = 0
+        result["reach_window_label"] = "N/A"  # UI shows "—"
+        print(f"DEBUG: period_reach N/A — window {_window}d has no exact Meta API mapping")
 
     return result
 
