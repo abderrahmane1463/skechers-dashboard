@@ -319,26 +319,43 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
         _reach_api_period = "days_28"
         _reach_label      = "fenêtre glissante 28j ⚠️"  # mismatch — period > 28j
 
+    # Label is set unconditionally — only cleared if we fall all the way back to daily sum
     result["reach_window_label"] = _reach_label
 
-    try:
-        data_r = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_unique",
-            "period": _reach_api_period,
-            "since": since,
-            "until": until,
-        })
-        for m in data_r.get("data", []):
-            if m["name"] == "page_impressions_unique":
-                vals = m.get("values", [])
-                if vals:
-                    result["period_reach"] = vals[-1].get("value", 0)
-        print(f"DEBUG: period_reach ({_reach_api_period}, last val, {_window}d) = {result['period_reach']}")
-    except Exception as e:
-        print(f"DEBUG: period_reach ({_reach_api_period}) error: {e}")
-        # Fallback: sum the already-fetched daily series (slight overcount but safe)
-        result["period_reach"] = sum(v["value"] for v in result.get("reach", []))
-        result["reach_window_label"] = None
+    def _try_reach(period: str) -> int:
+        """Try a single Graph API period call; return the last value or 0."""
+        try:
+            d = _get(f"{FACEBOOK_PAGE_ID}/insights", {
+                "metric": "page_impressions_unique",
+                "period": period,
+                "since": since,
+                "until": until,
+            })
+            for m in d.get("data", []):
+                if m["name"] == "page_impressions_unique":
+                    vals = m.get("values", [])
+                    if vals:
+                        v = vals[-1].get("value", 0)
+                        print(f"DEBUG: period_reach ({period}, {_window}d) = {v}")
+                        return v
+        except Exception as e:
+            print(f"DEBUG: period_reach ({period}) failed: {e}")
+        return 0
+
+    # 1st attempt: preferred period (day / week / days_28)
+    reach_val = _try_reach(_reach_api_period)
+
+    # 2nd attempt: period=month (known to work on most page types)
+    if reach_val == 0 and _reach_api_period not in ("day", "week", "month"):
+        reach_val = _try_reach("month")
+
+    # Last resort: sum already-fetched daily unique series (slight overcount)
+    if reach_val == 0:
+        reach_val = sum(v["value"] for v in result.get("reach", []))
+        result["reach_window_label"] = None   # only cleared here
+        print(f"DEBUG: period_reach (daily sum fallback, {_window}d) = {reach_val}")
+
+    result["period_reach"] = reach_val
 
     return result
 
