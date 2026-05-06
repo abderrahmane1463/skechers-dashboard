@@ -20,13 +20,16 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
     since, until = _date_range(days, start, end)
 
     # Use timestamps for better API compatibility (from diagnostic)
-    # until_ts gets +1 day so single-day periods (e.g. Yesterday where since==until)
-    # produce a non-zero window — otherwise the API returns nothing.
+    # until_ts_series gets +1 day so single-day periods (e.g. Yesterday where since==until)
+    # produce a non-zero window for daily series calls — otherwise the API returns nothing.
+    # until_ts_exact stays as-is for metric_type=total_value reach calls which require
+    # a window of exactly ≤ 30 days — adding +1 day would push 30-day periods to 31 → 0.
     try:
-        since_ts = int(dateparser.parse(since).timestamp())
-        until_ts = int((dateparser.parse(until) + timedelta(days=1)).timestamp())
+        since_ts       = int(dateparser.parse(since).timestamp())
+        until_ts       = int((dateparser.parse(until) + timedelta(days=1)).timestamp())  # for daily series
+        until_ts_exact = int(dateparser.parse(until).timestamp())                         # for reach total_value
     except:
-        since_ts, until_ts = since, until
+        since_ts = until_ts = until_ts_exact = since
 
     result = {
         "followers_count": 0,
@@ -109,13 +112,14 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
     # value to what Meta Business Suite reports.
 
     # period_reach — metric_type=total_value (deduplicated full-period aggregate)
+    # Uses until_ts_exact (no +1 day) — API only accepts windows of ≤ 30 days.
     try:
         data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
             "metric": "reach",
             "period": "day",
             "metric_type": "total_value",
             "since": since_ts,
-            "until": until_ts,
+            "until": until_ts_exact,
         })
         for m in data_p.get("data", []):
             if m["name"] == "reach":
