@@ -621,12 +621,24 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             else:
                 _post_type = "Photo"           # default fallback
 
+            # Extract hour + weekday for heatmap
+            _ts_fb = p.get("created_time", "")
+            try:
+                from datetime import datetime as _dt2
+                _parsed_fb    = _dt2.strptime(_ts_fb[:19], "%Y-%m-%dT%H:%M:%S")
+                _post_hour_fb = _parsed_fb.hour
+                _post_wday_fb = _parsed_fb.weekday()
+            except Exception:
+                _post_hour_fb, _post_wday_fb = -1, -1
+
             return {
                 "id":                   p.get("id", ""),
                 "text":                 p.get("message", p.get("story", ""))[:120],
-                "created_time":         p.get("created_time", "")[:10],
+                "created_time":         _ts_fb[:10],
                 "thumbnail":            p.get("full_picture", ""),
                 "media_type":           _post_type,
+                "post_hour":            _post_hour_fb,
+                "post_weekday":         _post_wday_fb,
                 # Reach / impressions (normalized)
                 "reach":                reach,
                 "total_views":          total_views,

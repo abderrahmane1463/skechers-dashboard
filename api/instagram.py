@@ -296,10 +296,20 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             except:
                 pass
 
+            # Extract hour + weekday from full timestamp for heatmap
+            _ts = p.get("timestamp", "")
+            try:
+                from datetime import datetime as _dt
+                _parsed = _dt.strptime(_ts[:19], "%Y-%m-%dT%H:%M:%S")
+                _post_hour    = _parsed.hour
+                _post_weekday = _parsed.weekday()   # 0=Mon … 6=Sun
+            except Exception:
+                _post_hour, _post_weekday = -1, -1
+
             return {
                 "id":               p.get("id", ""),
                 "text":             p.get("caption", "")[:120] if p.get("caption") else "",
-                "created_time":     p.get("timestamp", "")[:10],
+                "created_time":     _ts[:10],
                 "media_type":       p.get("media_type", ""),
                 "thumbnail":        p.get("thumbnail_url") or p.get("media_url", ""),
                 "permalink":        p.get("permalink", ""),
@@ -310,6 +320,8 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "saves":            saves,
                 "shares":           shares,
                 "total_interactions": likes + comments + saves + shares,
+                "post_hour":        _post_hour,
+                "post_weekday":     _post_weekday,
             }
 
         # Parallelize the insight fetching (Restored for speed)
