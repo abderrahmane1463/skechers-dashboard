@@ -513,8 +513,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         chart_df = series_to_df(eng.get("engagements", []))
 
         if not chart_df.empty and (start_date or days):
-            _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
-            _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
+            _range_start = (pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)).normalize()
+            _range_end   = (pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()).normalize()
             _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
             chart_df = _full_range.merge(chart_df, on="date", how="left").fillna(0)
 
