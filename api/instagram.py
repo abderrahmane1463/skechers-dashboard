@@ -107,7 +107,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
     # 3. Deduplicated Period Reach — try multiple approaches to get the closest
     # value to what Meta Business Suite reports.
 
-    # Attempt A: metric_type=total_value (newer IG API — returns full-period aggregate)
+    # period_reach — metric_type=total_value (deduplicated full-period aggregate)
     try:
         data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
             "metric": "reach",
@@ -125,46 +125,10 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
                     val = int(tv)
                 else:
                     val = 0
-                if val:
-                    result["period_reach"] = val
-                    print(f"DEBUG IG reach total_value = {val}")
+                result["period_reach"] = val
+                print(f"DEBUG IG reach total_value = {val}")
     except Exception as e:
         print(f"DEBUG: IG reach total_value error: {e}")
-
-    # Attempt B: period=month
-    if not result["period_reach"]:
-        try:
-            data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
-                "metric": "reach",
-                "period": "month",
-                "since": since_ts,
-                "until": until_ts,
-            })
-            for m in data_p.get("data", []):
-                if m["name"] == "reach":
-                    vals = m.get("values", [])
-                    if vals:
-                        result["period_reach"] = vals[-1]["value"]
-        except Exception:
-            pass
-
-    # Attempt C: days_28 / week fallback
-    if not result["period_reach"]:
-        best_period = "days_28" if days > 7 else "week"
-        try:
-            data_p = _get(f"{INSTAGRAM_USER_ID}/insights", {
-                "metric": "reach",
-                "period": best_period,
-                "since": since_ts,
-                "until": until_ts,
-            })
-            for m in data_p.get("data", []):
-                if m["name"] == "reach":
-                    vals = m.get("values", [])
-                    if vals:
-                        result["period_reach"] = vals[-1]["value"]
-        except Exception:
-            pass
 
     # 4. Daily Follower Series — try multiple metric names across API versions
     for m_name in ["follower_count", "profile_follows", "total_followers_count"]:
