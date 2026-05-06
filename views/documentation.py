@@ -271,6 +271,46 @@ def render_documentation():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # ── Limitations ───────────────────────────────────────────────────────────
+    with st.expander("⚠️ Limitations & Données Indisponibles", expanded=False):
+        st.markdown("""
+<div style="margin-bottom:0.8rem;font-size:0.9rem;color:#a1a1aa;">
+Certains indicateurs affichent <strong style="color:#E8420A;">—</strong> ou peuvent différer de Meta Business Suite.
+Ce n'est pas une erreur du dashboard — ce sont des contraintes imposées par l'API Meta.
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("#### 📊 KPIs avec restrictions de période")
+        st.markdown("""
+| KPI | Comportement | Raison API |
+|---|---|---|
+| 👁️ **Couvertures** (Instagram) | Affiche **—** si période > 30 jours | `metric_type=total_value` non supporté au-delà de 30 jours |
+| 👁️ **Spectateurs** (Facebook) | Affiche **—** sur certaines périodes | Disponible uniquement pour 1j, 2–7j ou 28–31j exactement |
+| 📊 **Taux d'engagement** | Affiche **—** quand la portée est indisponible | Formule = Interactions ÷ Portée — impossible sans portée |
+""")
+
+        st.markdown("#### 📢 Impressions & Enregistrements")
+        st.markdown("""
+| KPI | Limitation | Détail |
+|---|---|---|
+| 📢 **Impressions** (Instagram) | **Stories non incluses** | L'API Meta supprime les données Stories après 24h — seuls le feed et les Reels sont comptabilisés |
+| 🔖 **Enregistrements** | Peut différer de Meta Business Suite | Business Suite inclut les Stories enregistrées ; le dashboard comptabilise uniquement les posts du feed & Reels |
+| 📢 **Impressions** (Facebook) | Basé sur `post_impressions_unique` | Pour les pages New Page Experience, Meta n'expose que la portée unique par post, pas les impressions brutes |
+""")
+
+        st.markdown("#### 💾 Cache & Actualisation")
+        st.markdown("""
+| Situation | Explication |
+|---|---|
+| Une publication récente n'apparaît pas | Les données sont mises en cache — cliquez **🔄 Refresh Data** pour forcer le rechargement |
+| Les chiffres diffèrent de Business Suite | Business Suite peut utiliser un fuseau horaire ou une fenêtre glissante différente |
+| Les données d'hier semblent incomplètes | Meta finalise certaines métriques avec un délai de 24–48h |
+""")
+
+        st.info("💡 En cas de doute sur un chiffre, consultez directement **Meta Business Suite** pour le comparer — le dashboard suit la même source de données (Meta Graph API).")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # ── Glossaire & Fréquence ─────────────────────────────────────────────────
     with st.expander("📚 Glossaire — Termes clés"):
         st.markdown("""
