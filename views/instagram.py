@@ -129,7 +129,10 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         sum(p.get("impressions", 0) for p in ig_posts)
         or ig_post_totals.get("total_impressions")
     )
-    total_ig_impressions_account = ig_profile.get("period_impressions", 0)
+    total_ig_impressions_account = (
+        ig_profile.get("period_impressions")
+        or sum(v["value"] for v in ig_profile.get("impressions", []) if isinstance(v.get("value"), (int, float)))
+    )
 
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
