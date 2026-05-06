@@ -603,11 +603,30 @@ def fetch_fb_posts(days: int = None, start: str = None, end: str = None, limit: 
             if isinstance(activity, dict) and activity.get("share", 0) > shar:
                 shar = activity.get("share", 0)
 
+            # ── 5. Post type from attachments ─────────────────────────────────
+            _att_items = p.get("attachments", {}).get("data", [])
+            _att_type  = _att_items[0].get("type", "") if _att_items else ""
+            _att_media = _att_items[0].get("media_type", "") if _att_items else ""
+            # Normalize to human-readable label
+            if _att_type in ("video_inline", "video_autoplay") or _att_media == "video":
+                _post_type = "Vidéo / Reel"
+            elif _att_type == "album" or _att_media == "album":
+                _post_type = "Carrousel"
+            elif _att_type in ("photo", "sticker") or _att_media == "photo":
+                _post_type = "Photo"
+            elif _att_type == "share":
+                _post_type = "Lien"
+            elif video_views > 0:
+                _post_type = "Vidéo / Reel"   # fallback: has video views → video
+            else:
+                _post_type = "Photo"           # default fallback
+
             return {
                 "id":                   p.get("id", ""),
                 "text":                 p.get("message", p.get("story", ""))[:120],
                 "created_time":         p.get("created_time", "")[:10],
                 "thumbnail":            p.get("full_picture", ""),
+                "media_type":           _post_type,
                 # Reach / impressions (normalized)
                 "reach":                reach,
                 "total_views":          total_views,

@@ -93,7 +93,7 @@ FB_VISIBILITY_METRICS = [
 ]
 
 # Fields to request for Facebook posts
-FB_POST_FIELDS = "id,message,story,created_time,full_picture,shares,comments.summary(true).filter(stream),reactions.summary(true)"
+FB_POST_FIELDS = "id,message,story,created_time,full_picture,shares,comments.summary(true).filter(stream),reactions.summary(true),attachments{type,media_type}"
 
 # ─── Instagram Insight Metrics ─────────────────────────────────────────────────
 IG_PROFILE_METRICS = [
