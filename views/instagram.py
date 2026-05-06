@@ -143,6 +143,17 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     follower_additions = ig_profile.get("follower_additions", [])
     total_ig_reach     = ig_profile.get("period_reach", 0) or safe_sum(ig_profile.get("reach", []))
 
+    # Reach availability — Instagram's metric_type=total_value only works for ≤ 30 days
+    from datetime import datetime as _vdt2
+    if start_date and end_date:
+        _ig_w = (_vdt2.strptime(end_date, "%Y-%m-%d").date()
+               - _vdt2.strptime(start_date, "%Y-%m-%d").date()).days + 1
+    else:
+        _ig_w = days
+    _ig_reach_unavailable = _ig_w > 30
+    _ig_reach_display = "—" if _ig_reach_unavailable else f"{total_ig_reach:,}"
+    _ig_reach_note    = "ℹ️ Indisponible pour cette période" if _ig_reach_unavailable else None
+
     total_ig_impressions = (
         sum(p.get("impressions", 0) for p in ig_posts)
         or ig_post_totals.get("total_impressions")
@@ -154,7 +165,11 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
     total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
 
-    ig_eng_rate = round(total_ig_interactions / total_ig_reach * 100, 2) if total_ig_reach else 0.0
+    ig_eng_rate = (
+        round(total_ig_interactions / total_ig_reach * 100, 2)
+        if total_ig_reach and not _ig_reach_unavailable else 0.0
+    )
+    _ig_eng_rate_display = "—" if _ig_reach_unavailable else f"{ig_eng_rate}%"
 
     # ── Delta helpers ─────────────────────────────────────────────────────────
     def _d(curr, prev):
@@ -179,10 +194,11 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── KPI Grid ──────────────────────────────────────────────────────────────
     _dark = st.session_state.get("theme", "dark") == "dark"
-    def _ig_kpi(icon, label, value, color=None, delta=None):
+    def _ig_kpi(icon, label, value, color=None, delta=None, note=None):
         _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
         _brd = "none" if _dark else "1px solid #e5e7eb"
         _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+        _nc  = "rgba(255,255,255,0.3)"  if _dark else "#9ca3af"
         _vc  = color if color else ("#ffffff" if _dark else "#111827")
         if delta is not None:
             _dc = "#4ade80" if delta > 0 else "#f87171" if delta < 0 else "#a1a1aa"
@@ -194,6 +210,10 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             )
         else:
             _delta_html = ""
+        _note_html = (
+            f'<div style="font-size:0.62rem;color:{_nc};margin-top:0.15rem;'
+            f'white-space:normal;line-height:1.35;">{note}</div>'
+        ) if note else ""
         return (
             f'<div style="background:{_bg};border:{_brd};border-radius:12px;'
             f'padding:0.9rem 1rem;text-align:center;">'
@@ -202,6 +222,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             f'<div style="font-size:1.35rem;font-weight:800;color:{_vc};'
             f'white-space:nowrap;">{value}</div>'
             f'{_delta_html}'
+            f'{_note_html}'
             f'</div>'
         )
 
@@ -209,10 +230,11 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👥", "Followers",         f"{followers:,}",       delta=_d(followers,             _prev_followers))}
   {_ig_kpi("📝", "Publications",      str(len(ig_posts)),     delta=_d(len(ig_posts),          len(prev_ig_posts)))}
-  {_ig_kpi("📊", "Taux d'engagement", f"{ig_eng_rate}%",      "#facc15")}
+  {_ig_kpi("📊", "Taux d'engagement", _ig_eng_rate_display, "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_ig_kpi("👁️", "Couvertures",        f"{total_ig_reach:,}",       delta=_d(total_ig_reach,       _prev_ig_reach))}
+  {_ig_kpi("👁️", "Couvertures",        _ig_reach_display, note=_ig_reach_note,
+           delta=None if _ig_reach_unavailable else _d(total_ig_reach, _prev_ig_reach))}
   {_ig_kpi("📢", "Impressions (Posts)", f"{total_ig_impressions:,}", delta=_d(total_ig_impressions, _prev_ig_impr))}
   {_ig_kpi("🔖", "Enregistrements",    f"{total_ig_saves:,}", "#60a5fa", delta=_d(total_ig_saves,  _prev_ig_saves))}
 </div>
