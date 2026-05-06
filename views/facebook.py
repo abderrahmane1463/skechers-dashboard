@@ -366,7 +366,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     mode="lines"
                 ))
                 _gc = "rgba(255,255,255,0.06)" if _dark else "#e5e7eb"
-            audience_layout = {
+                audience_layout = {
                     **get_chart_layout(),
                     "yaxis": dict(
                         gridcolor=_gc,
