@@ -20,9 +20,11 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
     since, until = _date_range(days, start, end)
 
     # Use timestamps for better API compatibility (from diagnostic)
+    # until_ts gets +1 day so single-day periods (e.g. Yesterday where since==until)
+    # produce a non-zero window — otherwise the API returns nothing.
     try:
         since_ts = int(dateparser.parse(since).timestamp())
-        until_ts = int(dateparser.parse(until).timestamp())
+        until_ts = int((dateparser.parse(until) + timedelta(days=1)).timestamp())
     except:
         since_ts, until_ts = since, until
 
