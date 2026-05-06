@@ -789,8 +789,9 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
             with st.expander("📋 Toutes les publications"):
                 posts_df = pd.DataFrame(posts)
+                _fb_cols = ["created_time", "text", "media_type", "reach", "reactions", "comments", "shares", "total_interactions"]
                 st.dataframe(
-                    posts_df[["created_time", "text", "media_type", "reach", "reactions", "comments", "shares", "total_interactions"]],
+                    posts_df[[c for c in _fb_cols if c in posts_df.columns]],
                     use_container_width=True,
                 )
         else:

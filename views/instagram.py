@@ -622,8 +622,9 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
             with st.expander("📋 Toutes les publications"):
                 posts_df = pd.DataFrame(ig_posts)
+                _ig_cols = ["created_time", "text", "media_type", "impressions", "reactions", "comments", "shares", "total_interactions"]
                 st.dataframe(
-                    posts_df[["created_time", "text", "media_type", "impressions", "reactions", "comments", "shares", "total_interactions"]],
+                    posts_df[[c for c in _ig_cols if c in posts_df.columns]],
                     use_container_width=True,
                 )
         else:
