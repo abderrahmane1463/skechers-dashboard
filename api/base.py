@@ -70,6 +70,35 @@ def _prev_date_range(days: int) -> tuple[str, str]:
     return str(since), str(until)
 
 
+def _get_insights_chunked(endpoint: str, params: dict, since: str, until: str, chunk_days: int = 88) -> dict:
+    """
+    Fetch Facebook Insights for wide date ranges by splitting into ≤88-day chunks.
+    The Insights API silently returns nothing (or errors) for requests > ~92 days.
+    Returns a merged response shaped like a normal _get() Insights response:
+        {"data": [{"name": "metric_name", "values": [...]}]}
+    """
+    from datetime import date as _d, timedelta as _td
+
+    s = _d.fromisoformat(since)
+    u = _d.fromisoformat(until)
+    accumulated: dict = {}   # metric_name → [value dicts]
+
+    chunk_start = s
+    while chunk_start <= u:
+        chunk_end = min(chunk_start + _td(days=chunk_days - 1), u)
+        chunk_params = {**params, "since": str(chunk_start), "until": str(chunk_end)}
+        try:
+            data = _get(endpoint, chunk_params)
+            for metric in data.get("data", []):
+                name = metric.get("name", "")
+                accumulated.setdefault(name, []).extend(metric.get("values", []))
+        except Exception as e:
+            print(f"DEBUG: insights chunk {chunk_start}→{chunk_end}: {e}")
+        chunk_start = chunk_end + _td(days=1)
+
+    return {"data": [{"name": n, "values": v} for n, v in accumulated.items()]}
+
+
 def check_api_health() -> dict:
     """
     Returns API connectivity status and token info.
