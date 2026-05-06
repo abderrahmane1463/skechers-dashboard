@@ -281,8 +281,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
         # Fill full date range with zeros
         if not ci_df.empty and (start_date or days):
-            _range_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)
-            _range_end   = pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()
+            _range_start = (pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)).normalize()
+            _range_end   = (pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()).normalize()
             _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
             ci_df    = _full_range.merge(ci_df,    on="date", how="left").fillna(0)
             likes_df = _full_range.merge(likes_df, on="date", how="left").fillna(0)
