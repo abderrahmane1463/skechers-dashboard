@@ -554,21 +554,28 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     for v in _type_data.values()
                 ]
 
-                _type_colors = {"Photo": "#6366f1", "Vidéo": "#f43f5e",
-                                "Carrousel": "#f59e0b", "Reel": "#10b981", "Autre": "#71717a"}
+                _type_colors = {
+                    "Photo":     ("#6366f1", "rgba(99,102,241,0.5)"),
+                    "Vidéo":     ("#f43f5e", "rgba(244,63,94,0.5)"),
+                    "Carrousel": ("#f59e0b", "rgba(245,158,11,0.5)"),
+                    "Reel":      ("#10b981", "rgba(16,185,129,0.5)"),
+                    "Autre":     ("#71717a", "rgba(113,113,122,0.5)"),
+                }
+                _default_solid = "#6366f1"
+                _default_fade  = "rgba(99,102,241,0.5)"
 
                 fig_type = go.Figure()
                 fig_type.add_trace(go.Bar(
                     name="Impressions moy.",
                     x=_types, y=_avg_imp,
-                    marker_color=[_type_colors.get(t, "#6366f1") for t in _types],
+                    marker_color=[_type_colors.get(t, (_default_solid, _default_fade))[0] for t in _types],
                     text=[f"{v:,}" for v in _avg_imp],
                     textposition="outside",
                 ))
                 fig_type.add_trace(go.Bar(
                     name="Interactions moy.",
                     x=_types, y=_avg_inter,
-                    marker_color=[_type_colors.get(t, "#E8420A") + "99" for t in _types],
+                    marker_color=[_type_colors.get(t, (_default_solid, _default_fade))[1] for t in _types],
                     text=[f"{v:,}" for v in _avg_inter],
                     textposition="outside",
                 ))
