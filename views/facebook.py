@@ -139,27 +139,27 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_fb_audience(days, start=None, end=None):
     return db.get_fb_audience(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_fb_engagement(days, start=None, end=None):
     return db.get_fb_engagement(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_fb_visibility(days, start=None, end=None):
     return db.get_fb_visibility(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_fb_posts(days, start=None, end=None):
     return db.get_fb_posts(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_fb_messaging_stats(days=30, start=None, end=None):
     return db.get_fb_messaging_stats(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_fb_post_totals(days=30, start=None, end=None):
     return db.get_fb_post_totals(days, start, end)
 

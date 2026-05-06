@@ -7,7 +7,7 @@ from config import PERIOD_DAYS, CALENDAR_PERIODS
 import db
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def _get_health():
     try:
         result = db.load_fetched_at("ig_profile", "2026-01-01", "2026-12-31")
@@ -162,7 +162,7 @@ def render_sidebar(log_refresh_fn):
         else:
             st.error(f"❌ Erreur\n\n{health.get('message', 'Unknown error')}")
 
-        st.caption("Cache TTL: 15 min • Supabase")
+        st.caption("Cache permanent • Supabase")
 
         st.divider()
 

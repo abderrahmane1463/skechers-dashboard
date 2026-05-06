@@ -8,19 +8,19 @@ from components.charts import get_chart_layout, series_to_df, safe_sum, render_t
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_ig_profile(days, start=None, end=None):
     return db.get_ig_profile(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_ig_engagement(days, start=None, end=None):
     return db.get_ig_engagement(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_ig_posts(days, start=None, end=None):
     return db.get_ig_posts(days, start, end)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=None, show_spinner=False)
 def get_ig_post_totals(days, start=None, end=None):
     return db.get_ig_post_totals(days, start, end)
 
