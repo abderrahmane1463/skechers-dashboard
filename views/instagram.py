@@ -606,7 +606,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
                 _vc  = "#ffffff" if _dark else "#111827"
                 for col_w, t, cnt, ai_v, aint, ae in zip(_cols_list, _types, _counts, _avg_imp, _avg_inter, _avg_eng):
-                    _dot = _type_colors.get(t, "#71717a")
+                    _dot = _type_colors.get(t, (_default_solid, _default_fade))[0]
                     col_w.markdown(
                         f'<div style="background:{_bg};border:{_brd};border-radius:12px;padding:0.8rem 1rem;text-align:center;">'
                         f'<div style="font-size:0.8rem;font-weight:700;color:{_dot};margin-bottom:0.4rem;">● {t}</div>'

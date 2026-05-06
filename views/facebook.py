@@ -765,15 +765,15 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 })
                 st.plotly_chart(fig_type, width="stretch")
 
-                # Summary mini-table
-                _tc1, _tc2, _tc3, _tc4 = st.columns(len(_types)) if len(_types) <= 4 else st.columns(4)
-                _cols_list = [_tc1, _tc2, _tc3, _tc4][:len(_types)]
+                # Summary mini-cards
+                _n_cols    = min(len(_types), 4)
+                _cols_list = st.columns(_n_cols)
                 _bg  = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
                 _brd = "none" if _dark else "1px solid #e5e7eb"
                 _lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
                 _vc  = "#ffffff" if _dark else "#111827"
                 for col_w, t, cnt, ar, ai, ae in zip(_cols_list, _types, _counts, _avg_reach, _avg_inter, _avg_eng):
-                    _dot = _type_colors.get(t, "#71717a")
+                    _dot = _type_colors.get(t, (_default_solid, _default_fade))[0]
                     col_w.markdown(
                         f'<div style="background:{_bg};border:{_brd};border-radius:12px;padding:0.8rem 1rem;text-align:center;">'
                         f'<div style="font-size:0.8rem;font-weight:700;color:{_dot};margin-bottom:0.4rem;">● {t}</div>'
