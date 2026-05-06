@@ -345,7 +345,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── Tabs ─────────────────────────────────────────────────────────────────
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "👥 Audience", "📡 Visibility", "💬 Engagement", "🏆 Top Content", "🤝 Community"
+        "👥Audience", "📡Visibility", "💬Engagement", "🏆Top Content", "🤝Community"
     ])
 
     # ── TAB 1: Audience ───────────────────────────────────────────────────────

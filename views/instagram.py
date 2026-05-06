@@ -250,7 +250,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
     tab1, tab2, tab3 = st.tabs([
-        "📡 Visibility", "💬 Engagement", "🏆 Top Content"
+        "📡Visibility", "💬Engagement", "🏆Top Content"
     ])
 
     # ── TAB 1: Engagement ─────────────────────────────────────────────────────
