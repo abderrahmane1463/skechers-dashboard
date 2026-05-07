@@ -208,7 +208,6 @@ elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
 else:
     # ── Boost (paid campaigns) ────────────────────────────────────────────────
-    from concurrent.futures import ThreadPoolExecutor, as_completed
     from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
 
     # Compute previous equivalent period
@@ -223,34 +222,25 @@ else:
         _prev_bs = _prev_be - _btd(days=days - 1)
     _b_prev_start, _b_prev_end = str(_prev_bs), str(_prev_be)
 
-    def _fetch_boost():
+    @st.cache_data(ttl=None, show_spinner=False)
+    def _cached_boost(days, start, end):
         try:
-            return db.get_boost_insights(days, start_date, end_date)
+            return db.get_boost_insights(days, start, end)
         except Exception as e:
             print(f"DEBUG boost: fetch failed: {e}")
             return empty_boost_data()
 
-    def _fetch_prev_boost():
+    @st.cache_data(ttl=None, show_spinner=False)
+    def _cached_boost_demo(days, start, end):
         try:
-            return db.get_boost_insights(days, _b_prev_start, _b_prev_end)
-        except Exception as e:
-            print(f"DEBUG boost prev: fetch failed: {e}")
-            return empty_boost_data()
-
-    def _fetch_demo():
-        try:
-            return db.get_fb_demographics(days, start_date, end_date)
+            return db.get_fb_demographics(days, start, end)
         except Exception as e:
             print(f"DEBUG boost demographics: fetch failed: {e}")
             return {}
 
     with st.spinner("Loading Boost data..."):
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            f_boost      = pool.submit(_fetch_boost)
-            f_prev_boost = pool.submit(_fetch_prev_boost)
-            f_demo       = pool.submit(_fetch_demo)
-            boost_data      = f_boost.result()
-            prev_boost_data = f_prev_boost.result()
-            demo_data       = f_demo.result()
+        boost_data      = _cached_boost(days, start_date, end_date)
+        prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
+        demo_data       = _cached_boost_demo(days, start_date, end_date)
 
     render_boost_tab(boost_data, demo_data, prev_boost_data)
