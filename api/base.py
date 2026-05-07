@@ -55,12 +55,24 @@ def _get(endpoint: str, params: dict) -> dict:
 
 
 def _date_range(days: int, start: str = None, end: str = None) -> tuple[str, str]:
-    """Return (since, until) ISO date strings."""
+    """Return (since, until) ISO date strings — always computed from today for API calls."""
     if start and end:
         return start, end
     until = datetime.now(timezone.utc).date()
     since = until - timedelta(days=days)
     return str(since), str(until)
+
+
+def _cache_key_range(days: int, start: str = None, end: str = None) -> tuple[str, str]:
+    """
+    Return a STABLE Supabase cache key.
+    - Rolling periods (Last 7/14/30/60/90 Days): key never changes → "rolling" / "last_Xd"
+    - Fixed ranges (custom dates, calendar periods): use actual dates as key
+    Only a manual Refresh wipes the entry.
+    """
+    if start and end:
+        return start, end          # fixed range — key is the actual dates
+    return "rolling", f"last_{days}d"   # rolling — always the same key
 
 
 def _prev_date_range(days: int) -> tuple[str, str]:

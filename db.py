@@ -140,17 +140,23 @@ def delete_period(period_start: str, period_end: str) -> bool:
 
 # ── High-level getters (cache → API fallback) ──────────────────────────────────
 import api
-from api.base import _date_range
+from api.base import _cache_key_range
 
 
 def _get(metric_key: str, api_fn, days: int, start: str, end: str, default):
-    """Load from Supabase; fall back to live API if not cached."""
-    p_start, p_end = _date_range(days, start, end)
-    data = load(metric_key, p_start, p_end)
+    """
+    Load from Supabase using a STABLE cache key; fall back to live API if not cached.
+    Rolling periods (Last X Days) always use the same key so data is saved forever
+    and only re-fetched when the user clicks Refresh.
+    Fixed ranges (custom / calendar) use the actual dates as the key.
+    """
+    ck_start, ck_end = _cache_key_range(days, start, end)
+    data = load(metric_key, ck_start, ck_end)
     if data is not None:
         return data
+    # Cache miss → call Meta API with real dates, then save under stable key
     data = api_fn(days, start, end)
-    save(metric_key, p_start, p_end, data)
+    save(metric_key, ck_start, ck_end, data)
     return data
 
 
