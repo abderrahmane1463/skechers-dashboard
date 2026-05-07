@@ -383,17 +383,9 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         )
         _hm_posts = [p for p in ig_posts if p.get("post_hour", -1) >= 0]
         if _hm_posts:
-            st.divider()
             st.markdown(
-                f'<div style="text-align:center;margin:0.5rem 0 1rem;">'
-                f'<span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:0.08em;color:{"#ffffff" if _dark else "#111827"};">'
-                f'⏰ Meilleur moment pour publier</span>'
-                f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
-                f'border-radius:2px;margin:0.4rem auto 0;"></div>'
-                f'<div style="font-size:0.75rem;color:{"rgba(255,255,255,0.45)" if _dark else "#6b7280"};margin-top:0.4rem;">'
-                f'Interactions moyennes par heure et jour de publication (UTC) — basé sur {len(_hm_posts)} publications</div>'
-                f'</div>',
+                f'<div style="font-size:0.75rem;color:{"rgba(255,255,255,0.45)" if _dark else "#6b7280"};text-align:center;margin-bottom:0.8rem;">'
+                f'Interactions moyennes par heure et jour de publication (UTC) — basé sur {len(_hm_posts)} publications</div>',
                 unsafe_allow_html=True,
             )
 
