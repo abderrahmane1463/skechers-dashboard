@@ -64,8 +64,6 @@ CALENDAR_PERIODS = [
     "Last Month",
     "This Quarter",
     "Last Quarter",
-    "This Year",
-    "Last Year",
 ]
 
 # ─── API Settings ──────────────────────────────────────────────────────────────

@@ -124,12 +124,6 @@ def render_sidebar(log_refresh_fn):
                 last_month = (lq - 1) * 3 + 3
                 _, last_day = _cal.monthrange(lq_year, last_month)
                 e = today.replace(year=lq_year, month=last_month, day=last_day)
-            elif period_label == "This Year":
-                s = today.replace(month=1, day=1)
-                e = today
-            elif period_label == "Last Year":
-                s = today.replace(year=today.year - 1, month=1, day=1)
-                e = today.replace(year=today.year - 1, month=12, day=31)
             else:
                 s, e = today - timedelta(days=30), today
 
