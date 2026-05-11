@@ -221,11 +221,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_views = safe_sum(vis.get("page_views", []))
     total_content_interactions = eng.get("period_content_interactions", 0)
 
-    # Interactions from all posts in period (not capped at 20)
-    total_reacs = post_totals.get("total_reactions", sum(p.get("reactions", 0) for p in posts))
-    total_comms = post_totals.get("total_comments",  sum(p.get("comments",  0) for p in posts))
-    total_shars = post_totals.get("total_shares",    sum(p.get("shares",    0) for p in posts))
-    total_engagements = post_totals.get("total_interactions", total_reacs + total_comms + total_shars)
+    # Interactions summed directly from posts — same source as the engagement chart
+    total_reacs = sum(p.get("reactions", 0) for p in posts)
+    total_comms = sum(p.get("comments",  0) for p in posts)
+    total_shars = sum(p.get("shares",    0) for p in posts)
+    total_engagements = total_reacs + total_comms + total_shars
 
     # Reach availability — computed from the selected window size, NOT from cached data.
     # This guarantees correct display even when old Supabase rows (pre-change) are returned.
