@@ -133,7 +133,10 @@ def render_documentation():
         st.markdown("""
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">⚡ Total interactions</td><td class="kpi-desc">Toutes les interactions sur la page (réactions, commentaires, partages, clics).</td><td><span class="endpoint">/{page_id}/insights?metric=page_post_engagements</span></td></tr>
+  <tr><td class="kpi-name">🔥 Total interactions</td><td class="kpi-desc">Somme des interactions de tous les posts sur la période (réactions + commentaires + partages).</td><td><span class="endpoint">/{page_id}/posts?fields=reactions,comments,shares</span></td></tr>
+  <tr><td class="kpi-name">❤️ Réactions</td><td class="kpi-desc">Total des réactions sur tous les posts.</td><td><span class="endpoint">/{page_id}/posts?fields=reactions.summary(true)</span></td></tr>
+  <tr><td class="kpi-name">💬 Commentaires</td><td class="kpi-desc">Total des commentaires sur tous les posts.</td><td><span class="endpoint">/{page_id}/posts?fields=comments.summary(true)</span></td></tr>
+  <tr><td class="kpi-name">🔁 Partages</td><td class="kpi-desc">Total des partages sur tous les posts.</td><td><span class="endpoint">/{page_id}/posts?fields=shares</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with t4:
@@ -266,7 +269,7 @@ def render_documentation():
   <tr><th>Section</th><th>Description</th><th>Endpoint</th></tr>
   <tr><td class="kpi-name">👥 Démographie</td><td class="kpi-desc">Répartition Hommes/Femmes par tranche d'âge.</td><td><span class="endpoint">/{ad_account}/insights?breakdowns=age,gender&fields=reach&level=campaign</span></td></tr>
   <tr><td class="kpi-name">🌍 Géographie</td><td class="kpi-desc">Top villes/régions par portée.</td><td><span class="endpoint">/{ad_account}/insights?breakdowns=region&fields=reach&level=campaign</span></td></tr>
-  <tr><td class="kpi-name">🧠 Analyse automatique</td><td class="kpi-desc">CTR, CPC, taux de conversion vs benchmarks secteur.</td><td><span class="endpoint">Calculé depuis les données campagnes</span></td></tr>
+  <tr><td class="kpi-name">🧠 Analyse automatique</td><td class="kpi-desc">CTR, CPC vs benchmarks secteur.</td><td><span class="endpoint">Calculé depuis les données campagnes</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -334,9 +337,9 @@ Ce n'est pas une erreur du dashboard — ce sont des contraintes imposées par l
             st.markdown("""
 | Source | Fréquence |
 |---|---|
-| **Périodes standard** (7j, 30j, 90j, mois en cours, mois précédent) | Toutes les **6 heures** via GitHub Actions |
-| **Plages personnalisées** | En direct au premier accès, puis sauvegardées en base |
-| **Bouton Refresh Data** | Rechargement immédiat depuis Meta API |
+| **Toutes les périodes** | Chargées au premier accès, puis sauvegardées en base indéfiniment |
+| **Bouton Refresh Data** | Rechargement immédiat depuis Meta API — écrase les données en cache |
+| **Nouvelle session** | Données servies depuis la base (Supabase) — aucun appel API si déjà en cache |
 
 > Facebook et Instagram : **Meta Graph API v19.0** — Boost : **Meta Marketing API**
 """)
