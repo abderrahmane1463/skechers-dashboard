@@ -108,3 +108,20 @@ def render_skeleton_boost():
     _kpi_row(4)
     _chart_block()
     _card_row(3)
+
+
+def render_skeleton_charts(n_charts: int = 2, n_cards: int = 3):
+    """
+    Chart-only skeleton — shown after KPIs are already rendered.
+    Mimics the tab area (charts + post cards) without the KPI tiles.
+    """
+    _inject_css()
+    # Tab bar placeholder
+    st.markdown(
+        '<div class="skel-block" style="height:36px;margin-bottom:16px;'
+        'border-radius:8px;max-width:420px;"></div>',
+        unsafe_allow_html=True,
+    )
+    for _ in range(n_charts):
+        _chart_block()
+    _card_row(n_cards)
