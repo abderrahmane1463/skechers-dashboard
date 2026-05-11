@@ -93,7 +93,7 @@ def render_documentation():
     with col2:
         st.info("📸 **Instagram** — Visibilité, Engagement, Publications")
     with col3:
-        st.info("🚀 **Boost** — Campagnes payantes, Conversions, Démographie, Géographie")
+        st.info("🚀 **Boost** — Campagnes payantes, Conversions, Par Objectif, Top #3, Recherche, Démographie, Géographie")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -230,7 +230,7 @@ def render_documentation():
     # ── Boost ─────────────────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">🚀 Boost (Campagnes Payantes)</div>', unsafe_allow_html=True)
 
-    b1, b2, b3, b4 = st.tabs(["📊 Global", "🎯 Conversion", "📋 Toutes les campagnes", "👥 Démographie & Géo"])
+    b1, b2, b3, b4, b5, b6, b7 = st.tabs(["📊 Global", "🎯 Conversion", "🗂️ Par Objectif", "🏆 Top #3 Campagnes", "🔍 Recherche", "📋 Toutes les campagnes", "👥 Démographie & Géo"])
 
     with b1:
         st.markdown("""
@@ -248,29 +248,71 @@ def render_documentation():
 
     with b2:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Filtre uniquement les campagnes avec un objectif de <strong>conversion</strong>.</p><br>
+<p style="color:#a1a1aa;font-size:14px;">Filtre uniquement les campagnes avec un objectif <strong>CONVERSIONS</strong> ou <strong>OUTCOME_SALES</strong>.</p><br>
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">🎁 Coût par vente</td><td class="kpi-desc">Budget ÷ nombre de conversions.</td><td><span class="endpoint">/{ad_account}/insights?fields=cost_per_action_type&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">📁 Campagnes</td><td class="kpi-desc">Nombre de campagnes conversion actives sur la période.</td><td><span class="endpoint">Filtré depuis /{ad_account}/campaigns</span></td></tr>
   <tr><td class="kpi-name">🖱️ Clics sur le lien</td><td class="kpi-desc">Clics vers l'URL de destination uniquement (inline_link_clicks), sans réactions ni commentaires.</td><td><span class="endpoint">/{ad_account}/insights?fields=inline_link_clicks&level=campaign</span></td></tr>
-  <tr><td class="kpi-name">✅ Commandes (conv.)</td><td class="kpi-desc">Total des conversions attribuées aux publicités.</td><td><span class="endpoint">/{ad_account}/insights?fields=actions&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">👁️ Comptes touchés</td><td class="kpi-desc">Reach dédupliqué pour les campagnes conversion uniquement (1 appel API combiné).</td><td><span class="endpoint">/{ad_account}/insights?fields=reach&level=account&filtering=campaign.id IN [...]</span></td></tr>
+  <tr><td class="kpi-name">📢 Impressions</td><td class="kpi-desc">Total d'affichages des campagnes conversion.</td><td><span class="endpoint">/{ad_account}/insights?fields=impressions&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">💸 Coût par clic (CPC)</td><td class="kpi-desc">Budget conversion ÷ clics sur le lien (pondéré par volume).</td><td><span class="endpoint">Calculé : spend ÷ inline_link_clicks</span></td></tr>
+  <tr><td class="kpi-name">📈 CTR</td><td class="kpi-desc">Clics sur le lien ÷ impressions × 100 (pondéré par impressions).</td><td><span class="endpoint">Calculé : inline_link_clicks ÷ impressions × 100</span></td></tr>
+  <tr><td class="kpi-name">💰 Montant dépensé</td><td class="kpi-desc">Budget total consommé par les campagnes conversion.</td><td><span class="endpoint">/{ad_account}/insights?fields=spend&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">🔁 Répétition</td><td class="kpi-desc">Impressions ÷ Reach dédupliqué des campagnes conversion.</td><td><span class="endpoint">Calculé</span></td></tr>
+  <tr><td class="kpi-name">🎁 Coût par vente</td><td class="kpi-desc">Budget ÷ nombre de conversions (purchase).</td><td><span class="endpoint">/{ad_account}/insights?fields=cost_per_action_type&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">✅ Commandes</td><td class="kpi-desc">Total des conversions de type "purchase" attribuées aux publicités.</td><td><span class="endpoint">/{ad_account}/insights?fields=actions[action_type=purchase]&level=campaign</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with b3:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Tableau de toutes les campagnes. Toutes les métriques viennent du même appel.</p><br>
+<p style="color:#a1a1aa;font-size:14px;">Agrège les KPIs de toutes les campagnes selon les objectifs sélectionnés via un filtre multiselect. Le reach est récupéré en un seul appel API dédupliqué pour les campagnes sélectionnées.</p><br>
 <table class="kpi-table">
-  <tr><th>Champ</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">Toutes les colonnes</td><td class="kpi-desc">campaign_name, objective, impressions, reach, clicks, spend, cpc, ctr, frequency, actions, cost_per_action_type</td><td><span class="endpoint">/{ad_account}/insights?fields=campaign_name,objective,impressions,reach,…&level=campaign&limit=500</span></td></tr>
+  <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
+  <tr><td class="kpi-name">Filtre objectif</td><td class="kpi-desc">Multiselect listant tous les objectifs présents (Ventes, Trafic, Notoriété, Engagement, Leads…). Sélectionner un ou plusieurs pour filtrer les KPIs.</td><td><span class="endpoint">—</span></td></tr>
+  <tr><td class="kpi-name">📁 Campagnes</td><td class="kpi-desc">Nombre de campagnes actives pour les objectifs sélectionnés.</td><td><span class="endpoint">Filtré depuis campaigns list</span></td></tr>
+  <tr><td class="kpi-name">🖱️ Clics sur le lien</td><td class="kpi-desc">inline_link_clicks (clics URL destination uniquement) pour les objectifs sélectionnés.</td><td><span class="endpoint">/{ad_account}/insights?fields=inline_link_clicks&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">👁️ Comptes touchés</td><td class="kpi-desc">Reach dédupliqué exact — un seul appel API avec tous les IDs de campagnes sélectionnées combinés.</td><td><span class="endpoint">/{ad_account}/insights?fields=reach&level=account&filtering=campaign.id IN [ids]</span></td></tr>
+  <tr><td class="kpi-name">📢 Impressions</td><td class="kpi-desc">Total impressions pour les objectifs sélectionnés.</td><td><span class="endpoint">/{ad_account}/insights?fields=impressions&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">💸 CPC, 📈 CTR, 💰 Dépensé</td><td class="kpi-desc">Métriques pondérées par volume (pas une simple moyenne).</td><td><span class="endpoint">Calculé</span></td></tr>
+  <tr><td class="kpi-name">🎁 Coût par vente / ✅ Commandes</td><td class="kpi-desc">Conversions purchase pour les objectifs sélectionnés.</td><td><span class="endpoint">/{ad_account}/insights?fields=actions,cost_per_action_type&level=campaign</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with b4:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Top 3 campagnes triées par nombre de commandes (conversions). Si aucune conversion, classement par budget dépensé.</p><br>
+<table class="kpi-table">
+  <tr><th>Métrique carte</th><th>Description</th><th>Endpoint</th></tr>
+  <tr><td class="kpi-name">🥇🥈🥉 Classement</td><td class="kpi-desc">Podium des 3 meilleures campagnes par ventes (ou par spend si 0 commandes).</td><td><span class="endpoint">Trié depuis campaigns list</span></td></tr>
+  <tr><td class="kpi-name">✅ Commandes</td><td class="kpi-desc">Nombre de conversions purchase attribuées à la campagne.</td><td><span class="endpoint">/{ad_account}/insights?fields=actions&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">💰 Dépensé</td><td class="kpi-desc">Budget consommé par la campagne.</td><td><span class="endpoint">/{ad_account}/insights?fields=spend&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">🎁 CPA</td><td class="kpi-desc">Coût par acquisition (spend ÷ conversions).</td><td><span class="endpoint">/{ad_account}/insights?fields=cost_per_action_type&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">🖱️ Clics</td><td class="kpi-desc">Clics sur le lien (inline_link_clicks) pour la campagne.</td><td><span class="endpoint">/{ad_account}/insights?fields=inline_link_clicks&level=campaign</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with b5:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Recherche par nom de campagne — saisir un fragment pour filtrer et voir la fiche détaillée de la campagne.</p><br>
+<table class="kpi-table">
+  <tr><th>Champ</th><th>Description</th><th>Endpoint</th></tr>
+  <tr><td class="kpi-name">🔍 Recherche</td><td class="kpi-desc">Filtre les campagnes dont le nom contient le texte saisi (insensible à la casse).</td><td><span class="endpoint">—</span></td></tr>
+  <tr><td class="kpi-name">Fiche campagne</td><td class="kpi-desc">Affiche : objectif, impressions, reach, clics, spend, CPC, CTR, fréquence, commandes, CPA.</td><td><span class="endpoint">Données issues du même appel insights</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with b6:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Tableau complet de toutes les campagnes actives avec tri par colonne.</p><br>
+<table class="kpi-table">
+  <tr><th>Champ</th><th>Description</th><th>Endpoint</th></tr>
+  <tr><td class="kpi-name">Toutes les colonnes</td><td class="kpi-desc">Nom, objectif, impressions, reach, clics (inline_link_clicks), spend, CPC, CTR, fréquence, commandes, CPA.</td><td><span class="endpoint">/{ad_account}/insights?fields=campaign_name,objective,impressions,reach,inline_link_clicks,spend,cpc,ctr,frequency,actions,cost_per_action_type&level=campaign&limit=500</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with b7:
         st.markdown("""
 <table class="kpi-table">
   <tr><th>Section</th><th>Description</th><th>Endpoint</th></tr>
   <tr><td class="kpi-name">👥 Démographie</td><td class="kpi-desc">Répartition Hommes/Femmes par tranche d'âge.</td><td><span class="endpoint">/{ad_account}/insights?breakdowns=age,gender&fields=reach&level=campaign</span></td></tr>
   <tr><td class="kpi-name">🌍 Géographie</td><td class="kpi-desc">Top villes/régions par portée.</td><td><span class="endpoint">/{ad_account}/insights?breakdowns=region&fields=reach&level=campaign</span></td></tr>
-  <tr><td class="kpi-name">🧠 Analyse automatique</td><td class="kpi-desc">CTR, CPC vs benchmarks secteur.</td><td><span class="endpoint">Calculé depuis les données campagnes</span></td></tr>
+  <tr><td class="kpi-name">🧠 Analyse automatique</td><td class="kpi-desc">Interprétation automatique : CTR vs benchmark, CPC vs benchmark, taux de conversion, recommandations.</td><td><span class="endpoint">Calculé depuis les données campagnes</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
