@@ -119,10 +119,11 @@ def fetch_boost_insights(
     time_range   = f'{{"since":"{since}","until":"{until}"}}'
 
     # Fields requested from every campaign row
-    # clicks = ALL clicks on the ad (reactions, comments, profile, link, etc.)
+    # clicks              = ALL clicks on the ad (reactions, comments, profile, link, etc.)
+    # inline_link_clicks  = clicks that go to the destination URL only (used for conversions)
     _FIELDS = (
         "campaign_id,campaign_name,objective,"
-        "impressions,reach,clicks,"
+        "impressions,reach,clicks,inline_link_clicks,"
         "spend,cpc,ctr,frequency,"
         "actions,cost_per_action_type"
     )
@@ -237,7 +238,8 @@ def fetch_boost_insights(
             cpc_val    = _safe_float(r.get("cpc"))
             ctr_val    = _safe_float(r.get("ctr"))
             freq_val   = _safe_float(r.get("frequency"))
-            clicks_val = _safe_int(r.get("clicks"))
+            clicks_val      = _safe_int(r.get("clicks"))               # all clicks (general)
+            link_clicks_val = _safe_int(r.get("inline_link_clicks"))  # link-only clicks (conversions)
             reach_val  = _safe_int(r.get("reach"))
             imp_val    = _safe_int(r.get("impressions"))
             camp_id    = r.get("campaign_id", "")
@@ -264,7 +266,7 @@ def fetch_boost_insights(
             if freq_val: t_freqs.append(freq_val)
 
             if objective in _CONV_OBJECTIVES:
-                cv_clicks    += clicks_val
+                cv_clicks    += link_clicks_val
                 cv_imp       += imp_val
                 cv_spend     += spend_val
                 cv_purchases += purchases

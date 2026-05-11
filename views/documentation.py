@@ -252,6 +252,7 @@ def render_documentation():
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
   <tr><td class="kpi-name">🎁 Coût par vente</td><td class="kpi-desc">Budget ÷ nombre de conversions.</td><td><span class="endpoint">/{ad_account}/insights?fields=cost_per_action_type&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">🖱️ Clics sur le lien</td><td class="kpi-desc">Clics vers l'URL de destination uniquement (inline_link_clicks), sans réactions ni commentaires.</td><td><span class="endpoint">/{ad_account}/insights?fields=inline_link_clicks&level=campaign</span></td></tr>
   <tr><td class="kpi-name">✅ Commandes (conv.)</td><td class="kpi-desc">Total des conversions attribuées aux publicités.</td><td><span class="endpoint">/{ad_account}/insights?fields=actions&level=campaign</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
