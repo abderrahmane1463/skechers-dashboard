@@ -153,6 +153,7 @@ def fetch_boost_insights(
             "total_conversions":   0,
         },
         "campaigns": [],
+        "period": {"since": since, "until": until},
     }
 
     # ── 1. Resolve Footland campaign IDs ─────────────────────────────────────
@@ -246,6 +247,7 @@ def fetch_boost_insights(
             camp_id    = r.get("campaign_id", "")
 
             campaigns.append({
+                "campaign_id": camp_id,
                 "name":        r.get("campaign_name", "—"),
                 "objective":   objective,
                 "spend":       spend_val,
@@ -365,3 +367,29 @@ def fetch_boost_insights(
         print(f"DEBUG boost: campaign insights error: {e}")
 
     return out
+
+
+def fetch_reach_for_ids(camp_ids: tuple, since: str, until: str) -> int:
+    """
+    Fetch deduplicated reach for a specific set of campaign IDs.
+    Used by PAR OBJECTIF to get accurate combined reach for selected objectives.
+    camp_ids must be a tuple (hashable) for st.cache_data.
+    """
+    if not camp_ids:
+        return 0
+    try:
+        time_range = f'{{"since":"{since}","until":"{until}"}}'
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+            "level":      "account",
+            "fields":     "reach",
+            "filtering":  json.dumps([{
+                "field": "campaign.id", "operator": "IN", "value": list(camp_ids)
+            }]),
+            "time_range": time_range,
+        })
+        rows = resp.get("data", [])
+        if rows:
+            return _safe_int(rows[0].get("reach"))
+    except Exception as e:
+        print(f"DEBUG boost: fetch_reach_for_ids error: {e}")
+    return 0

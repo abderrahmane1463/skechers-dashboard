@@ -20,6 +20,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from components.charts import get_chart_layout
+from api.boost import fetch_reach_for_ids
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_reach_for_ids(camp_ids: tuple, since: str, until: str) -> int:
+    return fetch_reach_for_ids(camp_ids, since, until)
 
 
 # ─── Placeholder data structure ───────────────────────────────────────────────
@@ -240,11 +246,14 @@ def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
         _no_data_banner("Aucune campagne de conversion détectée pour la période sélectionnée.")
 
 
-def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None):
+def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None,
+                         period: dict | None = None):
     """Single KPI block aggregated from selected objectives (multiselect filter).
-    Reach is deduplicated per objective via pre-computed API calls."""
+    Reach is fetched dynamically with a single deduplicated API call for selected campaigns."""
     _section_header("🗂️ PAR OBJECTIF")
     obj_reach = obj_reach or {}
+    since = (period or {}).get("since", "")
+    until = (period or {}).get("until", "")
 
     # Keep only campaigns with activity
     active = [c for c in campaigns if c.get("spend", 0) > 0 or c.get("impressions", 0) > 0]
@@ -304,8 +313,12 @@ def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None):
     total_clicks = sum(c.get("link_clicks", 0)    for c in group)   # inline_link_clicks
     total_imp    = sum(c.get("impressions", 0)    for c in group)
     total_conv   = sum(c.get("conversions", 0)    for c in group)
-    total_reach  = sum(obj_reach.get(obj, 0)      for obj in selected_objectives)
     n_camps      = len(group)
+    # Single deduplicated API call for all selected campaign IDs combined
+    selected_ids = tuple(
+        c.get("campaign_id", "") for c in group if c.get("campaign_id")
+    )
+    total_reach  = _cached_reach_for_ids(selected_ids, since, until) if since and until else 0
 
     w_ctr = round(total_clicks / total_imp * 100, 2) if total_imp   > 0 else 0.0
     w_cpc = round(total_spend  / total_clicks,    2) if total_clicks > 0 else 0.0
@@ -787,6 +800,7 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     conv      = data.get("conversions", {})
     campaigns   = data.get("campaigns",      [])
     obj_reach   = data.get("objective_reach", {})
+    period      = data.get("period",          {})
 
     prev_totals = (prev_data or {}).get("totals",      {})
     prev_conv   = (prev_data or {}).get("conversions", {})
@@ -815,7 +829,7 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     st.divider()
     _render_conversion_campaigns(conv, prev_conv)
     st.divider()
-    _render_by_objective(campaigns, obj_reach)
+    _render_by_objective(campaigns, obj_reach, period)
     st.divider()
     _render_top_campaigns(campaigns)
     st.divider()
