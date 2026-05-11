@@ -137,15 +137,17 @@ def _no_data_banner(msg: str = "Aucune donnée publicitaire disponible pour cett
     )
 
 
-def _section_header(title: str):
+def _section_header(title: str, big: bool = False):
     _dark = st.session_state.get("theme", "dark") == "dark"
     _tc  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
     _brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
+    _fs  = "1.1rem" if big else "0.68rem"
+    _tc2 = "rgba(255,255,255,0.85)" if (big and _dark) else ("rgba(0,0,0,0.75)" if big else _tc)
     st.markdown(
-        f'<div style="font-size:0.68rem;color:{_tc};'
+        f'<div style="font-size:{_fs};color:{_tc2};font-weight:{"700" if big else "400"};'
         f'text-transform:uppercase;letter-spacing:0.08em;'
-        f'margin:1.2rem 0 0.6rem;border-bottom:1px solid {_brd};'
-        f'padding-bottom:0.4rem;">{title}</div>',
+        f'margin:1.6rem 0 0.8rem;border-bottom:1px solid {_brd};'
+        f'padding-bottom:0.5rem;">{title}</div>',
         unsafe_allow_html=True,
     )
 
@@ -153,7 +155,7 @@ def _section_header(title: str):
 # ─── Section renderers ─────────────────────────────────────────────────────────
 def _render_global_kpis(totals: dict, prev_totals: dict | None = None):
     """Top-level ad account KPI row."""
-    _section_header("📊 STATISTIQUES DU BOOST")
+    _section_header("📊 STATISTIQUES DU BOOST", big=True)
 
     no_data = totals.get("campaigns_count", 0) == 0
     pt = prev_totals or {}
@@ -199,7 +201,7 @@ def _render_global_kpis(totals: dict, prev_totals: dict | None = None):
 
 def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
     """Conversion-objective campaigns subsection."""
-    _section_header("🎯 AVEC L'OBJECTIF CONVERSION")
+    _section_header("🎯 AVEC L'OBJECTIF CONVERSION", big=True)
 
     no_data = conv.get("campaigns_count", 0) == 0
     pc = prev_conv or {}
