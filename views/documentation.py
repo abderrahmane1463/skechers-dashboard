@@ -288,7 +288,7 @@ Ce n'est pas une erreur du dashboard — ce sont des contraintes imposées par l
 | KPI | Comportement | Raison API |
 |---|---|---|
 | 👁️ **Couvertures** (Instagram) | Affiche **—** si période > 30 jours | `metric_type=total_value` non supporté au-delà de 30 jours |
-| 👁️ **Spectateurs** (Facebook) | Affiche **—** sur certaines périodes | Disponible uniquement pour 1j, 2–7j ou 28–31j exactement |
+| 👁️ **Spectateurs** (Facebook) | Affiche **—** sur certaines périodes | Disponible uniquement pour exactement 1j, 7j ou 28–31j |
 | 📊 **Taux d'engagement** | Affiche **—** quand la portée est indisponible | Formule = Interactions ÷ Portée — impossible sans portée |
 """)
 

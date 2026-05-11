@@ -307,7 +307,7 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
 
     if _window == 1:
         _reach_api_period = "day"
-    elif _window <= 7:
+    elif _window == 7:
         _reach_api_period = "week"
     elif 28 <= _window <= 31:
         _reach_api_period = "month"

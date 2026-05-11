@@ -246,7 +246,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     _reach_unavailable = not (
         _w == 1
-        or (2  <= _w <= 7)
+        or _w == 7
         or (28 <= _w <= 31)
     )
 
