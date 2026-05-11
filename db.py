@@ -11,17 +11,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── In-memory invalidation timestamp ──────────────────────────────────────────
-# When the user clicks Refresh, this is set to the current time.
-# db.load() will treat any Supabase row fetched BEFORE this time as a cache miss,
+# ── In-memory invalidation registry ───────────────────────────────────────────
+# Maps "metric_key:period_start:period_end" → invalidation timestamp.
+# db.load() skips Supabase data fetched before the invalidation time,
 # forcing a fresh API call — without needing DELETE or PATCH on Supabase.
-_INVALIDATED_AT: str = ""
+_INVALIDATED: dict = {}
+
+# Metric keys grouped by platform
+_PLATFORM_METRICS = {
+    "Facebook":  ["fb_audience", "fb_engagement", "fb_visibility", "fb_demographics",
+                  "fb_posts", "fb_post_totals", "fb_conversations", "fb_messaging"],
+    "Instagram": ["ig_profile", "ig_engagement", "ig_posts", "ig_post_totals"],
+    "Boost":     ["boost_insights", "fb_demographics"],
+}
 
 
-def invalidate():
-    """Mark all cached data as stale. Called by the Refresh button."""
-    global _INVALIDATED_AT
-    _INVALIDATED_AT = datetime.now(timezone.utc).isoformat()
+def invalidate(platform: str, period_start: str, period_end: str):
+    """Invalidate only the current platform + period. Called by the Refresh button."""
+    ts = datetime.now(timezone.utc).isoformat()
+    for mk in _PLATFORM_METRICS.get(platform, []):
+        _INVALIDATED[f"{mk}:{period_start}:{period_end}"] = ts
 
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -100,8 +109,9 @@ def load(metric_key: str, period_start: str, period_end: str):
         resp.raise_for_status()
         rows = resp.json()
         if rows and rows[0]["data"] is not None:
-            # Skip if this row was cached before the last invalidation
-            if _INVALIDATED_AT and rows[0].get("fetched_at", "") < _INVALIDATED_AT:
+            inv_key = f"{metric_key}:{period_start}:{period_end}"
+            inv_ts  = _INVALIDATED.get(inv_key, "")
+            if inv_ts and rows[0].get("fetched_at", "") < inv_ts:
                 return None
             return rows[0]["data"]
         return None
