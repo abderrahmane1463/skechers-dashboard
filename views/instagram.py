@@ -136,7 +136,6 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 print(f"DEBUG ig fast fetch {key} error: {e}")
                 fast[key] = {} if key != "posts" else []
 
-    _skel.empty()
     ig_profile     = fast["profile"]
     ig_eng         = fast["eng"]
     ig_posts       = fast["posts"]
@@ -226,7 +225,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             f'</div>'
         )
 
-    st.markdown(f"""
+    # Clear phase 1 skeleton, render KPI row in its place
+    _skel.markdown(f"""
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👥", "Followers",         f"{followers:,}",       delta=_d(followers,             _prev_followers))}
   {_ig_kpi("📝", "Publications",      str(len(ig_posts)),     delta=None)}
@@ -254,7 +254,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     prev_ig_posts = get_ig_posts(days, _prev_start, _prev_end)
 
-    _chart_skel.empty()
+    _chart_skel.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
 
     log_refresh_fn(
         "Instagram", period_label, "✅ Data Loaded",

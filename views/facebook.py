@@ -336,7 +336,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("🔁", "Partages",     f"{total_shars:,}", delta=_d(total_shars, _prev_shars))}
 </div>
 """
-    st.markdown(kpi_html, unsafe_allow_html=True)
+    # Clear phase 1 skeleton, render KPI row in its place
+    _skel.markdown(kpi_html, unsafe_allow_html=True)
     st.divider()
 
     # ── Phase 2: chart skeleton → msg_stats (Community tab) ──────────────────
@@ -345,7 +346,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     msg_stats = get_fb_messaging_stats(days, start_date, end_date)
 
-    _chart_skel.empty()
+    _chart_skel.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
 
     log_refresh_fn(
         "Facebook",

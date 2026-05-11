@@ -298,8 +298,8 @@ else:
     prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
     demo_data       = _cached_boost_demo(days, start_date, end_date)
 
-    # Data loaded — remove skeleton
-    _skel_b.empty()
+    # Data loaded — overwrite skeleton (more reliable than .empty() on Streamlit Cloud)
+    _skel_b.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
 
     render_boost_tab(boost_data, demo_data, prev_boost_data,
                      since=str(start_date) if start_date else "",
