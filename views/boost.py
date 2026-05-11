@@ -138,15 +138,11 @@ def _no_data_banner(msg: str = "Aucune donnée publicitaire disponible pour cett
 
 
 def _section_header(title: str, big: bool = True):
-    _dark = st.session_state.get("theme", "dark") == "dark"
-    _tc  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
-    _brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
-    _fs  = "1.1rem" if big else "0.68rem"
-    _tc2 = "rgba(255,255,255,0.85)" if (big and _dark) else ("rgba(0,0,0,0.75)" if big else _tc)
+    _brd = "rgba(255,255,255,0.15)"
     st.markdown(
-        f'<div style="font-size:{_fs};color:{_tc2};font-weight:{"700" if big else "400"};'
-        f'text-transform:uppercase;letter-spacing:0.08em;'
-        f'margin:1.6rem 0 0.8rem;border-bottom:1px solid {_brd};'
+        f'<div style="font-size:1.35rem;color:#ffffff;font-weight:700;'
+        f'letter-spacing:0.05em;'
+        f'margin:1.8rem 0 0.8rem;border-bottom:2px solid {_brd};'
         f'padding-bottom:0.5rem;">{title}</div>',
         unsafe_allow_html=True,
     )
