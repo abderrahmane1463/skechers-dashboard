@@ -628,9 +628,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         else:
             st.info("No engagement data available for this period.")
 
-        # ── Best Time to Post heatmap ─────────────────────────────────────────
-        st.divider()
-        st.markdown(
+        # ── Best Time to Post heatmap (admin only) ────────────────────────────
+        _is_admin = st.session_state.get("user", {}).get("role") == "admin"
+        if _is_admin:
+          st.divider()
+          st.markdown(
             f'<div style="text-align:center;margin:0.5rem 0 1rem;">'
             f'<span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;'
             f'letter-spacing:0.08em;color:{"#ffffff" if _dark else "#111827"};">'
@@ -638,97 +640,98 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
             f'border-radius:2px;margin:0.4rem auto 0;"></div></div>',
             unsafe_allow_html=True,
-        )
-        _hm_posts = [p for p in posts if p.get("post_hour", -1) >= 0]
-        if _hm_posts:
-            st.markdown(
-                f'<div style="font-size:0.75rem;color:{"rgba(255,255,255,0.45)" if _dark else "#6b7280"};'
-                f'text-align:center;margin-bottom:0.8rem;">'
-                f'Interactions moyennes par heure et jour de publication (UTC) — basé sur {len(_hm_posts)} publications</div>',
-                unsafe_allow_html=True,
-            )
-
-            _days_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-            _totals_fb = [[0.0] * 24 for _ in range(7)]
-            _counts_fb = [[0]   * 24 for _ in range(7)]
-            for p in _hm_posts:
-                d, h = p.get("post_weekday", -1), p.get("post_hour", -1)
-                if 0 <= d <= 6 and 0 <= h <= 23:
-                    _totals_fb[d][h] += p.get("total_interactions", 0)
-                    _counts_fb[d][h] += 1
-
-            _matrix_fb, _text_fb = [], []
-            for d in range(7):
-                _row, _trow = [], []
-                for h in range(24):
-                    if _counts_fb[d][h] > 0:
-                        avg = round(_totals_fb[d][h] / _counts_fb[d][h], 1)
-                        _row.append(avg)
-                        _trow.append(f"{avg:.0f} interactions<br>{_counts_fb[d][h]} post(s)")
-                    else:
-                        _row.append(None)
-                        _trow.append("")
-                _matrix_fb.append(_row)
-                _text_fb.append(_trow)
-
-            fig_hm_fb = go.Figure(data=go.Heatmap(
-                z=_matrix_fb,
-                x=[f"{h:02d}h" for h in range(24)],
-                y=_days_fr,
-                text=_text_fb,
-                hovertemplate="<b>%{y} %{x}</b><br>%{text}<extra></extra>",
-                colorscale=[
-                    [0.0,  "rgba(232,66,10,0.08)"],
-                    [0.25, "rgba(232,66,10,0.3)"],
-                    [0.5,  "rgba(232,66,10,0.55)"],
-                    [0.75, "rgba(232,66,10,0.8)"],
-                    [1.0,  "#E8420A"],
-                ],
-                showscale=True,
-                colorbar=dict(
-                    title=dict(text="Moy. interactions", font=dict(size=11)),
-                    thickness=12, len=0.8,
-                ),
-                xgap=2, ygap=2,
-            ))
-            fig_hm_fb.update_layout(**{
-                **get_chart_layout(),
-                "height": 300,
-                "margin": dict(l=0, r=60, t=10, b=40),
-                "xaxis": dict(side="bottom", tickfont=dict(size=10), showline=False),
-                "yaxis": dict(tickfont=dict(size=11), showline=False, autorange="reversed"),
-            })
-            st.plotly_chart(fig_hm_fb, width="stretch")
-
-            _best_val_fb, _best_d_fb, _best_h_fb = 0, 0, 0
-            for d in range(7):
-                for h in range(24):
-                    if _counts_fb[d][h] > 0:
-                        avg = _totals_fb[d][h] / _counts_fb[d][h]
-                        if avg > _best_val_fb:
-                            _best_val_fb, _best_d_fb, _best_h_fb = avg, d, h
-            if _best_val_fb > 0:
-                _note_bg = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
-                _note_tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
+          )
+        if _is_admin:
+            _hm_posts = [p for p in posts if p.get("post_hour", -1) >= 0]
+            if _hm_posts:
                 st.markdown(
-                    f'<div style="background:{_note_bg};border-left:3px solid #E8420A;'
-                    f'border-radius:0 8px 8px 0;padding:0.6rem 1rem;margin-top:0.5rem;'
-                    f'font-size:0.85rem;color:{_note_tc};">'
-                    f'🏆 Meilleur créneau : <b style="color:#E8420A;">{_days_fr[_best_d_fb]} à {_best_h_fb:02d}h</b> '
-                    f'— moyenne de <b style="color:#E8420A;">{_best_val_fb:.0f} interactions</b> par publication.'
+                    f'<div style="font-size:0.75rem;color:{"rgba(255,255,255,0.45)" if _dark else "#6b7280"};'
+                    f'text-align:center;margin-bottom:0.8rem;">'
+                    f'Interactions moyennes par heure et jour de publication (UTC) — basé sur {len(_hm_posts)} publications</div>',
+                    unsafe_allow_html=True,
+                )
+
+                _days_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+                _totals_fb = [[0.0] * 24 for _ in range(7)]
+                _counts_fb = [[0]   * 24 for _ in range(7)]
+                for p in _hm_posts:
+                    d, h = p.get("post_weekday", -1), p.get("post_hour", -1)
+                    if 0 <= d <= 6 and 0 <= h <= 23:
+                        _totals_fb[d][h] += p.get("total_interactions", 0)
+                        _counts_fb[d][h] += 1
+
+                _matrix_fb, _text_fb = [], []
+                for d in range(7):
+                    _row, _trow = [], []
+                    for h in range(24):
+                        if _counts_fb[d][h] > 0:
+                            avg = round(_totals_fb[d][h] / _counts_fb[d][h], 1)
+                            _row.append(avg)
+                            _trow.append(f"{avg:.0f} interactions<br>{_counts_fb[d][h]} post(s)")
+                        else:
+                            _row.append(None)
+                            _trow.append("")
+                    _matrix_fb.append(_row)
+                    _text_fb.append(_trow)
+
+                fig_hm_fb = go.Figure(data=go.Heatmap(
+                    z=_matrix_fb,
+                    x=[f"{h:02d}h" for h in range(24)],
+                    y=_days_fr,
+                    text=_text_fb,
+                    hovertemplate="<b>%{y} %{x}</b><br>%{text}<extra></extra>",
+                    colorscale=[
+                        [0.0,  "rgba(232,66,10,0.08)"],
+                        [0.25, "rgba(232,66,10,0.3)"],
+                        [0.5,  "rgba(232,66,10,0.55)"],
+                        [0.75, "rgba(232,66,10,0.8)"],
+                        [1.0,  "#E8420A"],
+                    ],
+                    showscale=True,
+                    colorbar=dict(
+                        title=dict(text="Moy. interactions", font=dict(size=11)),
+                        thickness=12, len=0.8,
+                    ),
+                    xgap=2, ygap=2,
+                ))
+                fig_hm_fb.update_layout(**{
+                    **get_chart_layout(),
+                    "height": 300,
+                    "margin": dict(l=0, r=60, t=10, b=40),
+                    "xaxis": dict(side="bottom", tickfont=dict(size=10), showline=False),
+                    "yaxis": dict(tickfont=dict(size=11), showline=False, autorange="reversed"),
+                })
+                st.plotly_chart(fig_hm_fb, width="stretch")
+
+                _best_val_fb, _best_d_fb, _best_h_fb = 0, 0, 0
+                for d in range(7):
+                    for h in range(24):
+                        if _counts_fb[d][h] > 0:
+                            avg = _totals_fb[d][h] / _counts_fb[d][h]
+                            if avg > _best_val_fb:
+                                _best_val_fb, _best_d_fb, _best_h_fb = avg, d, h
+                if _best_val_fb > 0:
+                    _note_bg = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+                    _note_tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
+                    st.markdown(
+                        f'<div style="background:{_note_bg};border-left:3px solid #E8420A;'
+                        f'border-radius:0 8px 8px 0;padding:0.6rem 1rem;margin-top:0.5rem;'
+                        f'font-size:0.85rem;color:{_note_tc};">'
+                        f'🏆 Meilleur créneau : <b style="color:#E8420A;">{_days_fr[_best_d_fb]} à {_best_h_fb:02d}h</b> '
+                        f'— moyenne de <b style="color:#E8420A;">{_best_val_fb:.0f} interactions</b> par publication.'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                _nb = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+                _tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
+                st.markdown(
+                    f'<div style="background:{_nb};border-left:3px solid #E8420A;border-radius:0 8px 8px 0;'
+                    f'padding:0.8rem 1.2rem;font-size:0.9rem;color:{_tc};">'
+                    f'🔄 Cliquez sur <b>Refresh Data</b> dans la barre latérale pour activer ce graphique.'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-        else:
-            _nb = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
-            _tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
-            st.markdown(
-                f'<div style="background:{_nb};border-left:3px solid #E8420A;border-radius:0 8px 8px 0;'
-                f'padding:0.8rem 1.2rem;font-size:0.9rem;color:{_tc};">'
-                f'🔄 Cliquez sur <b>Refresh Data</b> dans la barre latérale pour activer ce graphique.'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
 
     # ── TAB 3: Engagement ─────────────────────────────────────────────────────
     with tab2:
