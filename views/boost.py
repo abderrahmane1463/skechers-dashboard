@@ -240,6 +240,181 @@ def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
         _no_data_banner("Aucune campagne de conversion détectée pour la période sélectionnée.")
 
 
+def _render_by_objective(campaigns: list[dict]):
+    """Per-objective breakdown with a multiselect filter and objective-specific KPIs."""
+    _section_header("🗂️ PAR OBJECTIF")
+
+    # Keep only campaigns with activity
+    active = [c for c in campaigns if c.get("spend", 0) > 0 or c.get("impressions", 0) > 0]
+    if not active:
+        _no_data_banner("Aucune campagne active pour afficher la répartition par objectif.")
+        return
+
+    # Friendly labels for multiselect
+    _OBJ_LABELS = {
+        "OUTCOME_SALES":         "🛒 Ventes",
+        "OUTCOME_TRAFFIC":       "🚦 Trafic",
+        "OUTCOME_AWARENESS":     "📣 Notoriété",
+        "OUTCOME_ENGAGEMENT":    "💬 Engagement",
+        "OUTCOME_LEADS":         "🎯 Leads",
+        "OUTCOME_APP_PROMOTION": "📱 App",
+        "CONVERSIONS":           "🛒 Conversions",
+        "LINK_CLICKS":           "🚦 Clics sur le lien",
+        "REACH":                 "📣 Portée",
+        "BRAND_AWARENESS":       "📣 Notoriété de la marque",
+        "VIDEO_VIEWS":           "▶️ Vues de vidéo",
+        "LEAD_GENERATION":       "🎯 Génération de leads",
+        "MESSAGES":              "💬 Messages",
+        "APP_INSTALLS":          "📱 Installations d'app",
+        "PAGE_LIKES":            "👍 Mentions J'aime",
+        "EVENT_RESPONSES":       "📅 Réponses événements",
+        "POST_ENGAGEMENT":       "💬 Engagement posts",
+        "STORE_VISITS":          "🏪 Visites en magasin",
+        "PRODUCT_CATALOG_SALES": "🛒 Ventes catalogue",
+    }
+
+    # Objective → KPI category
+    _SALES_OBJ      = {"OUTCOME_SALES", "CONVERSIONS", "PRODUCT_CATALOG_SALES"}
+    _TRAFFIC_OBJ    = {"OUTCOME_TRAFFIC", "LINK_CLICKS"}
+    _AWARENESS_OBJ  = {"OUTCOME_AWARENESS", "REACH", "BRAND_AWARENESS"}
+    _ENGAGE_OBJ     = {"OUTCOME_ENGAGEMENT", "POST_ENGAGEMENT", "VIDEO_VIEWS", "PAGE_LIKES", "EVENT_RESPONSES"}
+    _LEADS_OBJ      = {"OUTCOME_LEADS", "LEAD_GENERATION", "MESSAGES"}
+    _APP_OBJ        = {"OUTCOME_APP_PROMOTION", "APP_INSTALLS"}
+
+    # Unique objectives present in data (preserve insertion order by spend)
+    seen = {}
+    for c in sorted(active, key=lambda x: x.get("spend", 0), reverse=True):
+        obj = c.get("objective", "—")
+        if obj not in seen:
+            seen[obj] = _OBJ_LABELS.get(obj, obj)
+    all_objectives = list(seen.keys())
+    all_labels     = [seen[o] for o in all_objectives]
+
+    selected_labels = st.multiselect(
+        "Filtrer par objectif",
+        options=all_labels,
+        default=all_labels,
+        label_visibility="collapsed",
+        placeholder="Sélectionner les objectifs à afficher…",
+    )
+
+    selected_objectives = [o for o, l in zip(all_objectives, all_labels) if l in selected_labels]
+
+    if not selected_objectives:
+        st.caption("Aucun objectif sélectionné.")
+        return
+
+    _dark = st.session_state.get("theme", "dark") == "dark"
+
+    for obj in selected_objectives:
+        group = [c for c in active if c.get("objective") == obj]
+        if not group:
+            continue
+
+        # Aggregate
+        total_spend   = sum(c.get("spend", 0.0)       for c in group)
+        total_clicks  = sum(c.get("clicks", 0)         for c in group)
+        total_reach   = sum(c.get("reach", 0)          for c in group)
+        total_imp     = sum(c.get("impressions", 0)    for c in group)
+        total_conv    = sum(c.get("conversions", 0)    for c in group)
+        n_camps       = len(group)
+
+        w_ctr  = round(total_clicks / total_imp * 100, 2) if total_imp   > 0 else 0.0
+        w_cpc  = round(total_spend  / total_clicks,    2) if total_clicks > 0 else 0.0
+        w_freq = round(total_imp    / total_reach,     2) if total_reach  > 0 else 0.0
+        w_cpa  = round(total_spend  / total_conv,      2) if total_conv   > 0 else 0.0
+
+        label = _OBJ_LABELS.get(obj, obj)
+
+        # Sub-header for this objective
+        _sub_brd = "rgba(255,255,255,0.10)"
+        _sub_tc  = "rgba(255,255,255,0.55)" if _dark else "#6b7280"
+        st.markdown(
+            f'<div style="font-size:1rem;color:{"#e2e8f0" if _dark else "#1f2937"};font-weight:600;'
+            f'margin:1.2rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid {_sub_brd};">'
+            f'{label} <span style="font-size:0.72rem;color:{_sub_tc};font-weight:400;">· {n_camps} campagne{"s" if n_camps > 1 else ""}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # KPI cards — objective-specific layout
+        if obj in _SALES_OBJ:
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.4rem;">
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend),  "#f97316")}
+  {_kpi_card("✅", "Commandes",  _fmt_int(total_conv),         "#a78bfa")}
+  {_kpi_card("🎁", "CPA",        _fmt_currency(w_cpa),         "#fb7185")}
+  {_kpi_card("🖱️", "Clics",      _fmt_int(total_clicks))}
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("👁️", "Reach",      _fmt_int(total_reach))}
+  {_kpi_card("📈", "CTR",        _fmt_pct(w_ctr),              "#4ade80")}
+  {_kpi_card("💸", "CPC",        _fmt_currency(w_cpc),         "#facc15")}
+</div>"""
+
+        elif obj in _TRAFFIC_OBJ:
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.4rem;">
+  {_kpi_card("🖱️", "Clics",      _fmt_int(total_clicks))}
+  {_kpi_card("💸", "CPC",        _fmt_currency(w_cpc),  "#facc15")}
+  {_kpi_card("📈", "CTR",        _fmt_pct(w_ctr),        "#4ade80")}
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend), "#f97316")}
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("👁️", "Reach",      _fmt_int(total_reach))}
+  {_kpi_card("📢", "Impressions",_fmt_int(total_imp))}
+  {_kpi_card("🔁", "Fréquence",  f"{w_freq:.2f}x")}
+</div>"""
+
+        elif obj in _AWARENESS_OBJ:
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("👁️", "Reach",      _fmt_int(total_reach))}
+  {_kpi_card("📢", "Impressions",_fmt_int(total_imp))}
+  {_kpi_card("🔁", "Fréquence",  f"{w_freq:.2f}x")}
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend), "#f97316")}
+</div>"""
+
+        elif obj in _ENGAGE_OBJ:
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("📢", "Impressions",_fmt_int(total_imp))}
+  {_kpi_card("🔁", "Fréquence",  f"{w_freq:.2f}x")}
+  {_kpi_card("🖱️", "Clics",      _fmt_int(total_clicks))}
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend), "#f97316")}
+</div>"""
+
+        elif obj in _LEADS_OBJ:
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("🖱️", "Clics",      _fmt_int(total_clicks))}
+  {_kpi_card("💸", "CPC",        _fmt_currency(w_cpc),  "#facc15")}
+  {_kpi_card("📈", "CTR",        _fmt_pct(w_ctr),        "#4ade80")}
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend), "#f97316")}
+</div>"""
+
+        elif obj in _APP_OBJ:
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("🖱️", "Clics",      _fmt_int(total_clicks))}
+  {_kpi_card("💸", "CPC",        _fmt_currency(w_cpc),  "#facc15")}
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend), "#f97316")}
+  {_kpi_card("👁️", "Reach",      _fmt_int(total_reach))}
+</div>"""
+
+        else:
+            # Default fallback
+            row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("👁️", "Reach",      _fmt_int(total_reach))}
+  {_kpi_card("📢", "Impressions",_fmt_int(total_imp))}
+  {_kpi_card("🖱️", "Clics",      _fmt_int(total_clicks))}
+  {_kpi_card("💰", "Dépensé",    _fmt_currency(total_spend), "#f97316")}
+</div>"""
+
+        st.markdown(row, unsafe_allow_html=True)
+
+
 def _render_top_campaigns(campaigns: list[dict]):
     """Top-3 campaigns podium cards — mirrors the report's slide 39 layout."""
     _section_header("🏆 TOP #3 CAMPAGNES PAR VENTES")
@@ -714,6 +889,8 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     _render_global_kpis(totals, prev_totals)
     st.divider()
     _render_conversion_campaigns(conv, prev_conv)
+    st.divider()
+    _render_by_objective(campaigns)
     st.divider()
     _render_top_campaigns(campaigns)
     st.divider()
