@@ -262,7 +262,7 @@ def fetch_boost_insights(
             if camp_id:
                 obj_camp_ids.setdefault(objective, []).append(camp_id)
 
-            t_clicks += clicks_val
+            t_clicks += link_clicks_val
             t_imp    += imp_val
             t_spend  += spend_val
             if cpc_val:  t_cpcs.append(cpc_val)
