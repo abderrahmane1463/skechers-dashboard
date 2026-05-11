@@ -36,7 +36,7 @@ AD_ACCOUNT_ID = BLOCKED_AD_ACCOUNTS[0]   # "act_765947885726761"
 _PURCHASE_TYPES = {"purchase"}
 
 # Campaign objectives that count as "conversion" campaigns
-_CONV_OBJECTIVES = {"CONVERSIONS", "OUTCOME_SALES", "OUTCOME_LEADS"}
+_CONV_OBJECTIVES = {"CONVERSIONS", "OUTCOME_SALES"}
 
 
 # ─── Internal HTTP layer (no block-guard) ─────────────────────────────────────
@@ -321,7 +321,7 @@ def fetch_boost_insights(
             "frequency":       total_freq,
         })
 
-        cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES and (c.get("spend", 0) > 0 or c.get("impressions", 0) > 0))
+        cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES)
         out["conversions"].update({
             "campaigns_count":     cv_count,
             "link_clicks":         cv_clicks,
