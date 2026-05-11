@@ -244,4 +244,5 @@ else:
         demo_data       = _cached_boost_demo(days, start_date, end_date)
 
     render_boost_tab(boost_data, demo_data, prev_boost_data,
-                     since=start_date, until=end_date)
+                     since=str(start_date) if start_date else "",
+                     until=str(end_date)   if end_date   else "")
