@@ -357,16 +357,6 @@ def _render_insights_panel(totals: dict, conv: dict):
     else:
         insights.append(("🔴", "Coût par clic élevé",          f"{_fmt_currency(cpc)} — envisager d'affiner le ciblage."))
 
-    # Conversion rate
-    if cvr == 0:
-        insights.append(("⚪", "Taux de conversion", "Données non disponibles."))
-    elif cvr >= 3.0:
-        insights.append(("🟢", "Conversion excellente", f"{_fmt_pct(cvr)} — page de destination très performante."))
-    elif cvr >= 1.0:
-        insights.append(("🟡", "Conversion correcte",   f"{_fmt_pct(cvr)} — marge d'optimisation sur la landing page."))
-    else:
-        insights.append(("🔴", "Conversion faible",     f"{_fmt_pct(cvr)} — vérifier l'expérience post-clic."))
-
     # CPA
     if cpa > 0:
         insights.append(("💡", "Coût par vente", f"{_fmt_currency(cpa)} — comparez à la valeur moyenne d'une commande."))
