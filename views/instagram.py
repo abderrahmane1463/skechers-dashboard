@@ -113,9 +113,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         _prev_s = _prev_e - _vtd(days=days - 1)
     _prev_start, _prev_end = str(_prev_s), str(_prev_e)
 
-    # ── Phase 1: skeleton → fast KPI data ────────────────────────────────────
-    # Fast = profile, engagement account metrics, post totals, prev profile
-    # Slow = posts (per-post insight calls) + prev_posts
+    # ── Phase 1: skeleton → all KPI + post data ──────────────────────────────
+    # prev_posts (only needed for engagement deltas) is deferred to phase 2.
     _skel = st.empty()
     with _skel.container():
         render_skeleton_dashboard(n_kpis=4)
@@ -123,6 +122,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     fast_fetchers = {
         "profile":      lambda: get_ig_profile(days, start_date, end_date),
         "eng":          lambda: get_ig_engagement(days, start_date, end_date),
+        "posts":        lambda: get_ig_posts(days, start_date, end_date),
         "post_totals":  lambda: get_ig_post_totals(days, start_date, end_date),
         "prev_profile": lambda: get_ig_profile(days, _prev_start, _prev_end),
     }
@@ -135,11 +135,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 fast[key] = fut.result()
             except Exception as e:
                 print(f"DEBUG ig fast fetch {key} error: {e}")
-                fast[key] = {}
+                fast[key] = {} if key != "posts" else []
 
     _skel.empty()
     ig_profile     = fast["profile"]
     ig_eng         = fast["eng"]
+    ig_posts       = fast["posts"]
     ig_post_totals = fast.get("post_totals", {})
     prev_profile   = fast.get("prev_profile", {})
 
@@ -158,16 +159,16 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     _ig_reach_display = "—" if _ig_reach_unavailable else f"{total_ig_reach:,}"
     _ig_reach_note    = "ℹ️ Indisponible pour cette période" if _ig_reach_unavailable else None
 
-    # Use account-level engagement metrics for KPI row (fast, no post iteration needed)
-    total_ig_likes    = ig_eng.get("likes", 0)
-    total_ig_comments = ig_eng.get("comments", 0)
-    total_ig_shares   = ig_eng.get("shares", 0)
-    total_ig_saves    = ig_eng.get("saves", 0)
-    total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
+    total_ig_impressions = (
+        sum(p.get("impressions", 0) for p in ig_posts)
+        or ig_post_totals.get("total_impressions")
+    )
 
-    # Impressions from post_totals (pre-aggregated, no per-post iteration)
-    total_ig_impressions = ig_post_totals.get("total_impressions", 0)
-    _total_posts_fast    = ig_post_totals.get("total_posts", 0)
+    total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
+    total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
+    total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
+    total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
+    total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
 
     ig_eng_rate = (
         round(total_ig_interactions / total_ig_reach * 100, 2)
@@ -184,7 +185,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     _prev_followers  = prev_profile.get("followers_count") or 0
     _prev_ig_reach   = prev_profile.get("period_reach", 0) or safe_sum(prev_profile.get("reach", []))
-    # Prev engagement deltas need prev_posts (slow) — omitted in fast phase
+    # prev_posts loads in phase 2 — engagement deltas computed after charts render
     _prev_ig_impr         = 0
     _prev_ig_likes        = 0
     _prev_ig_comments     = 0
@@ -229,7 +230,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     st.markdown(f"""
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👥", "Followers",         f"{followers:,}",       delta=_d(followers,             _prev_followers))}
-  {_ig_kpi("📝", "Publications",      str(_total_posts_fast), delta=None)}
+  {_ig_kpi("📝", "Publications",      str(len(ig_posts)),     delta=None)}
   {_ig_kpi("📊", "Taux d'engagement", _ig_eng_rate_display, "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
@@ -248,29 +249,14 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     st.divider()
 
-    # ── Phase 2: chart skeleton → slow post data ──────────────────────────────
+    # ── Phase 2: chart skeleton → prev_posts (for engagement deltas) ─────────
     _chart_skel = st.empty()
     with _chart_skel.container():
         render_skeleton_charts(n_charts=2, n_cards=3)
 
-    slow_fetchers = {
-        "posts":      lambda: get_ig_posts(days, start_date, end_date),
-        "prev_posts": lambda: get_ig_posts(days, _prev_start, _prev_end),
-    }
-    slow = {}
-    with ThreadPoolExecutor(max_workers=len(slow_fetchers)) as pool:
-        futs = {pool.submit(fn): key for key, fn in slow_fetchers.items()}
-        for fut in as_completed(futs):
-            key = futs[fut]
-            try:
-                slow[key] = fut.result()
-            except Exception as e:
-                print(f"DEBUG ig slow fetch {key} error: {e}")
-                slow[key] = []
+    prev_ig_posts = get_ig_posts(days, _prev_start, _prev_end)
 
     _chart_skel.empty()
-    ig_posts      = slow["posts"]
-    prev_ig_posts = slow.get("prev_posts", [])
 
     log_refresh_fn(
         "Instagram", period_label, "✅ Data Loaded",

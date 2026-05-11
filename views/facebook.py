@@ -180,9 +180,9 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         _prev_s = _prev_e - _vtd(days=days - 1)
     _prev_start, _prev_end = str(_prev_s), str(_prev_e)
 
-    # ── Phase 1: skeleton → fast KPI data ────────────────────────────────────
-    # Fast = single Meta API calls (audience, visibility, engagement, post totals)
-    # Slow = posts (100 posts × per-post insight calls) + msg_stats
+    # ── Phase 1: skeleton → all KPI + post data ──────────────────────────────
+    # msg_stats (Community tab) is deferred to phase 2 so KPIs + charts
+    # appear before the community tab data arrives.
     _skel = st.empty()
     with _skel.container():
         render_skeleton_dashboard(n_kpis=5)
@@ -191,6 +191,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         "aud":              lambda: get_fb_audience(days, start_date, end_date),
         "eng":              lambda: get_fb_engagement(days, start_date, end_date),
         "vis":              lambda: get_fb_visibility(days, start_date, end_date),
+        "posts":            lambda: get_fb_posts(days, start_date, end_date),
         "post_totals":      lambda: get_fb_post_totals(days, start_date, end_date),
         "prev_aud":         lambda: get_fb_audience(days, _prev_start, _prev_end),
         "prev_vis":         lambda: get_fb_visibility(days, _prev_start, _prev_end),
@@ -205,13 +206,13 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                 fast[key] = fut.result()
             except Exception as e:
                 print(f"DEBUG fast fetch {key} error: {e}")
-                fast[key] = {}
+                fast[key] = {} if key != "posts" else []
 
     aud         = fast["aud"]
     eng         = fast["eng"]
     vis         = fast["vis"]
+    posts       = fast["posts"]
     post_totals = fast.get("post_totals", {})
-    msg_stats   = results["msg_stats"]
     prev_aud         = fast.get("prev_aud", {})
     prev_vis         = fast.get("prev_vis", {})
     prev_post_totals = fast.get("prev_post_totals", {})
@@ -225,12 +226,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     total_views = safe_sum(vis.get("page_views", []))
     total_content_interactions = eng.get("period_content_interactions", 0)
 
-    # Use pre-aggregated post_totals for KPI row (available without fetching every post)
-    total_reacs = post_totals.get("total_reactions", 0)
-    total_comms = post_totals.get("total_comments", 0)
-    total_shars = post_totals.get("total_shares", 0)
-    total_engagements = post_totals.get("total_interactions", total_reacs + total_comms + total_shars)
-    _total_posts_fast = post_totals.get("total_posts", 0)
+    # Interactions summed directly from posts — same source as the engagement chart
+    total_reacs = sum(p.get("reactions", 0) for p in posts)
+    total_comms = sum(p.get("comments",  0) for p in posts)
+    total_shars = sum(p.get("shares",    0) for p in posts)
+    total_engagements = total_reacs + total_comms + total_shars
 
     # Reach availability — computed from the selected window size, NOT from cached data.
     # This guarantees correct display even when old Supabase rows (pre-change) are returned.
@@ -328,7 +328,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("👁️", "Spectateurs",             _reach_display, note=_reach_note)}
   {_kpi("📢", "Impressions",              f"{total_impressions:,}",          delta=_d(total_impressions,        _prev_impr))}
   {_kpi("🤝", "Content Interactions",     f"{total_content_interactions:,}", "#a78bfa")}
-  {_kpi("📝", "Publications",             str(_total_posts_fast),            delta=_d(_total_posts_fast, _prev_posts))}
+  {_kpi("📝", "Publications",             str(len(posts)),                   delta=_d(len(posts), _prev_posts))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_kpi("🔥", "Total interactions (posts)", f"{total_engagements:,}", "#FF6B35", delta=_d(total_engagements, _prev_engs))}
@@ -340,29 +340,14 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     st.markdown(kpi_html, unsafe_allow_html=True)
     st.divider()
 
-    # ── Phase 2: chart skeleton → slow post data ──────────────────────────────
+    # ── Phase 2: chart skeleton → msg_stats (Community tab) ──────────────────
     _chart_skel = st.empty()
     with _chart_skel.container():
         render_skeleton_charts(n_charts=2, n_cards=3)
 
-    slow_fetchers = {
-        "posts":     lambda: get_fb_posts(days, start_date, end_date),
-        "msg_stats": lambda: get_fb_messaging_stats(days, start_date, end_date),
-    }
-    slow = {}
-    with ThreadPoolExecutor(max_workers=len(slow_fetchers)) as pool:
-        futs = {pool.submit(fn): key for key, fn in slow_fetchers.items()}
-        for fut in as_completed(futs):
-            key = futs[fut]
-            try:
-                slow[key] = fut.result()
-            except Exception as e:
-                print(f"DEBUG slow fetch {key} error: {e}")
-                slow[key] = {} if key != "posts" else []
+    msg_stats = get_fb_messaging_stats(days, start_date, end_date)
 
     _chart_skel.empty()
-    posts     = slow["posts"]
-    msg_stats = slow["msg_stats"]
 
     log_refresh_fn(
         "Facebook",
