@@ -3,19 +3,17 @@ components/skeleton.py — Shimmer skeleton loading cards.
 
 Usage:
     _skel = st.empty()
-    with _skel.container():
-        render_skeleton_dashboard()   # or render_skeleton_boost()
+    _skel.markdown(skeleton_dashboard_html(), unsafe_allow_html=True)
 
-    data = fetch_all(...)             # blocking fetch
+    data = fetch_all(...)   # blocking fetch
 
-    _skel.empty()                     # wipe skeleton
-    render_real_content(data)         # draw real UI
+    _skel.empty()           # wipe skeleton — single element, clears reliably
+    render_real_content(data)
 """
 
 import streamlit as st
 
-# ── Shared shimmer CSS (injected once per page load) ─────────────────────────
-_SHIMMER_CSS = """
+_CSS = """
 <style>
 @keyframes _skel_shimmer {
   0%   { background-position: -700px 0; }
@@ -31,97 +29,59 @@ _SHIMMER_CSS = """
   animation: _skel_shimmer 1.4s infinite linear;
   border-radius: 10px;
 }
-.skel-kpi {
-  height: 88px;
-  margin-bottom: 4px;
-}
-.skel-chart {
-  height: 220px;
-  margin: 8px 0 16px;
-}
-.skel-card {
-  height: 260px;
-  margin-bottom: 8px;
-}
-.skel-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.skel-row .skel-block {
-  flex: 1;
-}
 </style>
 """
 
-
-def _inject_css():
-    st.markdown(_SHIMMER_CSS, unsafe_allow_html=True)
-
-
-def _kpi_row(n: int = 4):
-    """Render a row of n shimmer KPI tiles."""
-    cols = "".join(
-        '<div class="skel-block skel-kpi" style="flex:1;min-width:0;"></div>'
+def _kpi_row_html(n: int) -> str:
+    tiles = "".join(
+        f'<div class="skel-block" style="flex:1;min-width:0;height:88px;border-radius:10px;"></div>'
         for _ in range(n)
     )
-    st.markdown(
-        f'<div class="skel-row">{cols}</div>',
-        unsafe_allow_html=True,
-    )
+    return f'<div style="display:flex;gap:12px;margin-bottom:12px;">{tiles}</div>'
 
+def _chart_html() -> str:
+    return '<div class="skel-block" style="height:220px;border-radius:10px;margin:8px 0 16px;"></div>'
 
-def _chart_block():
-    st.markdown('<div class="skel-block skel-chart"></div>', unsafe_allow_html=True)
-
-
-def _card_row(n: int = 3):
-    cols = "".join(
-        '<div class="skel-block skel-card" style="flex:1;min-width:0;"></div>'
+def _card_row_html(n: int) -> str:
+    cards = "".join(
+        f'<div class="skel-block" style="flex:1;min-width:0;height:260px;border-radius:10px;"></div>'
         for _ in range(n)
     )
-    st.markdown(
-        f'<div class="skel-row">{cols}</div>',
-        unsafe_allow_html=True,
+    return f'<div style="display:flex;gap:12px;margin-bottom:12px;">{cards}</div>'
+
+def _tab_bar_html() -> str:
+    return '<div class="skel-block" style="height:36px;border-radius:8px;max-width:420px;margin-bottom:16px;"></div>'
+
+
+# ── Public HTML builders (single string → single st.empty().markdown()) ───────
+
+def skeleton_dashboard_html(n_kpis: int = 5) -> str:
+    return (
+        _CSS
+        + _kpi_row_html(n_kpis)
+        + _chart_html()
+        + _kpi_row_html(4)
+        + _chart_html()
+        + _card_row_html(3)
     )
 
+def skeleton_boost_html() -> str:
+    return (
+        _CSS
+        + _kpi_row_html(4)
+        + _kpi_row_html(4)
+        + _chart_html()
+        + _card_row_html(3)
+    )
 
-# ── Public helpers ─────────────────────────────────────────────────────────────
+def skeleton_charts_html(n_charts: int = 2, n_cards: int = 3) -> str:
+    charts = "".join(_chart_html() for _ in range(n_charts))
+    return _CSS + _tab_bar_html() + charts + _card_row_html(n_cards)
 
-def render_skeleton_dashboard(n_kpis: int = 5):
-    """
-    Generic dashboard skeleton: a KPI row, a chart block, and a card row.
-    Works for both Facebook and Instagram dashboards.
-    """
-    _inject_css()
-    _kpi_row(n_kpis)
-    _chart_block()
-    _kpi_row(4)
-    _chart_block()
-    _card_row(3)
 
+# ── Convenience wrappers (for Boost tab in app.py) ────────────────────────────
 
 def render_skeleton_boost():
-    """Skeleton for the Boost tab (two KPI rows + chart)."""
-    _inject_css()
-    _kpi_row(4)
-    _kpi_row(4)
-    _chart_block()
-    _card_row(3)
-
-
-def render_skeleton_charts(n_charts: int = 2, n_cards: int = 3):
-    """
-    Chart-only skeleton — shown after KPIs are already rendered.
-    Mimics the tab area (charts + post cards) without the KPI tiles.
-    """
-    _inject_css()
-    # Tab bar placeholder
-    st.markdown(
-        '<div class="skel-block" style="height:36px;margin-bottom:16px;'
-        'border-radius:8px;max-width:420px;"></div>',
-        unsafe_allow_html=True,
-    )
-    for _ in range(n_charts):
-        _chart_block()
-    _card_row(n_cards)
+    _skel = st.empty()
+    _skel.markdown(skeleton_boost_html(), unsafe_allow_html=True)
+    return _skel

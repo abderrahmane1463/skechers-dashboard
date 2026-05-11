@@ -14,7 +14,7 @@ from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
 from views.login import render_login
 from views.documentation import render_documentation
-from components.skeleton import render_skeleton_boost
+from components.skeleton import skeleton_boost_html
 import db
 
 
@@ -292,8 +292,7 @@ else:
 
     # ── Skeleton placeholder — shown while data loads ─────────────────────────
     _skel_b = st.empty()
-    with _skel_b.container():
-        render_skeleton_boost()
+    _skel_b.markdown(skeleton_boost_html(), unsafe_allow_html=True)
 
     boost_data      = _cached_boost(days, start_date, end_date)
     prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)

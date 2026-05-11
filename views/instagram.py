@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
 from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
-from components.skeleton import render_skeleton_dashboard, render_skeleton_charts
+from components.skeleton import skeleton_dashboard_html, skeleton_charts_html
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -116,8 +116,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     # ── Phase 1: skeleton → all KPI + post data ──────────────────────────────
     # prev_posts (only needed for engagement deltas) is deferred to phase 2.
     _skel = st.empty()
-    with _skel.container():
-        render_skeleton_dashboard(n_kpis=4)
+    _skel.markdown(skeleton_dashboard_html(n_kpis=4), unsafe_allow_html=True)
 
     fast_fetchers = {
         "profile":      lambda: get_ig_profile(days, start_date, end_date),
@@ -251,8 +250,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── Phase 2: chart skeleton → prev_posts (for engagement deltas) ─────────
     _chart_skel = st.empty()
-    with _chart_skel.container():
-        render_skeleton_charts(n_charts=2, n_cards=3)
+    _chart_skel.markdown(skeleton_charts_html(n_charts=2, n_cards=3), unsafe_allow_html=True)
 
     prev_ig_posts = get_ig_posts(days, _prev_start, _prev_end)
 

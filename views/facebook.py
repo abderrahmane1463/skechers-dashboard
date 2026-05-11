@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
 from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
-from components.skeleton import render_skeleton_dashboard, render_skeleton_charts
+from components.skeleton import skeleton_dashboard_html, skeleton_charts_html
 
 
 # ─── Post card helper ─────────────────────────────────────────────────────────
@@ -184,8 +184,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     # msg_stats (Community tab) is deferred to phase 2 so KPIs + charts
     # appear before the community tab data arrives.
     _skel = st.empty()
-    with _skel.container():
-        render_skeleton_dashboard(n_kpis=5)
+    _skel.markdown(skeleton_dashboard_html(n_kpis=5), unsafe_allow_html=True)
 
     fast_fetchers = {
         "aud":              lambda: get_fb_audience(days, start_date, end_date),
@@ -342,8 +341,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── Phase 2: chart skeleton → msg_stats (Community tab) ──────────────────
     _chart_skel = st.empty()
-    with _chart_skel.container():
-        render_skeleton_charts(n_charts=2, n_cards=3)
+    _chart_skel.markdown(skeleton_charts_html(n_charts=2, n_cards=3), unsafe_allow_html=True)
 
     msg_stats = get_fb_messaging_stats(days, start_date, end_date)
 
