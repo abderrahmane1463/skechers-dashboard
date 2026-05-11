@@ -318,7 +318,11 @@ def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None,
     selected_ids = tuple(
         c.get("campaign_id", "") for c in group if c.get("campaign_id")
     )
-    total_reach  = _cached_reach_for_ids(selected_ids, since, until) if since and until else 0
+    if selected_ids and since and until:
+        total_reach = _cached_reach_for_ids(selected_ids, since, until)
+    else:
+        # Fallback: sum pre-computed per-objective reach from API
+        total_reach = sum(obj_reach.get(obj, 0) for obj in selected_objectives)
 
     w_ctr = round(total_clicks / total_imp * 100, 2) if total_imp   > 0 else 0.0
     w_cpc = round(total_spend  / total_clicks,    2) if total_clicks > 0 else 0.0
@@ -781,7 +785,8 @@ def _render_campaign_lookup(campaigns: list[dict]):
 
 # ─── Public entry point ────────────────────────────────────────────────────────
 def render_boost_tab(data: dict | None = None, demo: dict | None = None,
-                     prev_data: dict | None = None):
+                     prev_data: dict | None = None,
+                     since: str = "", until: str = ""):
     """
     Render the full Boost (Ads Performance) tab.
 
@@ -800,7 +805,9 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     conv      = data.get("conversions", {})
     campaigns   = data.get("campaigns",      [])
     obj_reach   = data.get("objective_reach", {})
-    period      = data.get("period",          {})
+    # Use dates passed directly from app.py (always available, not cache-dependent)
+    _period_since = since or data.get("period", {}).get("since", "")
+    _period_until = until or data.get("period", {}).get("until", "")
 
     prev_totals = (prev_data or {}).get("totals",      {})
     prev_conv   = (prev_data or {}).get("conversions", {})
@@ -829,7 +836,8 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     st.divider()
     _render_conversion_campaigns(conv, prev_conv)
     st.divider()
-    _render_by_objective(campaigns, obj_reach, period)
+    _render_by_objective(campaigns, obj_reach,
+                         {"since": _period_since, "until": _period_until})
     st.divider()
     _render_top_campaigns(campaigns)
     st.divider()

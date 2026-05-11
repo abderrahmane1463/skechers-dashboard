@@ -243,4 +243,5 @@ else:
         prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
         demo_data       = _cached_boost_demo(days, start_date, end_date)
 
-    render_boost_tab(boost_data, demo_data, prev_boost_data)
+    render_boost_tab(boost_data, demo_data, prev_boost_data,
+                     since=start_date, until=end_date)
