@@ -5,6 +5,7 @@ Entry point. Organic data only. No ad account data.
 
 import streamlit as st
 from datetime import datetime, timezone
+import threading
 
 from config import LOG_FILE_PATH
 from components.sidebar import render_sidebar
@@ -14,6 +15,54 @@ from views.boost import render_boost_tab, empty_boost_data
 from views.login import render_login
 from views.documentation import render_documentation
 import db
+
+
+# ─── Background prefetch helpers ─────────────────────────────────────────────
+def _prefetch_facebook(days, start, end):
+    """Pre-populate Supabase cache for Facebook so tab switch is instant."""
+    try:
+        db.get_fb_audience(days, start, end)
+        db.get_fb_engagement(days, start, end)
+        db.get_fb_visibility(days, start, end)
+        db.get_fb_posts(days, start, end)
+        db.get_fb_post_totals(days, start, end)
+        db.get_fb_conversations(days, start, end)
+        db.get_fb_messaging_stats(days, start, end)
+    except Exception as e:
+        print(f"DEBUG prefetch facebook: {e}")
+
+
+def _prefetch_instagram(days, start, end):
+    """Pre-populate Supabase cache for Instagram so tab switch is instant."""
+    try:
+        db.get_ig_profile(days, start, end)
+        db.get_ig_engagement(days, start, end)
+        db.get_ig_posts(days, start, end)
+        db.get_ig_post_totals(days, start, end)
+    except Exception as e:
+        print(f"DEBUG prefetch instagram: {e}")
+
+
+def _prefetch_boost(days, start, end):
+    """Pre-populate Supabase cache for Boost so tab switch is instant."""
+    try:
+        db.get_boost_insights(days, start, end)
+        db.get_fb_demographics(days, start, end)
+    except Exception as e:
+        print(f"DEBUG prefetch boost: {e}")
+
+
+def _start_prefetch(platform, days, start, end):
+    """Start background threads to prefetch all OTHER platforms."""
+    targets = []
+    if platform != "Facebook":
+        targets.append(_prefetch_facebook)
+    if platform != "Instagram":
+        targets.append(_prefetch_instagram)
+    if platform != "Boost":
+        targets.append(_prefetch_boost)
+    for fn in targets:
+        threading.Thread(target=fn, args=(days, start, end), daemon=True).start()
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -204,8 +253,10 @@ if platform == "Documentation":
     render_documentation()
 elif platform == "Facebook":
     render_facebook_dashboard(period_label, days, start_date, end_date, log_refresh)
+    _start_prefetch("Facebook", days, start_date, end_date)
 elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
+    _start_prefetch("Instagram", days, start_date, end_date)
 else:
     # ── Boost (paid campaigns) ────────────────────────────────────────────────
     from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
@@ -246,3 +297,4 @@ else:
     render_boost_tab(boost_data, demo_data, prev_boost_data,
                      since=str(start_date) if start_date else "",
                      until=str(end_date)   if end_date   else "")
+    _start_prefetch("Boost", days, start_date, end_date)
