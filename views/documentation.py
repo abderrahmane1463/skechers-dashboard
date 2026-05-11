@@ -237,7 +237,7 @@ def render_documentation():
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Endpoint</th></tr>
   <tr><td class="kpi-name">📁 Total campagnes</td><td class="kpi-desc">Nombre de campagnes actives sur la période.</td><td><span class="endpoint">/{ad_account}/campaigns?fields=id,name</span></td></tr>
-  <tr><td class="kpi-name">🖱️ Clics sur le lien</td><td class="kpi-desc">Clics sur les liens dans les publicités.</td><td><span class="endpoint">/{ad_account}/insights?fields=inline_link_clicks&level=campaign</span></td></tr>
+  <tr><td class="kpi-name">🖱️ Clics sur le lien</td><td class="kpi-desc">Total de tous les clics sur la publicité (lien, réaction, commentaire, profil, etc.).</td><td><span class="endpoint">/{ad_account}/insights?fields=clicks&level=campaign</span></td></tr>
   <tr><td class="kpi-name">👁️ Comptes touchés</td><td class="kpi-desc">Personnes uniques ayant vu au moins une pub.</td><td><span class="endpoint">/{ad_account}/insights?fields=reach&level=account</span></td></tr>
   <tr><td class="kpi-name">📢 Impressions</td><td class="kpi-desc">Total d'affichages des publicités.</td><td><span class="endpoint">/{ad_account}/insights?fields=impressions&level=campaign</span></td></tr>
   <tr><td class="kpi-name">💸 Coût par clic (CPC)</td><td class="kpi-desc">Budget ÷ nombre de clics.</td><td><span class="endpoint">/{ad_account}/insights?fields=cpc&level=campaign</span></td></tr>
@@ -260,7 +260,7 @@ def render_documentation():
 <p style="color:#a1a1aa;font-size:14px;">Tableau de toutes les campagnes. Toutes les métriques viennent du même appel.</p><br>
 <table class="kpi-table">
   <tr><th>Champ</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">Toutes les colonnes</td><td class="kpi-desc">campaign_name, objective, impressions, reach, inline_link_clicks, spend, cpc, ctr, frequency, actions, cost_per_action_type</td><td><span class="endpoint">/{ad_account}/insights?fields=campaign_name,objective,impressions,reach,…&level=campaign&limit=500</span></td></tr>
+  <tr><td class="kpi-name">Toutes les colonnes</td><td class="kpi-desc">campaign_name, objective, impressions, reach, clicks, spend, cpc, ctr, frequency, actions, cost_per_action_type</td><td><span class="endpoint">/{ad_account}/insights?fields=campaign_name,objective,impressions,reach,…&level=campaign&limit=500</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with b4:
