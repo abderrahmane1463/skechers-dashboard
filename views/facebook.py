@@ -507,9 +507,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             )
 
 
-    # ── TAB 2: Visibility ────────────────────────────────────────────────────
+    # ── TAB 3: Engagement ────────────────────────────────────────────────────
     with tab3:
-        # Use daily Content Interactions series — same source as 🤝 Content Interactions KPI
         chart_df = series_to_df(eng.get("engagements", []))
 
         if not chart_df.empty and (start_date or days):
@@ -553,7 +552,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             fig_ci.update_layout(**ci_layout)
             st.plotly_chart(fig_ci, width="stretch")
 
-            st.metric("🤝 Content Interactions", f"{chart_total:,}")
+            st.metric("🔥 Total interactions (posts)", f"{chart_total:,}")
 
         # ── Best Time to Post heatmap ─────────────────────────────────────────
         st.divider()
