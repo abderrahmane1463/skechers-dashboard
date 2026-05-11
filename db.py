@@ -11,6 +11,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── In-memory invalidation timestamp ──────────────────────────────────────────
+# When the user clicks Refresh, this is set to the current time.
+# db.load() will treat any Supabase row fetched BEFORE this time as a cache miss,
+# forcing a fresh API call — without needing DELETE or PATCH on Supabase.
+_INVALIDATED_AT: str = ""
+
+
+def invalidate():
+    """Mark all cached data as stale. Called by the Refresh button."""
+    global _INVALIDATED_AT
+    _INVALIDATED_AT = datetime.now(timezone.utc).isoformat()
+
+
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 TABLE        = "metric_cache"
@@ -87,6 +100,9 @@ def load(metric_key: str, period_start: str, period_end: str):
         resp.raise_for_status()
         rows = resp.json()
         if rows and rows[0]["data"] is not None:
+            # Skip if this row was cached before the last invalidation
+            if _INVALIDATED_AT and rows[0].get("fetched_at", "") < _INVALIDATED_AT:
+                return None
             return rows[0]["data"]
         return None
     except Exception as e:

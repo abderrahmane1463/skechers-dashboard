@@ -131,9 +131,7 @@ def render_sidebar(log_refresh_fn):
             days = (e - s).days or 1
 
         if st.button("🔄 Refresh Data", width="stretch"):
-            from api.base import _cache_key_range as _ckr
-            ck_start, ck_end = _ckr(days, start_date, end_date)
-            db.delete_period(ck_start, ck_end)
+            db.invalidate()
             st.cache_data.clear()
             log_refresh_fn(platform, period_label, "🔄 Manual Refresh Triggered")
             st.rerun()
