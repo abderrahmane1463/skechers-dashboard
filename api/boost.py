@@ -321,7 +321,7 @@ def fetch_boost_insights(
             "frequency":       total_freq,
         })
 
-        cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES)
+        cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES and (c.get("spend", 0) > 0 or c.get("impressions", 0) > 0))
         out["conversions"].update({
             "campaigns_count":     cv_count,
             "link_clicks":         cv_clicks,
