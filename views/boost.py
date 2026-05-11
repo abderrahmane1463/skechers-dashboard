@@ -789,6 +789,14 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     prev_totals = (prev_data or {}).get("totals",      {})
     prev_conv   = (prev_data or {}).get("conversions", {})
 
+    # Recompute campaigns_count live from campaigns list to stay consistent with PAR OBJECTIF
+    _CONV_OBJ = {"CONVERSIONS", "OUTCOME_SALES"}
+    conv = dict(conv)  # avoid mutating cached dict
+    conv["campaigns_count"] = sum(
+        1 for c in campaigns
+        if c.get("objective") in _CONV_OBJ and (c.get("spend", 0) > 0 or c.get("impressions", 0) > 0)
+    )
+
     # Header
     _dark   = st.session_state.get("theme", "dark") == "dark"
     _hdr_c  = "#ffffff"                 if _dark else "#111827"
