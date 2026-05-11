@@ -215,8 +215,9 @@ def fetch_boost_insights(
         })
         rows = resp.get("data", [])
 
-        campaigns  = []
-        conv_ids:  list[str]   = []   # campaign IDs with conversion objective
+        campaigns    = []
+        conv_ids:    list[str]        = []   # campaign IDs with conversion objective
+        obj_camp_ids: dict[str, list] = {}   # objective → [campaign_ids] for dedup reach
         # Accumulators — reach excluded (comes from dedup account-level call)
         t_clicks = t_imp = 0
         t_spend  = 0.0
@@ -251,12 +252,15 @@ def fetch_boost_insights(
                 "conversions": purchases,
                 "cpa":         cpa_val if cpa_val else (spend_val / purchases if purchases else 0.0),
                 "clicks":      clicks_val,
+                "link_clicks": link_clicks_val,
                 "reach":       reach_val,
                 "impressions": imp_val,
                 "cpc":         cpc_val,
                 "ctr":         ctr_val,
                 "frequency":   freq_val,
             })
+            if camp_id:
+                obj_camp_ids.setdefault(objective, []).append(camp_id)
 
             t_clicks += clicks_val
             t_imp    += imp_val
@@ -292,6 +296,27 @@ def fetch_boost_insights(
                     cv_reach = _safe_int(rows_cv[0].get("reach"))
             except Exception as e:
                 print(f"DEBUG boost: conv dedup reach error: {e}")
+
+        # Deduplicated reach per objective (for PAR OBJECTIF section)
+        objective_reach: dict[str, int] = {}
+        for obj, ids in obj_camp_ids.items():
+            if not ids:
+                continue
+            try:
+                resp_obj = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+                    "level":      "account",
+                    "fields":     "reach",
+                    "filtering":  json.dumps([{
+                        "field": "campaign.id", "operator": "IN", "value": ids
+                    }]),
+                    "time_range": time_range,
+                })
+                rows_obj = resp_obj.get("data", [])
+                if rows_obj:
+                    objective_reach[obj] = _safe_int(rows_obj[0].get("reach"))
+            except Exception as e:
+                print(f"DEBUG boost: obj reach error ({obj}): {e}")
+        out["objective_reach"] = objective_reach
 
         out["campaigns"] = campaigns
         active_count = sum(1 for c in campaigns if c["spend"] > 0 or c["impressions"] > 0)

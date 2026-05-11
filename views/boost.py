@@ -240,9 +240,12 @@ def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
         _no_data_banner("Aucune campagne de conversion détectée pour la période sélectionnée.")
 
 
-def _render_by_objective(campaigns: list[dict]):
-    """Single KPI block aggregated from selected objectives (multiselect filter)."""
+def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None):
+    """Single KPI block aggregated from selected objectives (multiselect filter).
+    Uses inline_link_clicks and deduplicated reach — same methodology as conversion section."""
     _section_header("🗂️ PAR OBJECTIF")
+
+    obj_reach = obj_reach or {}
 
     # Keep only campaigns with activity
     active = [c for c in campaigns if c.get("spend", 0) > 0 or c.get("impressions", 0) > 0]
@@ -298,12 +301,13 @@ def _render_by_objective(campaigns: list[dict]):
 
     # Aggregate across all selected objectives
     group        = [c for c in active if c.get("objective") in selected_objectives]
-    total_spend  = sum(c.get("spend", 0.0)    for c in group)
-    total_clicks = sum(c.get("clicks", 0)      for c in group)
-    total_reach  = sum(c.get("reach", 0)       for c in group)
-    total_imp    = sum(c.get("impressions", 0) for c in group)
-    total_conv   = sum(c.get("conversions", 0) for c in group)
+    total_spend  = sum(c.get("spend", 0.0)       for c in group)
+    total_clicks = sum(c.get("link_clicks", 0)    for c in group)   # inline_link_clicks
+    total_imp    = sum(c.get("impressions", 0)    for c in group)
+    total_conv   = sum(c.get("conversions", 0)    for c in group)
     n_camps      = len(group)
+    # Deduplicated reach: sum pre-computed per-objective reach from API
+    total_reach  = sum(obj_reach.get(obj, 0) for obj in selected_objectives)
 
     w_ctr = round(total_clicks / total_imp * 100, 2) if total_imp   > 0 else 0.0
     w_cpc = round(total_spend  / total_clicks,    2) if total_clicks > 0 else 0.0
@@ -311,19 +315,19 @@ def _render_by_objective(campaigns: list[dict]):
 
     row1 = f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.5rem;">
-  {_kpi_card("📁", "Campagnes",        _fmt_int(n_camps))}
+  {_kpi_card("📁", "Campagnes",         _fmt_int(n_camps))}
   {_kpi_card("🖱️", "Clics sur le lien", _fmt_int(total_clicks))}
-  {_kpi_card("👁️", "Comptes touchés",  _fmt_int(total_reach))}
-  {_kpi_card("📢", "Impressions",       _fmt_int(total_imp))}
+  {_kpi_card("👁️", "Comptes touchés",   _fmt_int(total_reach))}
+  {_kpi_card("📢", "Impressions",        _fmt_int(total_imp))}
 </div>"""
 
     row2 = f"""
 <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi_card("💸", "Coût par clic",   _fmt_currency(w_cpc),         "#facc15", lower_is_better=True)}
-  {_kpi_card("📈", "CTR",             _fmt_pct(w_ctr),               "#4ade80")}
-  {_kpi_card("💰", "Montant dépensé", _fmt_currency(total_spend),    "#f97316", lower_is_better=True)}
-  {_kpi_card("🎁", "Coût par vente",  _fmt_currency(w_cpa),          "#fb7185", lower_is_better=True)}
-  {_kpi_card("✅", "Commandes",       _fmt_int(total_conv),           "#a78bfa")}
+  {_kpi_card("💸", "Coût par clic",   _fmt_currency(w_cpc),       "#facc15", lower_is_better=True)}
+  {_kpi_card("📈", "CTR",             _fmt_pct(w_ctr),             "#4ade80")}
+  {_kpi_card("💰", "Montant dépensé", _fmt_currency(total_spend),  "#f97316", lower_is_better=True)}
+  {_kpi_card("🎁", "Coût par vente",  _fmt_currency(w_cpa),        "#fb7185", lower_is_better=True)}
+  {_kpi_card("✅", "Commandes",       _fmt_int(total_conv),         "#a78bfa")}
 </div>"""
 
     st.markdown(row1 + row2, unsafe_allow_html=True)
@@ -783,7 +787,8 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
 
     totals    = data.get("totals",      {})
     conv      = data.get("conversions", {})
-    campaigns = data.get("campaigns",   [])
+    campaigns   = data.get("campaigns",      [])
+    obj_reach   = data.get("objective_reach", {})
 
     prev_totals = (prev_data or {}).get("totals",      {})
     prev_conv   = (prev_data or {}).get("conversions", {})
@@ -804,7 +809,7 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     st.divider()
     _render_conversion_campaigns(conv, prev_conv)
     st.divider()
-    _render_by_objective(campaigns)
+    _render_by_objective(campaigns, obj_reach)
     st.divider()
     _render_top_campaigns(campaigns)
     st.divider()
