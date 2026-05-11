@@ -241,8 +241,10 @@ def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
 
 
 def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None):
-    """Single KPI block aggregated from selected objectives (multiselect filter)."""
+    """Single KPI block aggregated from selected objectives (multiselect filter).
+    Reach is deduplicated per objective via pre-computed API calls."""
     _section_header("🗂️ PAR OBJECTIF")
+    obj_reach = obj_reach or {}
 
     # Keep only campaigns with activity
     active = [c for c in campaigns if c.get("spend", 0) > 0 or c.get("impressions", 0) > 0]
@@ -302,7 +304,7 @@ def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None):
     total_clicks = sum(c.get("link_clicks", 0)    for c in group)   # inline_link_clicks
     total_imp    = sum(c.get("impressions", 0)    for c in group)
     total_conv   = sum(c.get("conversions", 0)    for c in group)
-    total_reach  = sum(c.get("reach", 0)          for c in group)
+    total_reach  = sum(obj_reach.get(obj, 0)      for obj in selected_objectives)
     n_camps      = len(group)
 
     w_ctr = round(total_clicks / total_imp * 100, 2) if total_imp   > 0 else 0.0
