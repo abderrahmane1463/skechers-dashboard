@@ -137,7 +137,7 @@ def _no_data_banner(msg: str = "Aucune donnée publicitaire disponible pour cett
     )
 
 
-def _section_header(title: str, big: bool = False):
+def _section_header(title: str, big: bool = True):
     _dark = st.session_state.get("theme", "dark") == "dark"
     _tc  = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
     _brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
