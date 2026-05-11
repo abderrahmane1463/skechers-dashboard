@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
 from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
+from components.skeleton import render_skeleton_dashboard
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -112,26 +113,33 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         _prev_s = _prev_e - _vtd(days=days - 1)
     _prev_start, _prev_end = str(_prev_s), str(_prev_e)
 
-    with st.spinner("Loading Instagram data…"):
-        fetchers = {
-            "profile":     lambda: get_ig_profile(days, start_date, end_date),
-            "eng":         lambda: get_ig_engagement(days, start_date, end_date),
-            "posts":       lambda: get_ig_posts(days, start_date, end_date),
-            "post_totals": lambda: get_ig_post_totals(days, start_date, end_date),
-            # Previous period (for delta arrows)
-            "prev_profile":     lambda: get_ig_profile(days, _prev_start, _prev_end),
-            "prev_posts":       lambda: get_ig_posts(days, _prev_start, _prev_end),
-        }
-        results = {}
-        with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
-            futures = {pool.submit(fn): key for key, fn in fetchers.items()}
-            for future in as_completed(futures):
-                key = futures[future]
-                try:
-                    results[key] = future.result()
-                except Exception as e:
-                    print(f"DEBUG fetch {key} error: {e}")
-                    results[key] = {} if key != "posts" else []
+    # ── Skeleton placeholder — shown while data loads ─────────────────────────
+    _skel = st.empty()
+    with _skel.container():
+        render_skeleton_dashboard(n_kpis=4)
+
+    fetchers = {
+        "profile":     lambda: get_ig_profile(days, start_date, end_date),
+        "eng":         lambda: get_ig_engagement(days, start_date, end_date),
+        "posts":       lambda: get_ig_posts(days, start_date, end_date),
+        "post_totals": lambda: get_ig_post_totals(days, start_date, end_date),
+        # Previous period (for delta arrows)
+        "prev_profile":     lambda: get_ig_profile(days, _prev_start, _prev_end),
+        "prev_posts":       lambda: get_ig_posts(days, _prev_start, _prev_end),
+    }
+    results = {}
+    with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
+        futures = {pool.submit(fn): key for key, fn in fetchers.items()}
+        for future in as_completed(futures):
+            key = futures[future]
+            try:
+                results[key] = future.result()
+            except Exception as e:
+                print(f"DEBUG fetch {key} error: {e}")
+                results[key] = {} if key != "posts" else []
+
+    # Data loaded — remove skeleton
+    _skel.empty()
         ig_profile     = results["profile"]
         ig_eng         = results["eng"]
         ig_posts       = results["posts"]

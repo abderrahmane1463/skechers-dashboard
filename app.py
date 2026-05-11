@@ -14,6 +14,7 @@ from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
 from views.login import render_login
 from views.documentation import render_documentation
+from components.skeleton import render_skeleton_boost
 import db
 
 
@@ -289,10 +290,17 @@ else:
             print(f"DEBUG boost demographics: fetch failed: {e}")
             return {}
 
-    with st.spinner("Loading Boost data..."):
-        boost_data      = _cached_boost(days, start_date, end_date)
-        prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
-        demo_data       = _cached_boost_demo(days, start_date, end_date)
+    # ── Skeleton placeholder — shown while data loads ─────────────────────────
+    _skel_b = st.empty()
+    with _skel_b.container():
+        render_skeleton_boost()
+
+    boost_data      = _cached_boost(days, start_date, end_date)
+    prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
+    demo_data       = _cached_boost_demo(days, start_date, end_date)
+
+    # Data loaded — remove skeleton
+    _skel_b.empty()
 
     render_boost_tab(boost_data, demo_data, prev_boost_data,
                      since=str(start_date) if start_date else "",

@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
 from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
+from components.skeleton import render_skeleton_dashboard
 
 
 # ─── Post card helper ─────────────────────────────────────────────────────────
@@ -179,29 +180,36 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         _prev_s = _prev_e - _vtd(days=days - 1)
     _prev_start, _prev_end = str(_prev_s), str(_prev_e)
 
-    with st.spinner("Loading Facebook data…"):
-        fetchers = {
-            "aud":         lambda: get_fb_audience(days, start_date, end_date),
-            "eng":         lambda: get_fb_engagement(days, start_date, end_date),
-            "vis":         lambda: get_fb_visibility(days, start_date, end_date),
-            "posts":       lambda: get_fb_posts(days, start_date, end_date),
-            "post_totals": lambda: get_fb_post_totals(days, start_date, end_date),
-            "msg_stats":   lambda: get_fb_messaging_stats(days, start_date, end_date),
-            # Previous period (for delta arrows)
-            "prev_aud":        lambda: get_fb_audience(days, _prev_start, _prev_end),
-            "prev_vis":        lambda: get_fb_visibility(days, _prev_start, _prev_end),
-            "prev_post_totals": lambda: get_fb_post_totals(days, _prev_start, _prev_end),
-        }
-        results = {}
-        with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
-            futures = {pool.submit(fn): key for key, fn in fetchers.items()}
-            for future in as_completed(futures):
-                key = futures[future]
-                try:
-                    results[key] = future.result()
-                except Exception as e:
-                    print(f"DEBUG fetch {key} error: {e}")
-                    results[key] = {} if key != "posts" else []
+    # ── Skeleton placeholder — shown while data loads ─────────────────────────
+    _skel = st.empty()
+    with _skel.container():
+        render_skeleton_dashboard(n_kpis=5)
+
+    fetchers = {
+        "aud":         lambda: get_fb_audience(days, start_date, end_date),
+        "eng":         lambda: get_fb_engagement(days, start_date, end_date),
+        "vis":         lambda: get_fb_visibility(days, start_date, end_date),
+        "posts":       lambda: get_fb_posts(days, start_date, end_date),
+        "post_totals": lambda: get_fb_post_totals(days, start_date, end_date),
+        "msg_stats":   lambda: get_fb_messaging_stats(days, start_date, end_date),
+        # Previous period (for delta arrows)
+        "prev_aud":        lambda: get_fb_audience(days, _prev_start, _prev_end),
+        "prev_vis":        lambda: get_fb_visibility(days, _prev_start, _prev_end),
+        "prev_post_totals": lambda: get_fb_post_totals(days, _prev_start, _prev_end),
+    }
+    results = {}
+    with ThreadPoolExecutor(max_workers=len(fetchers)) as pool:
+        futures = {pool.submit(fn): key for key, fn in fetchers.items()}
+        for future in as_completed(futures):
+            key = futures[future]
+            try:
+                results[key] = future.result()
+            except Exception as e:
+                print(f"DEBUG fetch {key} error: {e}")
+                results[key] = {} if key != "posts" else []
+
+    # Data loaded — remove skeleton
+    _skel.empty()
         aud         = results["aud"]
         eng         = results["eng"]
         vis         = results["vis"]
