@@ -140,12 +140,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # Data loaded — remove skeleton
     _skel.empty()
-        ig_profile     = results["profile"]
-        ig_eng         = results["eng"]
-        ig_posts       = results["posts"]
-        ig_post_totals = results.get("post_totals", {})
-        prev_profile   = results.get("prev_profile", {})
-        prev_ig_posts  = results.get("prev_posts", [])
+    ig_profile     = results["profile"]
+    ig_eng         = results["eng"]
+    ig_posts       = results["posts"]
+    ig_post_totals = results.get("post_totals", {})
+    prev_profile   = results.get("prev_profile", {})
+    prev_ig_posts  = results.get("prev_posts", [])
 
     followers          = ig_profile.get("followers_count") or 0
     follower_additions = ig_profile.get("follower_additions", [])

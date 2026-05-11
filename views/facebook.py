@@ -210,15 +210,15 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # Data loaded — remove skeleton
     _skel.empty()
-        aud         = results["aud"]
-        eng         = results["eng"]
-        vis         = results["vis"]
-        posts       = results["posts"]
-        post_totals = results.get("post_totals", {})
-        msg_stats   = results["msg_stats"]
-        prev_aud        = results.get("prev_aud", {})
-        prev_vis        = results.get("prev_vis", {})
-        prev_post_totals = results.get("prev_post_totals", {})
+    aud         = results["aud"]
+    eng         = results["eng"]
+    vis         = results["vis"]
+    posts       = results["posts"]
+    post_totals = results.get("post_totals", {})
+    msg_stats   = results["msg_stats"]
+    prev_aud        = results.get("prev_aud", {})
+    prev_vis        = results.get("prev_vis", {})
+    prev_post_totals = results.get("prev_post_totals", {})
 
     # ── KPI Row ──────────────────────────────────────────────────────────────
     total_fans = aud.get("fans_total") or 0
