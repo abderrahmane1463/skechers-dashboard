@@ -509,50 +509,124 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
 
     # ── TAB 3: Engagement ────────────────────────────────────────────────────
     with tab3:
-        chart_df = series_to_df(eng.get("engagements", []))
+        # Build daily series from posts (same approach as Instagram)
+        _ci_d, _reac_d, _comm_d, _shar_d = {}, {}, {}, {}
+        for p in posts:
+            d = p.get("created_time", "")[:10]
+            if not d:
+                continue
+            _ci_d[d]   = _ci_d.get(d, 0)   + p.get("total_interactions", 0)
+            _reac_d[d] = _reac_d.get(d, 0) + p.get("reactions", 0)
+            _comm_d[d] = _comm_d.get(d, 0) + p.get("comments", 0)
+            _shar_d[d] = _shar_d.get(d, 0) + p.get("shares", 0)
 
-        if not chart_df.empty and (start_date or days):
+        def _make_fb_series(mapping):
+            if not mapping:
+                return pd.DataFrame()
+            return pd.DataFrame(
+                [{"date": pd.Timestamp(k), "value": v}
+                 for k, v in sorted(mapping.items())]
+            )
+
+        ci_df    = _make_fb_series(_ci_d)
+        reac_df  = _make_fb_series(_reac_d)
+        comm_df  = _make_fb_series(_comm_d)
+        shar_df  = _make_fb_series(_shar_d)
+
+        # Fill full date range with zeros
+        if not ci_df.empty and (start_date or days):
             _range_start = (pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=days)).normalize()
             _range_end   = (pd.Timestamp(end_date)   if end_date   else pd.Timestamp.now()).normalize()
             _full_range  = pd.DataFrame({"date": pd.date_range(_range_start, _range_end, freq="D")})
-            chart_df = _full_range.merge(chart_df, on="date", how="left").fillna(0)
+            ci_df   = _full_range.merge(ci_df,   on="date", how="left").fillna(0)
+            reac_df = _full_range.merge(reac_df, on="date", how="left").fillna(0)
+            comm_df = _full_range.merge(comm_df, on="date", how="left").fillna(0)
+            shar_df = _full_range.merge(shar_df, on="date", how="left").fillna(0)
 
-        chart_total = int(chart_df["value"].sum()) if not chart_df.empty else total_content_interactions
+        if not ci_df.empty:
+            _y1_raw = max(
+                float(ci_df["value"].max())   if not ci_df.empty   else 0,
+                float(reac_df["value"].max()) if not reac_df.empty else 0,
+            )
+            _y1_max = max(_y1_raw * 1.3, 10)
 
-        if not chart_df.empty:
-            fig_ci = go.Figure()
-            fig_ci.add_trace(go.Scatter(
-                x=chart_df["date"], y=chart_df["value"],
-                name="Total interactions",
-                line=dict(color="#FF6B35", width=3),
-                fill="tozeroy",
-                fillcolor="rgba(232,66,10,0.08)",
-                mode="lines",
-            ))
+            _y2_raw = max(
+                float(comm_df["value"].max()) if not comm_df.empty else 0,
+                float(shar_df["value"].max()) if not shar_df.empty else 0,
+            )
+            _y2_max = max(_y2_raw * 1.5, 5)
+
             _gc2 = "rgba(255,255,255,0.06)" if _dark else "#e5e7eb"
-            ci_layout = {
+            fig_eng = go.Figure()
+            # Primary axis (left): Total interactions + Réactions
+            fig_eng.add_trace(go.Scatter(
+                x=ci_df["date"], y=ci_df["value"],
+                name="Total interactions",
+                line=dict(color="#FF6B35", width=3), mode="lines",
+                yaxis="y1",
+            ))
+            fig_eng.add_trace(go.Scatter(
+                x=reac_df["date"], y=reac_df["value"],
+                name="Réactions",
+                line=dict(color="#f87171", width=2), mode="lines",
+                yaxis="y1",
+            ))
+            # Secondary axis (right): Commentaires + Partages
+            fig_eng.add_trace(go.Scatter(
+                x=comm_df["date"], y=comm_df["value"],
+                name="Commentaires (→)",
+                line=dict(color="#a78bfa", width=2, dash="dot"), mode="lines",
+                yaxis="y2",
+            ))
+            fig_eng.add_trace(go.Scatter(
+                x=shar_df["date"], y=shar_df["value"],
+                name="Partages (→)",
+                line=dict(color="#34d399", width=2, dash="dot"), mode="lines",
+                yaxis="y2",
+            ))
+            fig_eng.update_layout(**{
                 **get_chart_layout(),
                 "yaxis": dict(
-                    gridcolor=_gc2,
-                    showline=False,
-                    tickformat=",",
+                    gridcolor=_gc2, showline=False,
+                    tickformat=",", range=[0, _y1_max],
+                    title=dict(text="Interactions", font=dict(size=10, color="rgba(255,255,255,0.3)" if _dark else "#9ca3af")),
+                ),
+                "yaxis2": dict(
+                    overlaying="y", side="right",
+                    gridcolor="rgba(255,255,255,0)", showline=False,
+                    tickformat=",", range=[0, _y2_max],
+                    title=dict(text="Commentaires / Partages", font=dict(size=10, color="rgba(255,255,255,0.3)" if _dark else "#9ca3af")),
                 ),
                 "xaxis": dict(
-                    gridcolor=_gc2,
-                    showline=False,
+                    gridcolor=_gc2, showline=False,
                     tickmode="array",
-                    tickvals=[chart_df["date"].iloc[i]
-                              for i in range(0, len(chart_df), max(len(chart_df)//6, 1))][:7],
+                    tickvals=[ci_df["date"].iloc[i]
+                              for i in range(0, len(ci_df), max(len(ci_df)//6, 1))][:7],
                     tickangle=0,
                 ),
-                "showlegend": False,
-                "margin": dict(l=0, r=0, t=10, b=40),
-                "height": 300,
-            }
-            fig_ci.update_layout(**ci_layout)
-            st.plotly_chart(fig_ci, width="stretch")
+                "showlegend": True,
+                "legend": dict(
+                    orientation="h", yanchor="bottom", y=-0.28,
+                    xanchor="center", x=0.5,
+                    font=dict(size=11, color="rgba(255,255,255,0.6)" if _dark else "#6b7280"),
+                    bgcolor="rgba(0,0,0,0)",
+                ),
+                "margin": dict(l=0, r=40, t=10, b=70),
+                "height": 320,
+            })
+            st.plotly_chart(fig_eng, width="stretch")
 
-            st.metric("🔥 Total interactions (posts)", f"{chart_total:,}")
+            _total_ci   = int(ci_df["value"].sum())
+            _total_reac = int(reac_df["value"].sum())
+            _total_comm = int(comm_df["value"].sum())
+            _total_shar = int(shar_df["value"].sum())
+            ei1, ei2, ei3, ei4 = st.columns(4)
+            ei1.metric("🔥 Total interactions", f"{_total_ci:,}")
+            ei2.metric("❤️ Réactions",           f"{_total_reac:,}")
+            ei3.metric("💬 Commentaires",         f"{_total_comm:,}")
+            ei4.metric("🔁 Partages",             f"{_total_shar:,}")
+        else:
+            st.info("No engagement data available for this period.")
 
         # ── Best Time to Post heatmap ─────────────────────────────────────────
         st.divider()
