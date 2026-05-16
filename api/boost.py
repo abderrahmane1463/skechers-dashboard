@@ -212,8 +212,8 @@ def fetch_boost_insights(
         })
         for c in resp_meta.get("data", []):
             cid = c.get("id", "")
-            daily    = _safe_float(c.get("daily_budget",    0)) / 100  # Meta returns cents
-            lifetime = _safe_float(c.get("lifetime_budget", 0)) / 100
+            daily    = _safe_float(c.get("daily_budget",    0))
+            lifetime = _safe_float(c.get("lifetime_budget", 0))
             if daily > 0:
                 _camp_meta[cid] = {"status": c.get("effective_status", "—"),
                                    "budget": daily, "budget_type": "Daily"}
@@ -466,35 +466,43 @@ def fetch_adset_ad_insights(
     if not footland_ids:
         return {"adsets": [], "ads": [], "period": {"since": since, "until": until}}
 
+    # insights-level filter (campaign.id is valid here)
     _FILTERING = json.dumps([{
         "field":    "campaign.id",
         "operator": "IN",
         "value":    footland_ids,
     }])
-    _CAMP_FILTER = json.dumps([{
-        "field":    "id",
+    # non-insights endpoints use campaign_id (no dot notation)
+    _CAMP_ID_FILTER = json.dumps([{
+        "field":    "campaign_id",
         "operator": "IN",
         "value":    footland_ids,
     }])
+    footland_set = set(footland_ids)
 
     # ── 1. Campaign metadata (objective, status, budget) ──────────────────────
+    # Fetch ALL campaigns (no filter — id-based filter not supported here),
+    # then keep only Footland ones.
     _camp_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields":    "id,objective,effective_status,daily_budget,lifetime_budget",
-            "filtering": _CAMP_FILTER,
-            "limit":     500,
+            "fields": "id,objective,effective_status,daily_budget,lifetime_budget",
+            "limit":  500,
         })
         for c in resp.get("data", []):
-            cid   = c.get("id", "")
-            daily = _safe_float(c.get("daily_budget",    0)) / 100
-            life  = _safe_float(c.get("lifetime_budget", 0)) / 100
+            cid = c.get("id", "")
+            if cid not in footland_set:
+                continue
+            # Meta returns budgets as strings already in the account currency (e.g. "25" = €25)
+            daily = _safe_float(c.get("daily_budget",    0))
+            life  = _safe_float(c.get("lifetime_budget", 0))
             _camp_meta[cid] = {
                 "objective":   c.get("objective", "—"),
                 "status":      c.get("effective_status", "—"),
                 "budget":      daily if daily > 0 else life,
                 "budget_type": "Daily" if daily > 0 else ("Lifetime" if life > 0 else "—"),
             }
+        print(f"DEBUG adset_ad: campaign meta loaded for {len(_camp_meta)} campaigns")
     except Exception as e:
         print(f"DEBUG adset_ad: campaign meta error: {e}")
 
@@ -503,19 +511,20 @@ def fetch_adset_ad_insights(
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/adsets", {
             "fields":    "id,campaign_id,daily_budget,lifetime_budget",
-            "filtering": _FILTERING,
+            "filtering": _CAMP_ID_FILTER,
             "limit":     500,
         })
         for a in resp.get("data", []):
             aid   = a.get("id", "")
-            daily = _safe_float(a.get("daily_budget",    0)) / 100
-            life  = _safe_float(a.get("lifetime_budget", 0)) / 100
+            daily = _safe_float(a.get("daily_budget",    0))
+            life  = _safe_float(a.get("lifetime_budget", 0))
             if daily > 0:
                 _adset_meta[aid] = {"budget": daily, "budget_type": "Daily"}
             elif life > 0:
                 _adset_meta[aid] = {"budget": life, "budget_type": "Lifetime"}
             else:
                 _adset_meta[aid] = {"budget": 0.0, "budget_type": "Using campaign budget"}
+        print(f"DEBUG adset_ad: adset meta loaded for {len(_adset_meta)} adsets")
     except Exception as e:
         print(f"DEBUG adset_ad: adset meta error: {e}")
 
@@ -524,11 +533,12 @@ def fetch_adset_ad_insights(
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
             "fields":    "id,effective_status",
-            "filtering": _FILTERING,
+            "filtering": _CAMP_ID_FILTER,
             "limit":     500,
         })
         for a in resp.get("data", []):
             _ad_status[a.get("id", "")] = a.get("effective_status", "—")
+        print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
     except Exception as e:
         print(f"DEBUG adset_ad: ad status error: {e}")
 
@@ -596,7 +606,7 @@ def fetch_adset_ad_insights(
             "adset_id":            adset_id,
             "adset_name":          r.get("adset_name", "—"),
             "objective":           camp.get("objective", "—"),
-            "result_type":         "Website purchases" if conv > 0 else "—",
+            "result_type":         "Website purchases" if camp.get("objective", "") in ("OUTCOME_SALES", "CONVERSIONS") else ("Website purchases" if conv > 0 else "—"),
             "conversions":         conv,
             "cpa":                 cpa_val if cpa_val else (round(spend / conv, 2) if conv else 0.0),
             "spend":               spend,
