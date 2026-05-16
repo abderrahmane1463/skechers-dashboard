@@ -551,7 +551,7 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
 
     if ads:
         ad_rows = []
-        for a in sorted(ads, key=lambda x: x.get("campaign_created", ""), reverse=True):
+        for a in sorted(ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True):
             spend = a.get("spend", 0.0)
             conv  = a.get("conversions", 0)
             ad_rows.append({
