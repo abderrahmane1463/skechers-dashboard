@@ -212,8 +212,8 @@ def fetch_boost_insights(
         })
         for c in resp_meta.get("data", []):
             cid = c.get("id", "")
-            daily    = _safe_float(c.get("daily_budget",    0))
-            lifetime = _safe_float(c.get("lifetime_budget", 0))
+            daily    = _safe_float(c.get("daily_budget",    0)) / 100
+            lifetime = _safe_float(c.get("lifetime_budget", 0)) / 100
             if daily > 0:
                 _camp_meta[cid] = {"status": c.get("effective_status", "—"),
                                    "budget": daily, "budget_type": "Daily"}
@@ -493,9 +493,9 @@ def fetch_adset_ad_insights(
             cid = c.get("id", "")
             if cid not in footland_set:
                 continue
-            # Meta returns budgets as strings already in the account currency (e.g. "25" = €25)
-            daily = _safe_float(c.get("daily_budget",    0))
-            life  = _safe_float(c.get("lifetime_budget", 0))
+            # Meta returns budgets in cents (smallest currency unit) → divide by 100 for euros
+            daily = _safe_float(c.get("daily_budget",    0)) / 100
+            life  = _safe_float(c.get("lifetime_budget", 0)) / 100
             _camp_meta[cid] = {
                 "objective":    c.get("objective", "—"),
                 "status":       c.get("effective_status", "—"),
@@ -517,8 +517,8 @@ def fetch_adset_ad_insights(
         })
         for a in resp.get("data", []):
             aid   = a.get("id", "")
-            daily = _safe_float(a.get("daily_budget",    0))
-            life  = _safe_float(a.get("lifetime_budget", 0))
+            daily = _safe_float(a.get("daily_budget",    0)) / 100
+            life  = _safe_float(a.get("lifetime_budget", 0)) / 100
             if daily > 0:
                 _adset_meta[aid] = {"budget": daily, "budget_type": "Daily"}
             elif life > 0:
@@ -529,19 +529,19 @@ def fetch_adset_ad_insights(
     except Exception as e:
         print(f"DEBUG adset_ad: adset meta error: {e}")
 
-    # ── 3. Ad delivery status ─────────────────────────────────────────────────
+    # ── 3. Ad delivery status — fetch per campaign (most reliable) ────────────
     _ad_status: dict[str, str] = {}
-    try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
-            "fields":    "id,effective_status",
-            "filtering": _CAMP_ID_FILTER,
-            "limit":     500,
-        })
-        for a in resp.get("data", []):
-            _ad_status[a.get("id", "")] = a.get("effective_status", "—")
-        print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
-    except Exception as e:
-        print(f"DEBUG adset_ad: ad status error: {e}")
+    for cid in footland_ids:
+        try:
+            resp = _get_ads(f"{cid}/ads", {
+                "fields": "id,effective_status",
+                "limit":  500,
+            })
+            for a in resp.get("data", []):
+                _ad_status[a.get("id", "")] = a.get("effective_status", "—")
+        except Exception as e:
+            print(f"DEBUG adset_ad: ad status error for campaign {cid}: {e}")
+    print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
 
     # ── Insight field strings ─────────────────────────────────────────────────
     _ADSET_FIELDS = (
@@ -630,11 +630,11 @@ def fetch_adset_ad_insights(
             "outbound_clicks":     out,
             "cost_per_outbound":   round(spend / out, 4) if out else 0.0,
             "landing_page_views":  lp,
-            "cost_per_lp_view":    _cost_for_type(cpa_list, _LANDING_PAGE_TYPES),
+            "cost_per_lp_view":    _cost_for_type(cpa_list, _LANDING_PAGE_TYPES) or (round(spend / lp, 4) if lp else 0.0),
             "adds_to_cart":        cart,
-            "cost_per_add_to_cart":_cost_for_type(cpa_list, _ADD_TO_CART_TYPES),
+            "cost_per_add_to_cart":_cost_for_type(cpa_list, _ADD_TO_CART_TYPES) or (round(spend / cart, 4) if cart else 0.0),
             "checkouts":           chk,
-            "cost_per_checkout":   _cost_for_type(cpa_list, _CHECKOUT_TYPES),
+            "cost_per_checkout":   _cost_for_type(cpa_list, _CHECKOUT_TYPES) or (round(spend / chk, 4) if chk else 0.0),
             "quality_ranking":     r.get("quality_ranking", "—"),
             "engagement_ranking":  r.get("engagement_rate_ranking", "—"),
             "conversion_ranking":  r.get("conversion_rate_ranking", "—"),
