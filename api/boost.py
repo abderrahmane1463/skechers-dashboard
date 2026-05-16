@@ -486,7 +486,7 @@ def fetch_adset_ad_insights(
     _camp_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields": "id,objective,effective_status,daily_budget,lifetime_budget",
+            "fields": "id,objective,effective_status,daily_budget,lifetime_budget,created_time",
             "limit":  500,
         })
         for c in resp.get("data", []):
@@ -497,10 +497,11 @@ def fetch_adset_ad_insights(
             daily = _safe_float(c.get("daily_budget",    0))
             life  = _safe_float(c.get("lifetime_budget", 0))
             _camp_meta[cid] = {
-                "objective":   c.get("objective", "—"),
-                "status":      c.get("effective_status", "—"),
-                "budget":      daily if daily > 0 else life,
-                "budget_type": "Daily" if daily > 0 else ("Lifetime" if life > 0 else "—"),
+                "objective":    c.get("objective", "—"),
+                "status":       c.get("effective_status", "—"),
+                "budget":       daily if daily > 0 else life,
+                "budget_type":  "Daily" if daily > 0 else ("Lifetime" if life > 0 else "—"),
+                "created_time": c.get("created_time", ""),
             }
         print(f"DEBUG adset_ad: campaign meta loaded for {len(_camp_meta)} campaigns")
     except Exception as e:
@@ -601,6 +602,7 @@ def fetch_adset_ad_insights(
             "ad_name":             r.get("ad_name", "—"),
             "campaign_id":         camp_id,
             "campaign_name":       r.get("campaign_name", "—"),
+            "campaign_created":    camp.get("created_time", ""),
             "delivery_status":     _ad_status.get(ad_id, "—"),
             "delivery_level":      "ad",
             "adset_id":            adset_id,
