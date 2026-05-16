@@ -33,7 +33,10 @@ AD_ACCOUNT_ID = BLOCKED_AD_ACCOUNTS[0]   # "act_765947885726761"
 # Meta action types that represent a purchase / conversion.
 # Use only "purchase" (the unified de-duplicated count Meta exposes).
 # "offsite_conversion.fb_pixel_purchase" is the same event and would double-count.
-_PURCHASE_TYPES = {"purchase"}
+_PURCHASE_TYPES       = {"purchase"}
+_ADD_TO_CART_TYPES    = {"offsite_conversion.fb_pixel_add_to_cart"}
+_CHECKOUT_TYPES       = {"offsite_conversion.fb_pixel_initiate_checkout"}
+_LANDING_PAGE_TYPES   = {"landing_page_view"}
 
 # Campaign objectives that count as "conversion" campaigns
 _CONV_OBJECTIVES = {"CONVERSIONS", "OUTCOME_SALES"}
@@ -76,9 +79,31 @@ def _purchases(actions: list) -> int:
     )
 
 
+def _action_count(actions: list, types: set) -> int:
+    return sum(
+        int(float(a.get("value", 0)))
+        for a in (actions or [])
+        if a.get("action_type") in types
+    )
+
+
+def _outbound_clicks_count(field_val) -> int:
+    """outbound_clicks comes as [{"action_type": "outbound_click", "value": "N"}]."""
+    if not field_val:
+        return 0
+    return sum(int(float(v.get("value", 0))) for v in field_val)
+
+
 def _cpa(cost_per_action: list) -> float:
     for item in (cost_per_action or []):
         if item.get("action_type") in _PURCHASE_TYPES:
+            return float(item.get("value", 0.0))
+    return 0.0
+
+
+def _cost_for_type(cost_per_action: list, types: set) -> float:
+    for item in (cost_per_action or []):
+        if item.get("action_type") in types:
             return float(item.get("value", 0.0))
     return 0.0
 
@@ -142,6 +167,8 @@ def fetch_boost_insights(
         "campaign_id,campaign_name,objective,"
         "impressions,reach,clicks,inline_link_clicks,"
         "spend,cpc,ctr,frequency,"
+        "outbound_clicks,"
+        "quality_ranking,engagement_rate_ranking,conversion_rate_ranking,"
         "actions,cost_per_action_type"
     )
 
@@ -173,8 +200,31 @@ def fetch_boost_insights(
         "period": {"since": since, "until": until},
     }
 
-    # ── 1. Resolve Footland campaign IDs ─────────────────────────────────────
+    # ── 1. Resolve Footland campaign IDs + status/budget ─────────────────────
     footland_ids = _get_footland_ids()
+
+    # Fetch delivery status and budget per campaign
+    _camp_meta: dict[str, dict] = {}
+    try:
+        resp_meta = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
+            "fields": "id,effective_status,daily_budget,lifetime_budget",
+            "limit":  500,
+        })
+        for c in resp_meta.get("data", []):
+            cid = c.get("id", "")
+            daily    = _safe_float(c.get("daily_budget",    0)) / 100  # Meta returns cents
+            lifetime = _safe_float(c.get("lifetime_budget", 0)) / 100
+            if daily > 0:
+                _camp_meta[cid] = {"status": c.get("effective_status", "—"),
+                                   "budget": daily, "budget_type": "Daily"}
+            elif lifetime > 0:
+                _camp_meta[cid] = {"status": c.get("effective_status", "—"),
+                                   "budget": lifetime, "budget_type": "Lifetime"}
+            else:
+                _camp_meta[cid] = {"status": c.get("effective_status", "—"),
+                                   "budget": 0.0, "budget_type": "—"}
+    except Exception as e:
+        print(f"DEBUG boost: campaign meta fetch error: {e}")
 
     if not footland_ids:
         return out
@@ -230,32 +280,66 @@ def fetch_boost_insights(
 
         for r in rows:
             objective  = r.get("objective", "")
-            purchases  = _purchases(r.get("actions"))
-            cpa_val    = _cpa(r.get("cost_per_action_type"))
+            actions    = r.get("actions") or []
+            cpa_list   = r.get("cost_per_action_type") or []
+            purchases  = _purchases(actions)
+            cpa_val    = _cpa(cpa_list)
             spend_val  = _safe_float(r.get("spend"))
             cpc_val    = _safe_float(r.get("cpc"))
             ctr_val    = _safe_float(r.get("ctr"))
             freq_val   = _safe_float(r.get("frequency"))
-            clicks_val      = _safe_int(r.get("clicks"))               # all clicks (general)
-            link_clicks_val = _safe_int(r.get("inline_link_clicks"))  # link-only clicks (conversions)
+            clicks_val      = _safe_int(r.get("clicks"))
+            link_clicks_val = _safe_int(r.get("inline_link_clicks"))
             reach_val  = _safe_int(r.get("reach"))
             imp_val    = _safe_int(r.get("impressions"))
             camp_id    = r.get("campaign_id", "")
 
+            # New fields from expanded API call
+            outbound_val    = _outbound_clicks_count(r.get("outbound_clicks"))
+            lp_views_val    = _action_count(actions, _LANDING_PAGE_TYPES)
+            add_cart_val    = _action_count(actions, _ADD_TO_CART_TYPES)
+            checkout_val    = _action_count(actions, _CHECKOUT_TYPES)
+            cost_lp_val     = _cost_for_type(cpa_list, _LANDING_PAGE_TYPES)
+            cost_cart_val   = _cost_for_type(cpa_list, _ADD_TO_CART_TYPES)
+            cost_chk_val    = _cost_for_type(cpa_list, _CHECKOUT_TYPES)
+            cpm_val         = round(spend_val / imp_val * 1000, 4) if imp_val else 0.0
+            cpc_link_val    = round(spend_val / link_clicks_val, 4) if link_clicks_val else 0.0
+            ctr_link_val    = round(link_clicks_val / imp_val * 100, 4) if imp_val else 0.0
+            cost_out_val    = round(spend_val / outbound_val, 4) if outbound_val else 0.0
+
+            meta = _camp_meta.get(camp_id, {})
+
             campaigns.append({
-                "campaign_id": camp_id,
-                "name":        r.get("campaign_name", "—"),
-                "objective":   objective,
-                "spend":       spend_val,
-                "conversions": purchases,
-                "cpa":         cpa_val if cpa_val else (spend_val / purchases if purchases else 0.0),
-                "clicks":      clicks_val,
-                "link_clicks": link_clicks_val,
-                "reach":       reach_val,
-                "impressions": imp_val,
-                "cpc":         cpc_val,
-                "ctr":         ctr_val,
-                "frequency":   freq_val,
+                "campaign_id":            camp_id,
+                "name":                   r.get("campaign_name", "—"),
+                "objective":              objective,
+                "delivery_status":        meta.get("status", "—"),
+                "budget":                 meta.get("budget", 0.0),
+                "budget_type":            meta.get("budget_type", "—"),
+                "spend":                  spend_val,
+                "conversions":            purchases,
+                "cpa":                    cpa_val if cpa_val else (spend_val / purchases if purchases else 0.0),
+                "clicks":                 clicks_val,
+                "link_clicks":            link_clicks_val,
+                "cpc_link":               cpc_link_val,
+                "ctr_link":               ctr_link_val,
+                "reach":                  reach_val,
+                "impressions":            imp_val,
+                "cpc":                    cpc_val,
+                "ctr":                    ctr_val,
+                "frequency":              freq_val,
+                "cpm":                    cpm_val,
+                "outbound_clicks":        outbound_val,
+                "cost_per_outbound":      cost_out_val,
+                "landing_page_views":     lp_views_val,
+                "cost_per_lp_view":       cost_lp_val,
+                "adds_to_cart":           add_cart_val,
+                "cost_per_add_to_cart":   cost_cart_val,
+                "checkouts":              checkout_val,
+                "cost_per_checkout":      cost_chk_val,
+                "quality_ranking":        r.get("quality_ranking", "—"),
+                "engagement_ranking":     r.get("engagement_rate_ranking", "—"),
+                "conversion_ranking":     r.get("conversion_rate_ranking", "—"),
             })
 
             if camp_id:
