@@ -457,6 +457,7 @@ def fetch_adset_ad_insights(
     """
     Fetch adset-level and ad-level insights for all Footland campaigns.
     Returns {"adsets": [...], "ads": [...], "period": {"since": ..., "until": ...}}
+    Ad rows mirror the columns of the Meta Ads Manager CSV export.
     """
     since, until = _date_range(days, start, end)
     time_range   = f'{{"since":"{since}","until":"{until}"}}'
@@ -470,23 +471,85 @@ def fetch_adset_ad_insights(
         "operator": "IN",
         "value":    footland_ids,
     }])
+    _CAMP_FILTER = json.dumps([{
+        "field":    "id",
+        "operator": "IN",
+        "value":    footland_ids,
+    }])
 
-    _FIELDS = (
+    # ── 1. Campaign metadata (objective, status, budget) ──────────────────────
+    _camp_meta: dict[str, dict] = {}
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
+            "fields":    "id,objective,effective_status,daily_budget,lifetime_budget",
+            "filtering": _CAMP_FILTER,
+            "limit":     500,
+        })
+        for c in resp.get("data", []):
+            cid   = c.get("id", "")
+            daily = _safe_float(c.get("daily_budget",    0)) / 100
+            life  = _safe_float(c.get("lifetime_budget", 0)) / 100
+            _camp_meta[cid] = {
+                "objective":   c.get("objective", "—"),
+                "status":      c.get("effective_status", "—"),
+                "budget":      daily if daily > 0 else life,
+                "budget_type": "Daily" if daily > 0 else ("Lifetime" if life > 0 else "—"),
+            }
+    except Exception as e:
+        print(f"DEBUG adset_ad: campaign meta error: {e}")
+
+    # ── 2. Adset metadata (budget) ────────────────────────────────────────────
+    _adset_meta: dict[str, dict] = {}
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/adsets", {
+            "fields":    "id,campaign_id,daily_budget,lifetime_budget",
+            "filtering": _FILTERING,
+            "limit":     500,
+        })
+        for a in resp.get("data", []):
+            aid   = a.get("id", "")
+            daily = _safe_float(a.get("daily_budget",    0)) / 100
+            life  = _safe_float(a.get("lifetime_budget", 0)) / 100
+            if daily > 0:
+                _adset_meta[aid] = {"budget": daily, "budget_type": "Daily"}
+            elif life > 0:
+                _adset_meta[aid] = {"budget": life, "budget_type": "Lifetime"}
+            else:
+                _adset_meta[aid] = {"budget": 0.0, "budget_type": "Using campaign budget"}
+    except Exception as e:
+        print(f"DEBUG adset_ad: adset meta error: {e}")
+
+    # ── 3. Ad delivery status ─────────────────────────────────────────────────
+    _ad_status: dict[str, str] = {}
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
+            "fields":    "id,effective_status",
+            "filtering": _FILTERING,
+            "limit":     500,
+        })
+        for a in resp.get("data", []):
+            _ad_status[a.get("id", "")] = a.get("effective_status", "—")
+    except Exception as e:
+        print(f"DEBUG adset_ad: ad status error: {e}")
+
+    # ── Insight field strings ─────────────────────────────────────────────────
+    _ADSET_FIELDS = (
         "campaign_id,campaign_name,adset_id,adset_name,"
         "impressions,reach,clicks,inline_link_clicks,"
         "spend,cpc,ctr,frequency,"
         "actions,cost_per_action_type"
     )
-
     _AD_FIELDS = (
         "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,"
         "impressions,reach,clicks,inline_link_clicks,"
         "spend,cpc,ctr,frequency,"
+        "outbound_clicks,"
+        "quality_ranking,engagement_rate_ranking,conversion_rate_ranking,"
         "actions,cost_per_action_type"
     )
 
-    def _parse_row(r, extra_keys=None):
-        row = {
+    def _parse_adset_row(r):
+        return {
             "campaign_id":   r.get("campaign_id", ""),
             "campaign_name": r.get("campaign_name", "—"),
             "adset_id":      r.get("adset_id", ""),
@@ -502,23 +565,81 @@ def fetch_adset_ad_insights(
             "conversions":   _purchases(r.get("actions")),
             "cpa":           _cpa(r.get("cost_per_action_type")),
         }
-        if extra_keys:
-            for k in extra_keys:
-                row[k] = r.get(k, "")
-        return row
+
+    def _parse_ad_row(r):
+        actions  = r.get("actions") or []
+        cpa_list = r.get("cost_per_action_type") or []
+        spend    = _safe_float(r.get("spend"))
+        imp      = _safe_int(r.get("impressions"))
+        reach    = _safe_int(r.get("reach"))
+        lk       = _safe_int(r.get("inline_link_clicks"))
+        out      = _outbound_clicks_count(r.get("outbound_clicks"))
+        conv     = _purchases(actions)
+        cpa_val  = _cpa(cpa_list)
+        lp       = _action_count(actions, _LANDING_PAGE_TYPES)
+        cart     = _action_count(actions, _ADD_TO_CART_TYPES)
+        chk      = _action_count(actions, _CHECKOUT_TYPES)
+        camp_id  = r.get("campaign_id", "")
+        adset_id = r.get("adset_id", "")
+        ad_id    = r.get("ad_id", "")
+
+        camp  = _camp_meta.get(camp_id, {})
+        adset = _adset_meta.get(adset_id, {})
+
+        return {
+            "ad_id":               ad_id,
+            "ad_name":             r.get("ad_name", "—"),
+            "campaign_id":         camp_id,
+            "campaign_name":       r.get("campaign_name", "—"),
+            "delivery_status":     _ad_status.get(ad_id, "—"),
+            "delivery_level":      "ad",
+            "adset_id":            adset_id,
+            "adset_name":          r.get("adset_name", "—"),
+            "objective":           camp.get("objective", "—"),
+            "result_type":         "Website purchases" if conv > 0 else "—",
+            "conversions":         conv,
+            "cpa":                 cpa_val if cpa_val else (round(spend / conv, 2) if conv else 0.0),
+            "spend":               spend,
+            "campaign_budget":     camp.get("budget", 0.0),
+            "campaign_budget_type":camp.get("budget_type", "—"),
+            "adset_budget":        adset.get("budget", 0.0),
+            "adset_budget_type":   adset.get("budget_type", "—"),
+            "reach":               reach,
+            "cpm_reach":           round(spend / reach * 1000, 4) if reach else 0.0,
+            "impressions":         imp,
+            "cpm":                 round(spend / imp * 1000, 4) if imp else 0.0,
+            "frequency":           _safe_float(r.get("frequency")),
+            "clicks":              _safe_int(r.get("clicks")),
+            "cpc":                 _safe_float(r.get("cpc")),
+            "link_clicks":         lk,
+            "cpc_link":            round(spend / lk, 4) if lk else 0.0,
+            "ctr":                 _safe_float(r.get("ctr")),
+            "ctr_link":            round(lk / imp * 100, 4) if imp else 0.0,
+            "outbound_clicks":     out,
+            "cost_per_outbound":   round(spend / out, 4) if out else 0.0,
+            "landing_page_views":  lp,
+            "cost_per_lp_view":    _cost_for_type(cpa_list, _LANDING_PAGE_TYPES),
+            "adds_to_cart":        cart,
+            "cost_per_add_to_cart":_cost_for_type(cpa_list, _ADD_TO_CART_TYPES),
+            "checkouts":           chk,
+            "cost_per_checkout":   _cost_for_type(cpa_list, _CHECKOUT_TYPES),
+            "quality_ranking":     r.get("quality_ranking", "—"),
+            "engagement_ranking":  r.get("engagement_rate_ranking", "—"),
+            "conversion_ranking":  r.get("conversion_rate_ranking", "—"),
+        }
 
     # ── Adset level ───────────────────────────────────────────────────────────
     adsets = []
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "adset",
-            "fields":     _FIELDS,
+            "fields":     _ADSET_FIELDS,
             "filtering":  _FILTERING,
             "time_range": time_range,
             "limit":      500,
         })
         for r in resp.get("data", []):
-            adsets.append(_parse_row(r))
+            adsets.append(_parse_adset_row(r))
         print(f"DEBUG adset insights: {len(adsets)} adsets")
     except Exception as e:
         print(f"DEBUG adset insights error: {e}")
@@ -534,15 +655,15 @@ def fetch_adset_ad_insights(
             "limit":      500,
         })
         for r in resp.get("data", []):
-            ads.append(_parse_row(r, extra_keys=["ad_id", "ad_name"]))
+            ads.append(_parse_ad_row(r))
         print(f"DEBUG ad insights: {len(ads)} ads")
     except Exception as e:
         print(f"DEBUG ad insights error: {e}")
 
     return {
-        "adsets": adsets,
-        "ads":    ads,
-        "period": {"since": since, "until": until},
+        "adsets":  adsets,
+        "ads":     ads,
+        "period":  {"since": since, "until": until},
     }
 
 

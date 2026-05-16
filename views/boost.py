@@ -543,106 +543,112 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
         unsafe_allow_html=True,
     )
 
-    # ── Flat summary table (matches Excel template column order) ─────────────
-    _STATUS_LABELS = {
-        "ACTIVE":          "🟢 Active",
-        "PAUSED":          "⏸️ Pausée",
-        "DELETED":         "🗑️ Supprimée",
-        "ARCHIVED":        "📦 Archivée",
-        "IN_PROCESS":      "⚙️ En cours",
-        "WITH_ISSUES":     "⚠️ Problème",
-        "inactive":        "⏸️ Inactive",
-        "not_delivering":  "🔴 N'est pas diffusée",
-        "completed":       "✅ Terminée",
-        "active":          "🟢 Active",
-        "paused":          "⏸️ Pausée",
-        "learning":        "📚 Apprentissage",
-        "learning_limited":"⚠️ Apprentissage limité",
-    }
+    # ── Flat ads table — same columns as Meta CSV export ─────────────────────
+    ads = (adset_ad_data or {}).get("ads", [])
+    period = (adset_ad_data or {}).get("period", {})
+    reporting_start = period.get("since", "—")
+    reporting_end   = period.get("until", "—")
 
-    rows = []
-    for c in campaigns:
-        raw_status = c.get("delivery_status", "—")
-        status_label = _STATUS_LABELS.get(raw_status, raw_status)
-        spend  = c.get("spend", 0.0)
-        imp    = c.get("impressions", 0)
-        reach  = c.get("reach", 0)
-        lp     = c.get("landing_page_views", 0)
-        rows.append({
-            "Campagne":            c.get("name", "—"),
-            "Statut":              status_label,
-            "Objectif":            c.get("objective", "—"),
-            "Résultats":           c.get("conversions", 0),
-            "Coût/résultat (€)":   round(c.get("cpa", 0.0), 2),
-            "Dépensé (€)":         round(spend, 2),
-            "Budget (€)":          round(c.get("budget", 0.0), 2),
-            "Type budget":         c.get("budget_type", "—"),
-            "Portée":              reach,
-            "CPM portée (€)":      round(spend / reach * 1000, 2) if reach else 0.0,
-            "Impressions":         imp,
-            "CPM (€)":             round(c.get("cpm", 0.0), 2),
-            "Fréquence":           round(c.get("frequency", 0.0), 2),
-            "Clics (tous)":        c.get("clicks", 0),
-            "CPC tous (€)":        round(c.get("cpc", 0.0), 2),
-            "Clics lien":          c.get("link_clicks", 0),
-            "CPC lien (€)":        round(c.get("cpc_link", 0.0), 2),
-            "CTR tous (%)":        round(c.get("ctr", 0.0), 2),
-            "CTR lien (%)":        round(c.get("ctr_link", 0.0), 2),
-            "Clics sortants":      c.get("outbound_clicks", 0),
-            "Coût/clic sortant (€)": round(c.get("cost_per_outbound", 0.0), 2),
-            "Vues LP":             lp,
-            "Coût/LP (€)":         round(c.get("cost_per_lp_view", 0.0), 2),
-            "Ajouts panier":       c.get("adds_to_cart", 0),
-            "Coût/panier (€)":     round(c.get("cost_per_add_to_cart", 0.0), 2),
-            "Checkouts":           c.get("checkouts", 0),
-            "Coût/checkout (€)":   round(c.get("cost_per_checkout", 0.0), 2),
-            "Commandes":           c.get("conversions", 0),
-            "Coût/commande (€)":   round(c.get("cpa", 0.0), 2),
-            "Qualité":             c.get("quality_ranking", "—"),
-            "Engagement":          c.get("engagement_ranking", "—"),
-            "Conversion":          c.get("conversion_ranking", "—"),
-        })
+    if ads:
+        ad_rows = []
+        for a in sorted(ads, key=lambda x: x.get("spend", 0.0), reverse=True):
+            spend   = a.get("spend", 0.0)
+            conv    = a.get("conversions", 0)
+            cart    = a.get("adds_to_cart", 0)
+            chk     = a.get("checkouts", 0)
+            ad_rows.append({
+                "Nom de l'annonce":          a.get("ad_name", "—"),
+                "Nom de la campagne":        a.get("campaign_name", "—"),
+                "Statut de diffusion":       a.get("delivery_status", "—"),
+                "Niveau de diffusion":       a.get("delivery_level", "ad"),
+                "Nom de l'ensemble":         a.get("adset_name", "—"),
+                "Objectif":                  a.get("objective", "—"),
+                "Type de résultat":          a.get("result_type", "—"),
+                "Résultats":                 conv,
+                "Coût par résultat (€)":     round(a.get("cpa", 0.0), 2),
+                "Montant dépensé (€)":       round(spend, 2),
+                "Budget campagne (€)":       round(a.get("campaign_budget", 0.0), 2),
+                "Type budget campagne":      a.get("campaign_budget_type", "—"),
+                "Budget ensemble pub (€)":   round(a.get("adset_budget", 0.0), 2) if a.get("adset_budget", 0.0) > 0 else "—",
+                "Type budget ensemble":      a.get("adset_budget_type", "—"),
+                "Portée":                    a.get("reach", 0),
+                "Coût/1 000 comptes (€)":    round(a.get("cpm_reach", 0.0), 2),
+                "Impressions":               a.get("impressions", 0),
+                "CPM (€)":                   round(a.get("cpm", 0.0), 2),
+                "Fréquence":                 round(a.get("frequency", 0.0), 2),
+                "Clics (tous)":              a.get("clicks", 0),
+                "CPC (tous) (€)":            round(a.get("cpc", 0.0), 2),
+                "Clics sur le lien":         a.get("link_clicks", 0),
+                "CPC lien (€)":              round(a.get("cpc_link", 0.0), 2),
+                "CTR (tous) (%)":            round(a.get("ctr", 0.0), 2),
+                "CTR lien (%)":              round(a.get("ctr_link", 0.0), 2),
+                "Clics sortants":            a.get("outbound_clicks", 0),
+                "Coût/clic sortant (€)":     round(a.get("cost_per_outbound", 0.0), 2),
+                "Vues page destination":     a.get("landing_page_views", 0),
+                "Coût/vue LP (€)":           round(a.get("cost_per_lp_view", 0.0), 2),
+                "Ajouts au panier":          cart,
+                "Coût/ajout panier (€)":     round(a.get("cost_per_add_to_cart", 0.0), 2),
+                "Checkouts initiés":         chk,
+                "Coût/checkout (€)":         round(a.get("cost_per_checkout", 0.0), 2),
+                "Achats":                    conv,
+                "Coût/achat (€)":            round(a.get("cpa", 0.0), 2),
+                "Classement engagement":     a.get("engagement_ranking", "—"),
+                "Classement qualité":        a.get("quality_ranking", "—"),
+                "Classement conversion":     a.get("conversion_ranking", "—"),
+                "Début période":             reporting_start,
+                "Fin période":              reporting_end,
+            })
 
-    df = pd.DataFrame(rows).sort_values("Dépensé (€)", ascending=False).reset_index(drop=True)
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Campagne":              st.column_config.TextColumn("Campagne",        width="large"),
-            "Statut":                st.column_config.TextColumn("Statut",          width="medium"),
-            "Objectif":              st.column_config.TextColumn("Objectif",        width="small"),
-            "Résultats":             st.column_config.NumberColumn("Résultats",          format="%d"),
-            "Coût/résultat (€)":     st.column_config.NumberColumn("Coût/résultat (€)",  format="€%.2f"),
-            "Dépensé (€)":           st.column_config.NumberColumn("Dépensé (€)",         format="€%.2f"),
-            "Budget (€)":            st.column_config.NumberColumn("Budget (€)",           format="€%.2f"),
-            "Type budget":           st.column_config.TextColumn("Type budget",     width="small"),
-            "Portée":                st.column_config.NumberColumn("Portée",               format="%d"),
-            "CPM portée (€)":        st.column_config.NumberColumn("CPM portée (€)",       format="€%.2f"),
-            "Impressions":           st.column_config.NumberColumn("Impressions",          format="%d"),
-            "CPM (€)":               st.column_config.NumberColumn("CPM (€)",              format="€%.2f"),
-            "Fréquence":             st.column_config.NumberColumn("Fréquence",            format="%.2fx"),
-            "Clics (tous)":          st.column_config.NumberColumn("Clics (tous)",         format="%d"),
-            "CPC tous (€)":          st.column_config.NumberColumn("CPC tous (€)",         format="€%.2f"),
-            "Clics lien":            st.column_config.NumberColumn("Clics lien",           format="%d"),
-            "CPC lien (€)":          st.column_config.NumberColumn("CPC lien (€)",         format="€%.2f"),
-            "CTR tous (%)":          st.column_config.NumberColumn("CTR tous (%)",         format="%.2f%%"),
-            "CTR lien (%)":          st.column_config.NumberColumn("CTR lien (%)",         format="%.2f%%"),
-            "Clics sortants":        st.column_config.NumberColumn("Clics sortants",       format="%d"),
-            "Coût/clic sortant (€)": st.column_config.NumberColumn("Coût/clic sortant (€)", format="€%.2f"),
-            "Vues LP":               st.column_config.NumberColumn("Vues LP",              format="%d"),
-            "Coût/LP (€)":           st.column_config.NumberColumn("Coût/LP (€)",          format="€%.2f"),
-            "Ajouts panier":         st.column_config.NumberColumn("Ajouts panier",        format="%d"),
-            "Coût/panier (€)":       st.column_config.NumberColumn("Coût/panier (€)",      format="€%.2f"),
-            "Checkouts":             st.column_config.NumberColumn("Checkouts",            format="%d"),
-            "Coût/checkout (€)":     st.column_config.NumberColumn("Coût/checkout (€)",    format="€%.2f"),
-            "Commandes":             st.column_config.NumberColumn("Commandes",            format="%d"),
-            "Coût/commande (€)":     st.column_config.NumberColumn("Coût/commande (€)",    format="€%.2f"),
-            "Qualité":               st.column_config.TextColumn("Qualité",          width="medium"),
-            "Engagement":            st.column_config.TextColumn("Engagement",       width="medium"),
-            "Conversion":            st.column_config.TextColumn("Conversion",       width="medium"),
-        },
-    )
+        df_ads = pd.DataFrame(ad_rows)
+        st.dataframe(
+            df_ads,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Nom de l'annonce":        st.column_config.TextColumn("Nom de l'annonce",    width="large"),
+                "Nom de la campagne":      st.column_config.TextColumn("Nom de la campagne",  width="large"),
+                "Statut de diffusion":     st.column_config.TextColumn("Statut",              width="medium"),
+                "Niveau de diffusion":     st.column_config.TextColumn("Niveau",              width="small"),
+                "Nom de l'ensemble":       st.column_config.TextColumn("Ensemble pub.",       width="large"),
+                "Objectif":                st.column_config.TextColumn("Objectif",            width="small"),
+                "Type de résultat":        st.column_config.TextColumn("Type résultat",       width="medium"),
+                "Résultats":               st.column_config.NumberColumn("Résultats",          format="%d"),
+                "Coût par résultat (€)":   st.column_config.NumberColumn("Coût/résultat",     format="€%.2f"),
+                "Montant dépensé (€)":     st.column_config.NumberColumn("Dépensé (€)",       format="€%.2f"),
+                "Budget campagne (€)":     st.column_config.NumberColumn("Budget camp. (€)",  format="€%.2f"),
+                "Type budget campagne":    st.column_config.TextColumn("Type budget",         width="small"),
+                "Budget ensemble pub (€)": st.column_config.TextColumn("Budget ens. pub."),
+                "Type budget ensemble":    st.column_config.TextColumn("Type budget ens.",    width="medium"),
+                "Portée":                  st.column_config.NumberColumn("Portée",            format="%d"),
+                "Coût/1 000 comptes (€)":  st.column_config.NumberColumn("Coût/1k comptes",  format="€%.2f"),
+                "Impressions":             st.column_config.NumberColumn("Impressions",       format="%d"),
+                "CPM (€)":                 st.column_config.NumberColumn("CPM (€)",           format="€%.2f"),
+                "Fréquence":               st.column_config.NumberColumn("Fréquence",         format="%.2fx"),
+                "Clics (tous)":            st.column_config.NumberColumn("Clics (tous)",      format="%d"),
+                "CPC (tous) (€)":          st.column_config.NumberColumn("CPC (tous)",        format="€%.2f"),
+                "Clics sur le lien":       st.column_config.NumberColumn("Clics lien",        format="%d"),
+                "CPC lien (€)":            st.column_config.NumberColumn("CPC lien",          format="€%.2f"),
+                "CTR (tous) (%)":          st.column_config.NumberColumn("CTR (tous)",        format="%.2f%%"),
+                "CTR lien (%)":            st.column_config.NumberColumn("CTR lien",          format="%.2f%%"),
+                "Clics sortants":          st.column_config.NumberColumn("Clics sortants",    format="%d"),
+                "Coût/clic sortant (€)":   st.column_config.NumberColumn("Coût/clic sortant", format="€%.2f"),
+                "Vues page destination":   st.column_config.NumberColumn("Vues LP",           format="%d"),
+                "Coût/vue LP (€)":         st.column_config.NumberColumn("Coût/vue LP",       format="€%.2f"),
+                "Ajouts au panier":        st.column_config.NumberColumn("Ajouts panier",     format="%d"),
+                "Coût/ajout panier (€)":   st.column_config.NumberColumn("Coût/panier",       format="€%.2f"),
+                "Checkouts initiés":       st.column_config.NumberColumn("Checkouts",         format="%d"),
+                "Coût/checkout (€)":       st.column_config.NumberColumn("Coût/checkout",     format="€%.2f"),
+                "Achats":                  st.column_config.NumberColumn("Achats",            format="%d"),
+                "Coût/achat (€)":          st.column_config.NumberColumn("Coût/achat",        format="€%.2f"),
+                "Classement engagement":   st.column_config.TextColumn("Class. engagement",   width="medium"),
+                "Classement qualité":      st.column_config.TextColumn("Class. qualité",      width="medium"),
+                "Classement conversion":   st.column_config.TextColumn("Class. conversion",   width="medium"),
+                "Début période":           st.column_config.TextColumn("Début",               width="small"),
+                "Fin période":             st.column_config.TextColumn("Fin",                 width="small"),
+            },
+        )
+    else:
+        _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
 
     # ── One expander per campaign ──────────────────────────────────────────────
     _ADSET_COLS = {
