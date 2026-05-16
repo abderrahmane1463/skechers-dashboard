@@ -550,6 +550,18 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
     reporting_end   = period.get("until", "—")
 
     if ads:
+        # ── Objective filter ──────────────────────────────────────────────────
+        all_objectives = sorted(set(a.get("objective", "—") for a in ads if a.get("objective", "—") != "—"))
+        if all_objectives:
+            selected_objectives = st.multiselect(
+                "Filtrer par objectif",
+                options=all_objectives,
+                default=all_objectives,
+                label_visibility="collapsed",
+                placeholder="Sélectionner un ou plusieurs objectifs…",
+            )
+            ads = [a for a in ads if a.get("objective", "—") in selected_objectives] if selected_objectives else ads
+
         ad_rows = []
         for a in sorted(ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True):
             spend = a.get("spend", 0.0)
