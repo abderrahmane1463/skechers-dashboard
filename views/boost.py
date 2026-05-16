@@ -543,6 +543,43 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
         unsafe_allow_html=True,
     )
 
+    # ── Flat summary table ────────────────────────────────────────────────────
+    rows = []
+    for c in campaigns:
+        rows.append({
+            "Campagne":        c.get("name", "—"),
+            "Objectif":        c.get("objective", "—"),
+            "Dépensé (€)":     round(c.get("spend", 0.0), 2),
+            "Impressions":     c.get("impressions", 0),
+            "Portée":          c.get("reach", 0),
+            "Clics":           c.get("clicks", 0),
+            "CTR (%)":         round(c.get("ctr", 0.0), 2),
+            "CPC (€)":         round(c.get("cpc", 0.0), 2),
+            "Répétition":      round(c.get("frequency", 0.0), 2),
+            "Commandes":       c.get("conversions", 0),
+            "Coût/vente (€)":  round(c.get("cpa", 0.0), 2),
+        })
+
+    df = pd.DataFrame(rows).sort_values("Dépensé (€)", ascending=False).reset_index(drop=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Campagne":       st.column_config.TextColumn("Campagne", width="large"),
+            "Objectif":       st.column_config.TextColumn("Objectif", width="small"),
+            "Dépensé (€)":    st.column_config.NumberColumn("Dépensé (€)",    format="€%.2f"),
+            "Impressions":    st.column_config.NumberColumn("Impressions",     format="%d"),
+            "Portée":         st.column_config.NumberColumn("Portée",          format="%d"),
+            "Clics":          st.column_config.NumberColumn("Clics",           format="%d"),
+            "CTR (%)":        st.column_config.NumberColumn("CTR (%)",         format="%.2f%%"),
+            "CPC (€)":        st.column_config.NumberColumn("CPC (€)",         format="€%.2f"),
+            "Répétition":     st.column_config.NumberColumn("Répétition",      format="%.2fx"),
+            "Commandes":      st.column_config.NumberColumn("Commandes",       format="%d"),
+            "Coût/vente (€)": st.column_config.NumberColumn("Coût/vente (€)", format="€%.2f"),
+        },
+    )
+
     # ── One expander per campaign ──────────────────────────────────────────────
     _ADSET_COLS = {
         "Adset":          st.column_config.TextColumn("Adset", width="large"),
