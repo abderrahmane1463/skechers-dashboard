@@ -97,6 +97,23 @@ def _safe_int(val, default=0) -> int:
         return default
 
 
+# ─── Shared helpers ───────────────────────────────────────────────────────────
+def _get_footland_ids() -> list:
+    """Fetch all Footland campaign IDs from the ad account."""
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
+            "fields": "id,name",
+            "limit":  500,
+        })
+        all_camps = resp.get("data", [])
+        ids = [c["id"] for c in all_camps if any(kw in c.get("name", "") for kw in FOOTLAND_CAMPAIGN_KEYWORDS)]
+        print(f"DEBUG boost: {len(ids)} Footland campaign IDs found")
+        return ids
+    except Exception as e:
+        print(f"DEBUG boost: _get_footland_ids error: {e}")
+        return []
+
+
 # ─── Public fetch function ────────────────────────────────────────────────────
 def fetch_boost_insights(
     days: int = 30,
@@ -157,28 +174,7 @@ def fetch_boost_insights(
     }
 
     # ── 1. Resolve Footland campaign IDs ─────────────────────────────────────
-    # The ad account manages multiple clients (Footland, Skechers standalone,
-    # Air Algérie, Algérie Télécom, Caarama…).
-    # Footland campaigns are identified by either:
-    #   (a) page ID "144124252311741" in the name  → post-boost campaigns
-    #   (b) "FL" code in the name (- FL -, ON- FL, FL -)  → brand campaigns
-    #       e.g. "ClarksON- FL - HF -Week08", "SkechersON- FL - HF -Week08"
-    # "Footland" keyword alone also catches branded posts.
-    def _is_footland(name: str) -> bool:
-        """Returns True if the campaign name matches any Footland keyword."""
-        return any(kw in name for kw in FOOTLAND_CAMPAIGN_KEYWORDS)
-
-    footland_ids = []
-    try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields": "id,name",
-            "limit":  500,
-        })
-        all_camps = resp.get("data", [])
-        footland_ids = [c["id"] for c in all_camps if _is_footland(c.get("name", ""))]
-        print(f"DEBUG boost: {len(footland_ids)} Footland campaigns found")
-    except Exception as e:
-        print(f"DEBUG boost: campaign list error: {e}")
+    footland_ids = _get_footland_ids()
 
     if not footland_ids:
         return out
@@ -367,6 +363,103 @@ def fetch_boost_insights(
         print(f"DEBUG boost: campaign insights error: {e}")
 
     return out
+
+
+def fetch_adset_ad_insights(
+    days: int = 30,
+    start: str = None,
+    end: str = None,
+) -> dict:
+    """
+    Fetch adset-level and ad-level insights for all Footland campaigns.
+    Returns {"adsets": [...], "ads": [...], "period": {"since": ..., "until": ...}}
+    """
+    since, until = _date_range(days, start, end)
+    time_range   = f'{{"since":"{since}","until":"{until}"}}'
+
+    footland_ids = _get_footland_ids()
+    if not footland_ids:
+        return {"adsets": [], "ads": [], "period": {"since": since, "until": until}}
+
+    _FILTERING = json.dumps([{
+        "field":    "campaign.id",
+        "operator": "IN",
+        "value":    footland_ids,
+    }])
+
+    _FIELDS = (
+        "campaign_id,campaign_name,adset_id,adset_name,"
+        "impressions,reach,clicks,inline_link_clicks,"
+        "spend,cpc,ctr,frequency,"
+        "actions,cost_per_action_type"
+    )
+
+    _AD_FIELDS = (
+        "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,"
+        "impressions,reach,clicks,inline_link_clicks,"
+        "spend,cpc,ctr,frequency,"
+        "actions,cost_per_action_type"
+    )
+
+    def _parse_row(r, extra_keys=None):
+        row = {
+            "campaign_id":   r.get("campaign_id", ""),
+            "campaign_name": r.get("campaign_name", "—"),
+            "adset_id":      r.get("adset_id", ""),
+            "adset_name":    r.get("adset_name", "—"),
+            "impressions":   _safe_int(r.get("impressions")),
+            "reach":         _safe_int(r.get("reach")),
+            "clicks":        _safe_int(r.get("clicks")),
+            "link_clicks":   _safe_int(r.get("inline_link_clicks")),
+            "spend":         _safe_float(r.get("spend")),
+            "cpc":           _safe_float(r.get("cpc")),
+            "ctr":           _safe_float(r.get("ctr")),
+            "frequency":     _safe_float(r.get("frequency")),
+            "conversions":   _purchases(r.get("actions")),
+            "cpa":           _cpa(r.get("cost_per_action_type")),
+        }
+        if extra_keys:
+            for k in extra_keys:
+                row[k] = r.get(k, "")
+        return row
+
+    # ── Adset level ───────────────────────────────────────────────────────────
+    adsets = []
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+            "level":      "adset",
+            "fields":     _FIELDS,
+            "filtering":  _FILTERING,
+            "time_range": time_range,
+            "limit":      500,
+        })
+        for r in resp.get("data", []):
+            adsets.append(_parse_row(r))
+        print(f"DEBUG adset insights: {len(adsets)} adsets")
+    except Exception as e:
+        print(f"DEBUG adset insights error: {e}")
+
+    # ── Ad level ──────────────────────────────────────────────────────────────
+    ads = []
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+            "level":      "ad",
+            "fields":     _AD_FIELDS,
+            "filtering":  _FILTERING,
+            "time_range": time_range,
+            "limit":      500,
+        })
+        for r in resp.get("data", []):
+            ads.append(_parse_row(r, extra_keys=["ad_id", "ad_name"]))
+        print(f"DEBUG ad insights: {len(ads)} ads")
+    except Exception as e:
+        print(f"DEBUG ad insights error: {e}")
+
+    return {
+        "adsets": adsets,
+        "ads":    ads,
+        "period": {"since": since, "until": until},
+    }
 
 
 def fetch_reach_for_ids(camp_ids: tuple, since: str, until: str) -> int:

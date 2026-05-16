@@ -783,18 +783,135 @@ def _render_campaign_lookup(campaigns: list[dict]):
         )
 
 
+def _render_adset_ads(adset_ad_data: dict | None):
+    """Drill-down: adset and ad level detail for a selected campaign."""
+    _section_header("🔍 DÉTAIL ADSET & ADS")
+
+    if not adset_ad_data:
+        _no_data_banner("Données adset/ads non disponibles.")
+        return
+
+    adsets = adset_ad_data.get("adsets", [])
+    ads    = adset_ad_data.get("ads", [])
+
+    if not adsets:
+        _no_data_banner("Aucune donnée adset pour cette période.")
+        return
+
+    # Campaign picker
+    campaign_names = sorted(set(a["campaign_name"] for a in adsets if a.get("campaign_name") and a["campaign_name"] != "—"))
+    if not campaign_names:
+        _no_data_banner("Aucune campagne disponible.")
+        return
+
+    selected = st.selectbox(
+        "Sélectionner une campagne",
+        campaign_names,
+        label_visibility="collapsed",
+    )
+
+    camp_adsets = [a for a in adsets if a.get("campaign_name") == selected]
+    camp_ads    = [a for a in ads    if a.get("campaign_name") == selected]
+
+    # ── Adsets table ──────────────────────────────────────────────────────────
+    if camp_adsets:
+        st.markdown(
+            '<div style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.6);'
+            'margin:0.8rem 0 0.4rem;">📦 Adsets</div>',
+            unsafe_allow_html=True,
+        )
+        adset_rows = []
+        for a in sorted(camp_adsets, key=lambda x: x.get("spend", 0), reverse=True):
+            adset_rows.append({
+                "Adset":          a.get("adset_name", "—"),
+                "Impressions":    a.get("impressions", 0),
+                "Portée":         a.get("reach", 0),
+                "Clics":          a.get("link_clicks", 0),
+                "CTR (%)":        round(a.get("ctr", 0.0), 2),
+                "CPC (€)":        round(a.get("cpc", 0.0), 2),
+                "Dépensé (€)":    round(a.get("spend", 0.0), 2),
+                "Répétition":     round(a.get("frequency", 0.0), 2),
+                "Commandes":      a.get("conversions", 0),
+                "Coût/vente (€)": round(a.get("cpa", 0.0), 2),
+            })
+        st.dataframe(
+            pd.DataFrame(adset_rows),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Adset":          st.column_config.TextColumn("Adset", width="large"),
+                "Impressions":    st.column_config.NumberColumn("Impressions",    format="%d"),
+                "Portée":         st.column_config.NumberColumn("Portée",         format="%d"),
+                "Clics":          st.column_config.NumberColumn("Clics",          format="%d"),
+                "CTR (%)":        st.column_config.NumberColumn("CTR (%)",        format="%.2f%%"),
+                "CPC (€)":        st.column_config.NumberColumn("CPC (€)",        format="€%.2f"),
+                "Dépensé (€)":    st.column_config.NumberColumn("Dépensé (€)",    format="€%.2f"),
+                "Répétition":     st.column_config.NumberColumn("Répétition",     format="%.2fx"),
+                "Commandes":      st.column_config.NumberColumn("Commandes",      format="%d"),
+                "Coût/vente (€)": st.column_config.NumberColumn("Coût/vente (€)", format="€%.2f"),
+            },
+        )
+
+    # ── Ads per adset ─────────────────────────────────────────────────────────
+    if camp_ads:
+        st.markdown(
+            '<div style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.6);'
+            'margin:1rem 0 0.4rem;">🎨 Ads par Adset</div>',
+            unsafe_allow_html=True,
+        )
+        for adset in sorted(camp_adsets, key=lambda x: x.get("spend", 0), reverse=True):
+            adset_ads = [a for a in camp_ads if a.get("adset_id") == adset.get("adset_id")]
+            label = f"📦 {adset.get('adset_name', '—')} — {len(adset_ads)} ad(s)"
+            with st.expander(label, expanded=False):
+                if not adset_ads:
+                    st.caption("Aucun ad pour cet adset.")
+                    continue
+                ad_rows = []
+                for a in sorted(adset_ads, key=lambda x: x.get("spend", 0), reverse=True):
+                    ad_rows.append({
+                        "Ad":             a.get("ad_name", "—"),
+                        "Impressions":    a.get("impressions", 0),
+                        "Portée":         a.get("reach", 0),
+                        "Clics":          a.get("link_clicks", 0),
+                        "CTR (%)":        round(a.get("ctr", 0.0), 2),
+                        "CPC (€)":        round(a.get("cpc", 0.0), 2),
+                        "Dépensé (€)":    round(a.get("spend", 0.0), 2),
+                        "Répétition":     round(a.get("frequency", 0.0), 2),
+                        "Commandes":      a.get("conversions", 0),
+                        "Coût/vente (€)": round(a.get("cpa", 0.0), 2),
+                    })
+                st.dataframe(
+                    pd.DataFrame(ad_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Ad":             st.column_config.TextColumn("Ad", width="large"),
+                        "Impressions":    st.column_config.NumberColumn("Impressions",    format="%d"),
+                        "Portée":         st.column_config.NumberColumn("Portée",         format="%d"),
+                        "Clics":          st.column_config.NumberColumn("Clics",          format="%d"),
+                        "CTR (%)":        st.column_config.NumberColumn("CTR (%)",        format="%.2f%%"),
+                        "CPC (€)":        st.column_config.NumberColumn("CPC (€)",        format="€%.2f"),
+                        "Dépensé (€)":    st.column_config.NumberColumn("Dépensé (€)",    format="€%.2f"),
+                        "Répétition":     st.column_config.NumberColumn("Répétition",     format="%.2fx"),
+                        "Commandes":      st.column_config.NumberColumn("Commandes",      format="%d"),
+                        "Coût/vente (€)": st.column_config.NumberColumn("Coût/vente (€)", format="€%.2f"),
+                    },
+                )
+
+
 # ─── Public entry point ────────────────────────────────────────────────────────
 def render_boost_tab(data: dict | None = None, demo: dict | None = None,
                      prev_data: dict | None = None,
-                     since: str = "", until: str = ""):
+                     since: str = "", until: str = "", adset_ad_data=None):
     """
     Render the full Boost (Ads Performance) tab.
 
     Parameters
     ----------
-    data      : dict  — output of fetch_boost_insights()
-    demo      : dict  — output of fetch_fb_demographics() (age/gender + geo)
-    prev_data : dict  — same shape as data but for the previous equivalent period
+    data          : dict  — output of fetch_boost_insights()
+    demo          : dict  — output of fetch_fb_demographics() (age/gender + geo)
+    prev_data     : dict  — same shape as data but for the previous equivalent period
+    adset_ad_data : dict  — output of fetch_adset_ad_insights()
     """
     if data is None:
         data = empty_boost_data()
@@ -844,6 +961,8 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     _render_campaigns_table(campaigns)
     st.divider()
     _render_campaign_lookup(campaigns)
+    st.divider()
+    _render_adset_ads(adset_ad_data)
     st.divider()
     _render_demographics(demo)
     st.divider()

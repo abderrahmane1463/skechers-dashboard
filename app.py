@@ -290,6 +290,14 @@ else:
             print(f"DEBUG boost demographics: fetch failed: {e}")
             return {}
 
+    @st.cache_data(ttl=None, show_spinner=False)
+    def _cached_adset_ad(days, start, end):
+        try:
+            return db.get_adset_ad_insights(days, start, end)
+        except Exception as e:
+            print(f"DEBUG adset/ad fetch failed: {e}")
+            return {"adsets": [], "ads": []}
+
     # ── Skeleton placeholder — shown while data loads ─────────────────────────
     _skel_b = st.empty()
     _skel_b.markdown(skeleton_boost_html(), unsafe_allow_html=True)
@@ -297,11 +305,13 @@ else:
     boost_data      = _cached_boost(days, start_date, end_date)
     prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
     demo_data       = _cached_boost_demo(days, start_date, end_date)
+    adset_ad_data   = _cached_adset_ad(days, start_date, end_date)
 
     # Data loaded — overwrite skeleton (more reliable than .empty() on Streamlit Cloud)
     _skel_b.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
 
     render_boost_tab(boost_data, demo_data, prev_boost_data,
                      since=str(start_date) if start_date else "",
-                     until=str(end_date)   if end_date   else "")
+                     until=str(end_date)   if end_date   else "",
+                     adset_ad_data=adset_ad_data)
     _start_prefetch("Boost", days, start_date, end_date)

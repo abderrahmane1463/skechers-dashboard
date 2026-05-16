@@ -22,7 +22,7 @@ _PLATFORM_METRICS = {
     "Facebook":  ["fb_audience", "fb_engagement", "fb_visibility", "fb_demographics",
                   "fb_posts", "fb_post_totals", "fb_conversations", "fb_messaging"],
     "Instagram": ["ig_profile", "ig_engagement", "ig_posts", "ig_post_totals"],
-    "Boost":     ["boost_insights", "fb_demographics"],
+    "Boost":     ["boost_insights", "fb_demographics", "boost_adset_ad"],
 }
 
 
@@ -227,3 +227,7 @@ def get_fb_messaging_stats(days, start=None, end=None):
 def get_boost_insights(days, start=None, end=None):
     from api.boost import fetch_boost_insights
     return _get("boost_insights", fetch_boost_insights, days, start, end, {})
+
+def get_adset_ad_insights(days, start=None, end=None):
+    from api.boost import fetch_adset_ad_insights
+    return _get("boost_adset_ad", fetch_adset_ad_insights, days, start, end, {"adsets": [], "ads": []})

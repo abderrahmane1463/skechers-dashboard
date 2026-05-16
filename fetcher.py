@@ -18,7 +18,7 @@ load_dotenv()
 
 import api
 import db
-from api.boost import fetch_boost_insights
+from api.boost import fetch_boost_insights, fetch_adset_ad_insights as fetch_adset_ad_insights_fetcher
 
 
 # ── Periods to fetch ──────────────────────────────────────────────────────────
@@ -111,6 +111,7 @@ def _tasks_for_period(p_start, p_end, days):
         ("fb_conversations",api.fetch_fb_conversations,                       p_start, p_end, days),
         ("fb_messaging",    api.fetch_fb_messaging_stats,                     p_start, p_end, days),
         ("boost_insights",  fetch_boost_insights,                             p_start, p_end, days),
+        ("boost_adset_ad", fetch_adset_ad_insights_fetcher, p_start, p_end, days),
     ]
 
 
