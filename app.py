@@ -243,6 +243,21 @@ small { color: #6b7280 !important; }
 
 st.markdown(_DARK_CSS if st.session_state.theme == "dark" else _LIGHT_CSS, unsafe_allow_html=True)
 
+# ─── Mobile viewport fix ──────────────────────────────────────────────────────
+st.markdown("""
+<script>
+(function() {
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'viewport';
+        document.head.appendChild(meta);
+    }
+    meta.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+})();
+</script>
+""", unsafe_allow_html=True)
+
 
 # ─── Logging Helper ───────────────────────────────────────────────────────────
 def log_refresh(platform: str, period: str, status: str, notes: str = ""):
