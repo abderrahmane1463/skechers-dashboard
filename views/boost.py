@@ -617,6 +617,8 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             df_ads,
             use_container_width=True,
             hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
             column_config={
                 "Ad name":                              st.column_config.TextColumn("Ad name",                              width="large"),
                 "Campaign name":                        st.column_config.TextColumn("Campaign name",                        width="large"),
