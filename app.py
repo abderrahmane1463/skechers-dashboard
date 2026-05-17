@@ -126,6 +126,22 @@ hr { border-color: #333333 !important; }
 [data-testid="stDataFrame"] { background: #111111; border-radius: 12px; }
 p, span, li, label, h1, h2, h3 { color: #ffffff !important; }
 small { color: #71717a !important; }
+
+@media (max-width: 768px) {
+  /* Reduce main padding on mobile */
+  [data-testid="stMainBlockContainer"] { padding: 0.5rem 0.6rem !important; }
+  /* KPI grid cards: 2 per row */
+  div[style*="grid-template-columns:repeat(4"],
+  div[style*="grid-template-columns:repeat(5"] { grid-template-columns: repeat(2, 1fr) !important; }
+  /* Section headers smaller */
+  div[style*="font-size:1.35rem"] { font-size: 1rem !important; }
+  /* Summary bar wraps nicely */
+  div[style*="display:flex;gap:2rem"] { gap: 0.8rem !important; flex-wrap: wrap !important; }
+  /* Tabs scroll horizontally */
+  .stTabs [data-baseweb="tab-list"] { width: 100% !important; overflow-x: auto !important; }
+  /* Expander labels don't overflow */
+  [data-testid="stExpander"] summary { font-size: 0.78rem !important; white-space: normal !important; }
+}
 </style>
 """
 
@@ -173,6 +189,16 @@ hr { border-color: #e5e7eb !important; }
 [data-testid="stDataFrame"] { background: #ffffff; border-radius: 12px; }
 p, span, li, label, h1, h2, h3 { color: #111827 !important; }
 small { color: #6b7280 !important; }
+
+@media (max-width: 768px) {
+  [data-testid="stMainBlockContainer"] { padding: 0.5rem 0.6rem !important; }
+  div[style*="grid-template-columns:repeat(4"],
+  div[style*="grid-template-columns:repeat(5"] { grid-template-columns: repeat(2, 1fr) !important; }
+  div[style*="font-size:1.35rem"] { font-size: 1rem !important; }
+  div[style*="display:flex;gap:2rem"] { gap: 0.8rem !important; flex-wrap: wrap !important; }
+  .stTabs [data-baseweb="tab-list"] { width: 100% !important; overflow-x: auto !important; }
+  [data-testid="stExpander"] summary { font-size: 0.78rem !important; white-space: normal !important; }
+}
 
 /* ── Override hardcoded dark inline styles in custom HTML cards ── */
 /* Card backgrounds */
