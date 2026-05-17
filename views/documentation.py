@@ -93,7 +93,7 @@ def render_documentation():
     with col2:
         st.info("📸 **Instagram** — Visibilité, Engagement, Publications")
     with col3:
-        st.info("🚀 **Boost** — Campagnes payantes, Conversions, Par Objectif, Top #3, Recherche, Démographie, Géographie")
+        st.info("🚀 **Boost** — Campagnes payantes, Conversions, Par Objectif, Top #3, Tableau Ads (format CSV Meta), Drill-down Adset/Ad, Démographie, Géographie")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -230,7 +230,7 @@ def render_documentation():
     # ── Boost ─────────────────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">🚀 Boost (Campagnes Payantes)</div>', unsafe_allow_html=True)
 
-    b1, b2, b3, b4, b5, b6, b7 = st.tabs(["📊 Global", "🎯 Conversion", "🗂️ Par Objectif", "🏆 Top #3 Campagnes", "🔍 Recherche", "📋 Toutes les campagnes", "👥 Démographie & Géo"])
+    b1, b2, b3, b4, b5, b6 = st.tabs(["📊 Global", "🎯 Conversion", "🗂️ Par Objectif", "🏆 Top #3 Campagnes", "📋 Tableau Ads", "👥 Démographie & Géo"])
 
     with b1:
         st.markdown("""
@@ -291,22 +291,43 @@ def render_documentation():
 
     with b5:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Recherche par nom de campagne — saisir un fragment pour filtrer et voir la fiche détaillée de la campagne.</p><br>
+<p style="color:#a1a1aa;font-size:14px;">
+Tableau principal au format identique à l'export CSV de Meta Ads Manager. Colonnes commençant par <strong>Campaign name → Ad set name → Ad name</strong>.
+Trié par date de création de campagne (plus récente en premier), groupé par nom de campagne.
+</p><br>
 <table class="kpi-table">
-  <tr><th>Champ</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">🔍 Recherche</td><td class="kpi-desc">Filtre les campagnes dont le nom contient le texte saisi (insensible à la casse).</td><td><span class="endpoint">—</span></td></tr>
-  <tr><td class="kpi-name">Fiche campagne</td><td class="kpi-desc">Affiche : objectif, impressions, reach, clics, spend, CPC, CTR, fréquence, commandes, CPA.</td><td><span class="endpoint">Données issues du même appel insights</span></td></tr>
-</table>""", unsafe_allow_html=True)
+  <tr><th>Fonctionnalité</th><th>Description</th><th>Source</th></tr>
+  <tr><td class="kpi-name">🔽 Filtre objectif</td><td class="kpi-desc">Multiselect au-dessus du tableau — filtre les lignes par objectif de campagne.</td><td><span class="endpoint">—</span></td></tr>
+  <tr><td class="kpi-name">☑️ Sélection multi-lignes</td><td class="kpi-desc">Cliquer pour sélectionner une ou plusieurs lignes (Shift + clic pour une plage, Ctrl/Cmd + clic pour une sélection multiple).</td><td><span class="endpoint">—</span></td></tr>
+  <tr><td class="kpi-name">Campaign name</td><td class="kpi-desc">Nom de la campagne.</td><td><span class="endpoint">level=ad → campaign_name</span></td></tr>
+  <tr><td class="kpi-name">Ad set name</td><td class="kpi-desc">Nom de l'adset.</td><td><span class="endpoint">level=ad → adset_name</span></td></tr>
+  <tr><td class="kpi-name">Ad name</td><td class="kpi-desc">Nom de la publicité.</td><td><span class="endpoint">level=ad → ad_name</span></td></tr>
+  <tr><td class="kpi-name">Delivery status</td><td class="kpi-desc">Statut de diffusion dérivé du effective_status de la campagne + présence d'impressions : active, inactive, archived, deleted, with_issues.</td><td><span class="endpoint">/{ad_account}/campaigns?fields=effective_status</span></td></tr>
+  <tr><td class="kpi-name">Objective</td><td class="kpi-desc">Objectif Meta de la campagne (OUTCOME_SALES, OUTCOME_TRAFFIC, etc.).</td><td><span class="endpoint">/{ad_account}/campaigns?fields=objective</span></td></tr>
+  <tr><td class="kpi-name">Amount spent (EUR)</td><td class="kpi-desc">Budget consommé par l'ad sur la période.</td><td><span class="endpoint">level=ad → spend</span></td></tr>
+  <tr><td class="kpi-name">Campaign Budget / Type</td><td class="kpi-desc">Budget de la campagne en euros (daily_budget ou lifetime_budget ÷ 100) et son type (Daily / Lifetime).</td><td><span class="endpoint">/{ad_account}/campaigns?fields=daily_budget,lifetime_budget</span></td></tr>
+  <tr><td class="kpi-name">Ad Set Budget / Type</td><td class="kpi-desc">Budget de l'adset en euros et son type. Affiche "Using campaign budget" si aucun budget adset défini.</td><td><span class="endpoint">/{ad_account}/adsets?fields=daily_budget,lifetime_budget</span></td></tr>
+  <tr><td class="kpi-name">Start / End</td><td class="kpi-desc">Date de début et de fin de l'adset (start_time / end_time). End affiche "—" si aucune date de fin planifiée (diffusion continue).</td><td><span class="endpoint">/{ad_account}/adsets?fields=start_time,end_time</span></td></tr>
+  <tr><td class="kpi-name">Reach / Impressions / Frequency</td><td class="kpi-desc">Portée unique, total affichages, fréquence moyenne.</td><td><span class="endpoint">level=ad → reach, impressions, frequency</span></td></tr>
+  <tr><td class="kpi-name">CPM / Cost per 1,000 reached</td><td class="kpi-desc">Coût pour 1000 impressions et coût pour 1000 comptes touchés.</td><td><span class="endpoint">Calculé : spend ÷ impressions × 1000 / spend ÷ reach × 1000</span></td></tr>
+  <tr><td class="kpi-name">Clicks / CPC / CTR</td><td class="kpi-desc">Tous les clics, coût par clic, taux de clic. Inclut aussi les variantes "link click" uniquement.</td><td><span class="endpoint">level=ad → clicks, cpc, ctr, inline_link_clicks</span></td></tr>
+  <tr><td class="kpi-name">Outbound clicks / Cost</td><td class="kpi-desc">Clics sortants vers un site externe et leur coût unitaire.</td><td><span class="endpoint">level=ad → outbound_clicks</span></td></tr>
+  <tr><td class="kpi-name">Landing page views / Cost</td><td class="kpi-desc">Vues de page de destination et coût par vue.</td><td><span class="endpoint">level=ad → actions[landing_page_view]</span></td></tr>
+  <tr><td class="kpi-name">Adds to cart / Cost</td><td class="kpi-desc">Ajouts au panier pixel et coût par ajout.</td><td><span class="endpoint">level=ad → actions[offsite_conversion.fb_pixel_add_to_cart]</span></td></tr>
+  <tr><td class="kpi-name">Checkouts initiated / Cost</td><td class="kpi-desc">Initiations de paiement pixel et coût par initiation.</td><td><span class="endpoint">level=ad → actions[offsite_conversion.fb_pixel_initiate_checkout]</span></td></tr>
+  <tr><td class="kpi-name">Purchases / Cost per purchase</td><td class="kpi-desc">Conversions d'achat et coût par achat.</td><td><span class="endpoint">level=ad → actions[purchase]</span></td></tr>
+  <tr><td class="kpi-name">Quality / Engagement / Conversion ranking</td><td class="kpi-desc">Classements Meta de la qualité de l'ad, du taux d'engagement et du taux de conversion par rapport aux ads similaires.</td><td><span class="endpoint">level=ad → quality_ranking, engagement_rate_ranking, conversion_rate_ranking</span></td></tr>
+  <tr><td class="kpi-name">Reporting starts / ends</td><td class="kpi-desc">Dates de début et fin de la période sélectionnée dans le dashboard.</td><td><span class="endpoint">—</span></td></tr>
+</table>
+<br>
+<p style="color:#a1a1aa;font-size:13px;"><strong>Drill-down par campagne</strong> — En dessous du tableau principal, chaque campagne est affichée sous forme d'expander cliquable. À l'intérieur :</p>
+<ul style="color:#a1a1aa;font-size:13px;margin-top:4px;">
+  <li>Mini KPIs de la campagne (spend, clics, portée, CTR, CPC, impressions, répétition, commandes, CPA, objectif)</li>
+  <li>Tableau <strong>adset</strong> avec les mêmes colonnes que le tableau principal</li>
+  <li>Sous-expanders par adset contenant le tableau <strong>ads</strong> avec les mêmes colonnes</li>
+</ul>""", unsafe_allow_html=True)
 
     with b6:
-        st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Tableau complet de toutes les campagnes actives avec tri par colonne.</p><br>
-<table class="kpi-table">
-  <tr><th>Champ</th><th>Description</th><th>Endpoint</th></tr>
-  <tr><td class="kpi-name">Toutes les colonnes</td><td class="kpi-desc">Nom, objectif, impressions, reach, clics (inline_link_clicks), spend, CPC, CTR, fréquence, commandes, CPA.</td><td><span class="endpoint">/{ad_account}/insights?fields=campaign_name,objective,impressions,reach,inline_link_clicks,spend,cpc,ctr,frequency,actions,cost_per_action_type&level=campaign&limit=500</span></td></tr>
-</table>""", unsafe_allow_html=True)
-
-    with b7:
         st.markdown("""
 <table class="kpi-table">
   <tr><th>Section</th><th>Description</th><th>Endpoint</th></tr>
@@ -344,6 +365,17 @@ Ce n'est pas une erreur du dashboard — ce sont des contraintes imposées par l
 | 📢 **Impressions** (Facebook) | Basé sur `post_impressions_unique` | Pour les pages New Page Experience, Meta n'expose que la portée unique par post, pas les impressions brutes |
 """)
 
+        st.markdown("#### 🚀 Boost — Données Indisponibles / Comportements Attendus")
+        st.markdown("""
+| Situation | Explication |
+|---|---|
+| **Delivery status = "—"** | Campagne archivée ou supprimée — l'API ne retourne pas les campagnes inactives par défaut |
+| **End = "—"** | L'adset n'a pas de date de fin planifiée — il tourne jusqu'à être mis en pause manuellement |
+| **Cost per add to cart / checkout = 0** | Meta ne retourne pas toujours ces coûts au niveau ad — le dashboard calcule automatiquement spend ÷ count en fallback |
+| **Objective = "—" sur anciennes dates** | Les campagnes archivées ne figurent pas dans la liste par défaut de l'API |
+| **Budget = 0** | L'adset utilise le budget de la campagne parente (pas de budget propre défini) |
+""")
+
         st.markdown("#### 💾 Cache & Actualisation")
         st.markdown("""
 | Situation | Explication |
@@ -373,6 +405,13 @@ Ce n'est pas une erreur du dashboard — ce sont des contraintes imposées par l
 | **Conversion** | Action réalisée après avoir vu une pub (achat, inscription, etc.). |
 | **Organique** | Contenu diffusé sans budget, via l'algorithme. |
 | **Payant (Boost)** | Contenu promu via un budget Meta Ads. |
+| **CPM** | Coût Pour Mille. Budget ÷ Impressions × 1000. |
+| **Add to Cart** | Ajout au panier déclenché par le pixel Meta sur le site. |
+| **Initiate Checkout** | Début du processus de paiement déclenché par le pixel Meta. |
+| **Landing Page View** | Vue de page de destination après un clic sur la pub. |
+| **Outbound Click** | Clic sortant vers un site externe (hors Meta). |
+| **Delivery status** | Statut de diffusion d'une campagne/adset/ad : active, inactive, archived, deleted, with_issues. |
+| **Adset** | Groupe de publicités dans une campagne — définit le ciblage, le budget et le calendrier. |
 """)
 
     if _is_admin:
