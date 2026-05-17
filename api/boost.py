@@ -513,7 +513,7 @@ def fetch_adset_ad_insights(
     _adset_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/adsets", {
-            "fields":    "id,campaign_id,daily_budget,lifetime_budget",
+            "fields":    "id,campaign_id,daily_budget,lifetime_budget,start_time,end_time",
             "filtering": _CAMP_ID_FILTER,
             "limit":     500,
         })
@@ -527,6 +527,8 @@ def fetch_adset_ad_insights(
                 _adset_meta[aid] = {"budget": life, "budget_type": "Lifetime"}
             else:
                 _adset_meta[aid] = {"budget": 0.0, "budget_type": "Using campaign budget"}
+            _adset_meta[aid]["end_time"]   = a.get("end_time", "")
+            _adset_meta[aid]["start_time"] = a.get("start_time", "")
         print(f"DEBUG adset_ad: adset meta loaded for {len(_adset_meta)} adsets")
     except Exception as e:
         print(f"DEBUG adset_ad: adset meta error: {e}")
@@ -603,14 +605,19 @@ def fetch_adset_ad_insights(
             """Extract YYYY-MM-DD from an ISO datetime string."""
             return iso[:10] if iso and len(iso) >= 10 else "—"
 
+        # Start: campaign start_time, fallback to adset start_time
+        _start = camp.get("start_time", "") or adset.get("start_time", "")
+        # End: adset end_time (most reliable), fallback to campaign stop_time
+        _end   = adset.get("end_time", "") or camp.get("stop_time", "")
+
         return {
             "ad_id":               ad_id,
             "ad_name":             r.get("ad_name", "—"),
             "campaign_id":         camp_id,
             "campaign_name":       r.get("campaign_name", "—"),
             "campaign_created":    camp.get("created_time", ""),
-            "campaign_start":      _fmt_date(camp.get("start_time", "")),
-            "campaign_end":        _fmt_date(camp.get("stop_time", "")),
+            "campaign_start":      _fmt_date(_start),
+            "campaign_end":        _fmt_date(_end),
             "delivery_status":     _STATUS_MAP.get(camp.get("status", ""), "not_delivering") if imp > 0 else ("inactive" if camp.get("status") == "PAUSED" else "not_delivering"),
             "delivery_level":      "ad",
             "adset_id":            adset_id,
