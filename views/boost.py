@@ -299,6 +299,7 @@ def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None,
         default=all_labels,
         label_visibility="collapsed",
         placeholder="Sélectionner les objectifs à afficher…",
+        key="obj_filter_by_objective",
     )
 
     selected_objectives = [o for o, l in zip(all_objectives, all_labels) if l in selected_labels]
@@ -721,6 +722,7 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 default=all_objectives,
                 label_visibility="collapsed",
                 placeholder="Sélectionner un ou plusieurs objectifs…",
+                key="obj_filter_table",
             )
             ads = [a for a in ads if a.get("objective", "—") in selected_objectives] if selected_objectives else ads
 
