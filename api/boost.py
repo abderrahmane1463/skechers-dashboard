@@ -124,11 +124,12 @@ def _safe_int(val, default=0) -> int:
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 def _get_footland_ids() -> list:
-    """Fetch all Footland campaign IDs from the ad account."""
+    """Fetch all Footland campaign IDs from the ad account (all statuses)."""
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields": "id,name",
-            "limit":  500,
+            "fields":           "id,name",
+            "effective_status": '["ACTIVE","PAUSED","ARCHIVED","DELETED","IN_PROCESS","WITH_ISSUES"]',
+            "limit":            500,
         })
         all_camps = resp.get("data", [])
         ids = [c["id"] for c in all_camps if any(kw in c.get("name", "") for kw in FOOTLAND_CAMPAIGN_KEYWORDS)]
