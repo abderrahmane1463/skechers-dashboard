@@ -605,11 +605,11 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
         spend = a.get("spend", 0.0)
         conv  = a.get("conversions", 0)
         return {
-            "Ad name":                            a.get("ad_name", "—"),
             "Campaign name":                      a.get("campaign_name", "—"),
+            "Ad set name":                        a.get("adset_name", "—"),
+            "Ad name":                            a.get("ad_name", "—"),
             "Delivery status":                    a.get("delivery_status", "—"),
             "Delivery level":                     a.get("delivery_level", "ad"),
-            "Ad set name":                        a.get("adset_name", "—"),
             "Objective":                          a.get("objective", "—"),
             "Result type":                        a.get("result_type", "—"),
             "Results":                            conv,
@@ -665,11 +665,11 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
         cpc_l = round(spend / lk, 2) if lk else 0.0
         ctr_l = round(lk / imp * 100, 2) if imp else 0.0
         return {
-            "Ad name":                            "—",
             "Campaign name":                      a.get("campaign_name", "—"),
+            "Ad set name":                        a.get("adset_name", "—"),
+            "Ad name":                            "—",
             "Delivery status":                    "—",
             "Delivery level":                     "adset",
-            "Ad set name":                        a.get("adset_name", "—"),
             "Objective":                          "—",
             "Result type":                        "—",
             "Results":                            conv,
