@@ -605,8 +605,8 @@ def fetch_adset_ad_insights(
             """Extract YYYY-MM-DD from an ISO datetime string."""
             return iso[:10] if iso and len(iso) >= 10 else "—"
 
-        _start = adset.get("start_time", "")
-        _end   = adset.get("end_time", "")
+        _start = camp.get("start_time", "")
+        _end   = camp.get("stop_time", "")
 
         return {
             "ad_id":               ad_id,
