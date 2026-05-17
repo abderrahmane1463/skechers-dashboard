@@ -736,7 +736,7 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
-            selection_mode="single-row",
+            selection_mode="multi-row",
             column_config=_csv_col_config(),
         )
     else:
