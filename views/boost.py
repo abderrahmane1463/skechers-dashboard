@@ -955,6 +955,200 @@ def _render_geographic(demo: dict):
 
 
 
+def _render_creative_performance(adset_ad_data: dict | None):
+    """Group ads by creative name and aggregate performance across all campaigns."""
+    _section_header("🎨 PERFORMANCE DES CRÉATIFS")
+
+    ads = (adset_ad_data or {}).get("ads", [])
+    if not ads:
+        _no_data_banner("Aucune donnée créatif disponible pour cette période.")
+        return
+
+    # ── Aggregate by ad_name ──────────────────────────────────────────────────
+    from collections import defaultdict
+    buckets: dict[str, dict] = defaultdict(lambda: {
+        "campaigns": set(), "adsets": set(),
+        "spend": 0.0, "impressions": 0, "reach": 0,
+        "clicks": 0, "link_clicks": 0, "conversions": 0,
+        "adds_to_cart": 0, "checkouts": 0,
+        "outbound_clicks": 0, "landing_page_views": 0,
+        "quality_rankings": [], "engagement_rankings": [], "conversion_rankings": [],
+    })
+
+    for a in ads:
+        name = a.get("ad_name", "—")
+        b = buckets[name]
+        b["campaigns"].add(a.get("campaign_name", ""))
+        b["adsets"].add(a.get("adset_name", ""))
+        b["spend"]             += a.get("spend", 0.0)
+        b["impressions"]       += a.get("impressions", 0)
+        b["reach"]             += a.get("reach", 0)
+        b["clicks"]            += a.get("clicks", 0)
+        b["link_clicks"]       += a.get("link_clicks", 0)
+        b["conversions"]       += a.get("conversions", 0)
+        b["adds_to_cart"]      += a.get("adds_to_cart", 0)
+        b["checkouts"]         += a.get("checkouts", 0)
+        b["outbound_clicks"]   += a.get("outbound_clicks", 0)
+        b["landing_page_views"] += a.get("landing_page_views", 0)
+        for fld, lst in [
+            ("quality_ranking",      "quality_rankings"),
+            ("engagement_ranking",   "engagement_rankings"),
+            ("conversion_ranking",   "conversion_rankings"),
+        ]:
+            val = a.get(fld, "")
+            if val and val != "—":
+                b[lst].append(val)
+
+    def _most_common(lst):
+        if not lst: return "—"
+        return max(set(lst), key=lst.count)
+
+    creatives = []
+    for name, b in buckets.items():
+        spend = b["spend"]
+        imp   = b["impressions"]
+        reach = b["reach"]
+        clk   = b["clicks"]
+        lk    = b["link_clicks"]
+        conv  = b["conversions"]
+        cart  = b["adds_to_cart"]
+        chk   = b["checkouts"]
+        creatives.append({
+            "name":                name,
+            "n_campaigns":         len(b["campaigns"]),
+            "n_adsets":            len(b["adsets"]),
+            "spend":               round(spend, 2),
+            "impressions":         imp,
+            "reach":               reach,
+            "clicks":              clk,
+            "link_clicks":         lk,
+            "ctr":                 round(clk / imp * 100, 2) if imp else 0.0,
+            "cpc":                 round(spend / clk, 2)     if clk else 0.0,
+            "cpm":                 round(spend / imp * 1000, 2) if imp else 0.0,
+            "conversions":         conv,
+            "cpa":                 round(spend / conv, 2)    if conv else 0.0,
+            "adds_to_cart":        cart,
+            "cost_per_cart":       round(spend / cart, 2)    if cart else 0.0,
+            "checkouts":           chk,
+            "cost_per_checkout":   round(spend / chk, 2)     if chk else 0.0,
+            "outbound_clicks":     b["outbound_clicks"],
+            "landing_page_views":  b["landing_page_views"],
+            "quality_ranking":     _most_common(b["quality_rankings"]),
+            "engagement_ranking":  _most_common(b["engagement_rankings"]),
+            "conversion_ranking":  _most_common(b["conversion_rankings"]),
+        })
+
+    creatives.sort(key=lambda x: x["spend"], reverse=True)
+
+    # ── Top 3 podium ──────────────────────────────────────────────────────────
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    top3  = creatives[:3]
+    while len(top3) < 3:
+        top3.append({"name": "—", "spend": 0.0, "conversions": 0, "ctr": 0.0, "n_campaigns": 0})
+
+    _ranks = [
+        ("#1", "#FFD700", "rgba(255,215,0,0.12)",   "rgba(255,215,0,0.35)"),
+        ("#2", "#C0C0C0", "rgba(192,192,192,0.10)",  "rgba(192,192,192,0.30)"),
+        ("#3", "#CD7F32", "rgba(205,127,50,0.10)",   "rgba(205,127,50,0.30)"),
+    ]
+    _name_c = "rgba(255,255,255,0.75)" if _dark else "#1f2937"
+    _sub_lc = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+    _sub_vc = "rgba(255,255,255,0.7)"  if _dark else "#374151"
+    _div_brd= "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
+
+    cards_html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:0.5rem 0 1.5rem;">'
+    for i, c in enumerate(top3):
+        rank_label, rank_color, bg_color, border_color = _ranks[i]
+        display_name = c["name"] if len(c["name"]) <= 38 else c["name"][:36] + "…"
+        cards_html += f"""
+<div style="background:{bg_color};border:1px solid {border_color};border-radius:14px;
+            padding:1.2rem 1rem;text-align:center;display:flex;
+            flex-direction:column;align-items:center;gap:0.4rem;">
+  <div style="font-size:1.6rem;font-weight:900;color:{rank_color};line-height:1;">{rank_label}</div>
+  <div style="font-size:0.75rem;color:{_name_c};font-weight:600;line-height:1.35;
+              min-height:2.7rem;display:flex;align-items:center;justify-content:center;">{display_name}</div>
+  <div style="font-size:1.8rem;font-weight:900;color:{rank_color};line-height:1.1;">€{c['spend']:,.2f}</div>
+  <div style="font-size:0.68rem;color:{_sub_lc};text-transform:uppercase;letter-spacing:0.06em;">dépensé</div>
+  <div style="margin-top:0.4rem;width:100%;border-top:1px solid {_div_brd};
+              padding-top:0.4rem;display:flex;justify-content:space-around;">
+    <div style="text-align:center;">
+      <div style="font-size:0.65rem;color:{_sub_lc};">Commandes</div>
+      <div style="font-size:0.82rem;font-weight:700;color:{_sub_vc};">{c['conversions']:,}</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:0.65rem;color:{_sub_lc};">CTR</div>
+      <div style="font-size:0.82rem;font-weight:700;color:{_sub_vc};">{c['ctr']:.2f}%</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:0.65rem;color:{_sub_lc};">Campagnes</div>
+      <div style="font-size:0.82rem;font-weight:700;color:{_sub_vc};">{c['n_campaigns']}</div>
+    </div>
+  </div>
+</div>"""
+    cards_html += "</div>"
+    st.markdown(cards_html, unsafe_allow_html=True)
+
+    # ── Full table ────────────────────────────────────────────────────────────
+    rows = []
+    for c in creatives:
+        rows.append({
+            "Creative":                   c["name"],
+            "Campaigns":                  c["n_campaigns"],
+            "Ad sets":                    c["n_adsets"],
+            "Amount spent (EUR)":         c["spend"],
+            "Impressions":                c["impressions"],
+            "Reach":                      c["reach"],
+            "CPM (€)":                    c["cpm"],
+            "Clicks (all)":               c["clicks"],
+            "CTR (all) %":                c["ctr"],
+            "Link clicks":                c["link_clicks"],
+            "CPC (€)":                    c["cpc"],
+            "Landing page views":         c["landing_page_views"],
+            "Outbound clicks":            c["outbound_clicks"],
+            "Adds to cart":               c["adds_to_cart"],
+            "Cost per add to cart (€)":   c["cost_per_cart"],
+            "Checkouts initiated":        c["checkouts"],
+            "Cost per checkout (€)":      c["cost_per_checkout"],
+            "Purchases":                  c["conversions"],
+            "Cost per purchase (€)":      c["cpa"],
+            "Quality ranking":            c["quality_ranking"],
+            "Engagement ranking":         c["engagement_ranking"],
+            "Conversion ranking":         c["conversion_ranking"],
+        })
+
+    st.dataframe(
+        pd.DataFrame(rows),
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config={
+            "Creative":                   st.column_config.TextColumn("Creative",                        width="large"),
+            "Campaigns":                  st.column_config.NumberColumn("Campaigns",                     format="%d"),
+            "Ad sets":                    st.column_config.NumberColumn("Ad sets",                       format="%d"),
+            "Amount spent (EUR)":         st.column_config.NumberColumn("Amount spent (EUR)",            format="€%.2f"),
+            "Impressions":                st.column_config.NumberColumn("Impressions",                   format="%d"),
+            "Reach":                      st.column_config.NumberColumn("Reach",                         format="%d"),
+            "CPM (€)":                    st.column_config.NumberColumn("CPM (€)",                       format="€%.2f"),
+            "Clicks (all)":               st.column_config.NumberColumn("Clicks (all)",                  format="%d"),
+            "CTR (all) %":                st.column_config.NumberColumn("CTR (all) %",                   format="%.2f%%"),
+            "Link clicks":                st.column_config.NumberColumn("Link clicks",                   format="%d"),
+            "CPC (€)":                    st.column_config.NumberColumn("CPC (€)",                       format="€%.2f"),
+            "Landing page views":         st.column_config.NumberColumn("Landing page views",            format="%d"),
+            "Outbound clicks":            st.column_config.NumberColumn("Outbound clicks",               format="%d"),
+            "Adds to cart":               st.column_config.NumberColumn("Adds to cart",                  format="%d"),
+            "Cost per add to cart (€)":   st.column_config.NumberColumn("Cost per add to cart (€)",     format="€%.2f"),
+            "Checkouts initiated":        st.column_config.NumberColumn("Checkouts initiated",           format="%d"),
+            "Cost per checkout (€)":      st.column_config.NumberColumn("Cost per checkout (€)",        format="€%.2f"),
+            "Purchases":                  st.column_config.NumberColumn("Purchases",                     format="%d"),
+            "Cost per purchase (€)":      st.column_config.NumberColumn("Cost per purchase (€)",        format="€%.2f"),
+            "Quality ranking":            st.column_config.TextColumn("Quality ranking",                 width="medium"),
+            "Engagement ranking":         st.column_config.TextColumn("Engagement ranking",              width="medium"),
+            "Conversion ranking":         st.column_config.TextColumn("Conversion ranking",              width="medium"),
+        },
+    )
+
+
 # ─── Public entry point ────────────────────────────────────────────────────────
 def render_boost_tab(data: dict | None = None, demo: dict | None = None,
                      prev_data: dict | None = None,
@@ -1015,6 +1209,8 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     _render_top_campaigns(campaigns)
     st.divider()
     _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data)
+    st.divider()
+    _render_creative_performance(adset_ad_data)
     st.divider()
     _render_demographics(demo)
     st.divider()
