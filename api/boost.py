@@ -529,23 +529,15 @@ def fetch_adset_ad_insights(
     except Exception as e:
         print(f"DEBUG adset_ad: adset meta error: {e}")
 
-    # ── 3. Ad delivery status — fetch all ads, paginated ─────────────────────
+    # ── 3. Ad delivery status ─────────────────────────────────────────────────
     _ad_status: dict[str, str] = {}
     try:
-        params = {"fields": "id,effective_status", "limit": 500}
-        url = f"{AD_ACCOUNT_ID}/ads"
-        while url:
-            resp = _get_ads(url, params)
-            for a in resp.get("data", []):
-                _ad_status[a.get("id", "")] = a.get("effective_status", "—")
-            # follow pagination
-            next_url = resp.get("paging", {}).get("next")
-            if next_url:
-                # next page URL already contains all params — strip base
-                url = next_url.replace(f"{GRAPH_BASE_URL}/", "")
-                params = {}
-            else:
-                url = None
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
+            "fields": "id,effective_status",
+            "limit":  500,
+        })
+        for a in resp.get("data", []):
+            _ad_status[a.get("id", "")] = a.get("effective_status", "—")
         print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
     except Exception as e:
         print(f"DEBUG adset_ad: ad status error: {e}")
