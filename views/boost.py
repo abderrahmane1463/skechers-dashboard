@@ -549,6 +549,168 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
     reporting_start = period.get("since", "—")
     reporting_end   = period.get("until", "—")
 
+    # ── Shared column config (reused for flat table + expander tables) ────────
+    def _csv_col_config():
+        return {
+            "Ad name":                              st.column_config.TextColumn("Ad name",                              width="large"),
+            "Campaign name":                        st.column_config.TextColumn("Campaign name",                        width="large"),
+            "Delivery status":                      st.column_config.TextColumn("Delivery status",                      width="medium"),
+            "Delivery level":                       st.column_config.TextColumn("Delivery level",                       width="small"),
+            "Ad set name":                          st.column_config.TextColumn("Ad set name",                          width="large"),
+            "Objective":                            st.column_config.TextColumn("Objective",                            width="small"),
+            "Result type":                          st.column_config.TextColumn("Result type",                          width="medium"),
+            "Results":                              st.column_config.NumberColumn("Results",                            format="%d"),
+            "Cost per result":                      st.column_config.NumberColumn("Cost per result",                    format="€%.2f"),
+            "Amount spent (EUR)":                   st.column_config.NumberColumn("Amount spent (EUR)",                 format="€%.2f"),
+            "Campaign Budget":                      st.column_config.NumberColumn("Campaign Budget",                    format="€%.2f"),
+            "Campaign Budget Type":                 st.column_config.TextColumn("Campaign Budget Type",                 width="small"),
+            "Ad Set Budget":                        st.column_config.TextColumn("Ad Set Budget"),
+            "Ad Set Budget Type":                   st.column_config.TextColumn("Ad Set Budget Type",                   width="medium"),
+            "Reach":                                st.column_config.NumberColumn("Reach",                              format="%d"),
+            "Cost per 1,000 Meta Accounts reached": st.column_config.NumberColumn("Cost per 1,000 Meta Accounts reached", format="€%.2f"),
+            "Impressions":                          st.column_config.NumberColumn("Impressions",                        format="%d"),
+            "CPM (cost per 1,000 impressions)":     st.column_config.NumberColumn("CPM (cost per 1,000 impressions)",  format="€%.2f"),
+            "Frequency":                            st.column_config.NumberColumn("Frequency",                         format="%.2f"),
+            "Clicks (all)":                         st.column_config.NumberColumn("Clicks (all)",                      format="%d"),
+            "CPC (all)":                            st.column_config.NumberColumn("CPC (all)",                         format="€%.2f"),
+            "Link clicks":                          st.column_config.NumberColumn("Link clicks",                       format="%d"),
+            "CPC (cost per link click)":            st.column_config.NumberColumn("CPC (cost per link click)",         format="€%.2f"),
+            "CTR (all)":                            st.column_config.NumberColumn("CTR (all)",                         format="%.2f%%"),
+            "CTR (link click-through rate)":        st.column_config.NumberColumn("CTR (link click-through rate)",     format="%.2f%%"),
+            "Outbound clicks":                      st.column_config.NumberColumn("Outbound clicks",                   format="%d"),
+            "Cost per outbound click":              st.column_config.NumberColumn("Cost per outbound click",           format="€%.2f"),
+            "Website landing page views":           st.column_config.NumberColumn("Website landing page views",        format="%d"),
+            "Cost per landing page view":           st.column_config.NumberColumn("Cost per landing page view",        format="€%.2f"),
+            "Adds to cart":                         st.column_config.NumberColumn("Adds to cart",                      format="%d"),
+            "Website adds to cart":                 st.column_config.NumberColumn("Website adds to cart",              format="%d"),
+            "Cost per add to cart":                 st.column_config.NumberColumn("Cost per add to cart",              format="€%.2f"),
+            "Checkouts initiated":                  st.column_config.NumberColumn("Checkouts initiated",               format="%d"),
+            "Website checkouts initiated":          st.column_config.NumberColumn("Website checkouts initiated",       format="%d"),
+            "Cost per checkout initiated":          st.column_config.NumberColumn("Cost per checkout initiated",       format="€%.2f"),
+            "Purchases":                            st.column_config.NumberColumn("Purchases",                         format="%d"),
+            "Website purchases":                    st.column_config.NumberColumn("Website purchases",                 format="%d"),
+            "Cost per purchase":                    st.column_config.NumberColumn("Cost per purchase",                 format="€%.2f"),
+            "Engagement rate ranking":              st.column_config.TextColumn("Engagement rate ranking",             width="medium"),
+            "Quality ranking":                      st.column_config.TextColumn("Quality ranking",                     width="medium"),
+            "Conversion rate ranking":              st.column_config.TextColumn("Conversion rate ranking",             width="medium"),
+            "Reporting starts":                     st.column_config.TextColumn("Reporting starts",                    width="small"),
+            "Reporting ends":                       st.column_config.TextColumn("Reporting ends",                      width="small"),
+            "Start":                                st.column_config.TextColumn("Start",                               width="small"),
+            "End":                                  st.column_config.TextColumn("End",                                 width="small"),
+        }
+
+    # ── Shared row builder for ad-level dicts ─────────────────────────────────
+    def _build_ad_row(a):
+        spend = a.get("spend", 0.0)
+        conv  = a.get("conversions", 0)
+        return {
+            "Ad name":                            a.get("ad_name", "—"),
+            "Campaign name":                      a.get("campaign_name", "—"),
+            "Delivery status":                    a.get("delivery_status", "—"),
+            "Delivery level":                     a.get("delivery_level", "ad"),
+            "Ad set name":                        a.get("adset_name", "—"),
+            "Objective":                          a.get("objective", "—"),
+            "Result type":                        a.get("result_type", "—"),
+            "Results":                            conv,
+            "Cost per result":                    round(a.get("cpa", 0.0), 2),
+            "Amount spent (EUR)":                 round(spend, 2),
+            "Campaign Budget":                    round(a.get("campaign_budget", 0.0), 2),
+            "Campaign Budget Type":               a.get("campaign_budget_type", "—"),
+            "Ad Set Budget":                      round(a.get("adset_budget", 0.0), 2) if a.get("adset_budget", 0.0) > 0 else "—",
+            "Ad Set Budget Type":                 a.get("adset_budget_type", "—"),
+            "Reach":                              a.get("reach", 0),
+            "Cost per 1,000 Meta Accounts reached": round(a.get("cpm_reach", 0.0), 2),
+            "Impressions":                        a.get("impressions", 0),
+            "CPM (cost per 1,000 impressions)":   round(a.get("cpm", 0.0), 2),
+            "Frequency":                          round(a.get("frequency", 0.0), 2),
+            "Clicks (all)":                       a.get("clicks", 0),
+            "CPC (all)":                          round(a.get("cpc", 0.0), 2),
+            "Link clicks":                        a.get("link_clicks", 0),
+            "CPC (cost per link click)":          round(a.get("cpc_link", 0.0), 2),
+            "CTR (all)":                          round(a.get("ctr", 0.0), 2),
+            "CTR (link click-through rate)":      round(a.get("ctr_link", 0.0), 2),
+            "Outbound clicks":                    a.get("outbound_clicks", 0),
+            "Cost per outbound click":            round(a.get("cost_per_outbound", 0.0), 2),
+            "Website landing page views":         a.get("landing_page_views", 0),
+            "Cost per landing page view":         round(a.get("cost_per_lp_view", 0.0), 2),
+            "Adds to cart":                       a.get("adds_to_cart", 0),
+            "Website adds to cart":               a.get("adds_to_cart", 0),
+            "Cost per add to cart":               round(a.get("cost_per_add_to_cart", 0.0), 2),
+            "Checkouts initiated":                a.get("checkouts", 0),
+            "Website checkouts initiated":        a.get("checkouts", 0),
+            "Cost per checkout initiated":        round(a.get("cost_per_checkout", 0.0), 2),
+            "Purchases":                          conv,
+            "Website purchases":                  conv,
+            "Cost per purchase":                  round(a.get("cpa", 0.0), 2),
+            "Engagement rate ranking":            a.get("engagement_ranking", "—"),
+            "Quality ranking":                    a.get("quality_ranking", "—"),
+            "Conversion rate ranking":            a.get("conversion_ranking", "—"),
+            "Reporting starts":                   reporting_start,
+            "Reporting ends":                     reporting_end,
+            "Start":                              a.get("campaign_start", "—"),
+            "End":                                a.get("campaign_end", "—"),
+        }
+
+    # ── Shared row builder for adset-level dicts ──────────────────────────────
+    def _build_adset_row(a):
+        spend = a.get("spend", 0.0)
+        imp   = a.get("impressions", 0)
+        reach = a.get("reach", 0)
+        lk    = a.get("link_clicks", 0)
+        conv  = a.get("conversions", 0)
+        cpa   = a.get("cpa", 0.0)
+        cpm   = round(spend / imp * 1000, 2) if imp else 0.0
+        cpm_r = round(spend / reach * 1000, 2) if reach else 0.0
+        cpc_l = round(spend / lk, 2) if lk else 0.0
+        ctr_l = round(lk / imp * 100, 2) if imp else 0.0
+        return {
+            "Ad name":                            "—",
+            "Campaign name":                      a.get("campaign_name", "—"),
+            "Delivery status":                    "—",
+            "Delivery level":                     "adset",
+            "Ad set name":                        a.get("adset_name", "—"),
+            "Objective":                          "—",
+            "Result type":                        "—",
+            "Results":                            conv,
+            "Cost per result":                    round(cpa, 2),
+            "Amount spent (EUR)":                 round(spend, 2),
+            "Campaign Budget":                    0.0,
+            "Campaign Budget Type":               "—",
+            "Ad Set Budget":                      "—",
+            "Ad Set Budget Type":                 "—",
+            "Reach":                              reach,
+            "Cost per 1,000 Meta Accounts reached": cpm_r,
+            "Impressions":                        imp,
+            "CPM (cost per 1,000 impressions)":   cpm,
+            "Frequency":                          round(a.get("frequency", 0.0), 2),
+            "Clicks (all)":                       a.get("clicks", 0),
+            "CPC (all)":                          round(a.get("cpc", 0.0), 2),
+            "Link clicks":                        lk,
+            "CPC (cost per link click)":          cpc_l,
+            "CTR (all)":                          round(a.get("ctr", 0.0), 2),
+            "CTR (link click-through rate)":      ctr_l,
+            "Outbound clicks":                    0,
+            "Cost per outbound click":            0.0,
+            "Website landing page views":         0,
+            "Cost per landing page view":         0.0,
+            "Adds to cart":                       0,
+            "Website adds to cart":               0,
+            "Cost per add to cart":               0.0,
+            "Checkouts initiated":                0,
+            "Website checkouts initiated":        0,
+            "Cost per checkout initiated":        0.0,
+            "Purchases":                          conv,
+            "Website purchases":                  conv,
+            "Cost per purchase":                  round(cpa, 2),
+            "Engagement rate ranking":            "—",
+            "Quality ranking":                    "—",
+            "Conversion rate ranking":            "—",
+            "Reporting starts":                   reporting_start,
+            "Reporting ends":                     reporting_end,
+            "Start":                              "—",
+            "End":                                "—",
+        }
+
     if ads:
         # ── Objective filter ──────────────────────────────────────────────────
         all_objectives = sorted(set(a.get("objective", "—") for a in ads if a.get("objective", "—") != "—"))
@@ -562,142 +724,23 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             )
             ads = [a for a in ads if a.get("objective", "—") in selected_objectives] if selected_objectives else ads
 
-        ad_rows = []
-        for a in sorted(ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True):
-            spend = a.get("spend", 0.0)
-            conv  = a.get("conversions", 0)
-            ad_rows.append({
-                "Ad name":                            a.get("ad_name", "—"),
-                "Campaign name":                      a.get("campaign_name", "—"),
-                "Delivery status":                    a.get("delivery_status", "—"),
-                "Delivery level":                     a.get("delivery_level", "ad"),
-                "Ad set name":                        a.get("adset_name", "—"),
-                "Objective":                          a.get("objective", "—"),
-                "Result type":                        a.get("result_type", "—"),
-                "Results":                            conv,
-                "Cost per result":                    round(a.get("cpa", 0.0), 2),
-                "Amount spent (EUR)":                 round(spend, 2),
-                "Campaign Budget":                    round(a.get("campaign_budget", 0.0), 2),
-                "Campaign Budget Type":               a.get("campaign_budget_type", "—"),
-                "Ad Set Budget":                      round(a.get("adset_budget", 0.0), 2) if a.get("adset_budget", 0.0) > 0 else "—",
-                "Ad Set Budget Type":                 a.get("adset_budget_type", "—"),
-                "Reach":                              a.get("reach", 0),
-                "Cost per 1,000 Meta Accounts reached": round(a.get("cpm_reach", 0.0), 2),
-                "Impressions":                        a.get("impressions", 0),
-                "CPM (cost per 1,000 impressions)":   round(a.get("cpm", 0.0), 2),
-                "Frequency":                          round(a.get("frequency", 0.0), 2),
-                "Clicks (all)":                       a.get("clicks", 0),
-                "CPC (all)":                          round(a.get("cpc", 0.0), 2),
-                "Link clicks":                        a.get("link_clicks", 0),
-                "CPC (cost per link click)":          round(a.get("cpc_link", 0.0), 2),
-                "CTR (all)":                          round(a.get("ctr", 0.0), 2),
-                "CTR (link click-through rate)":      round(a.get("ctr_link", 0.0), 2),
-                "Outbound clicks":                    a.get("outbound_clicks", 0),
-                "Cost per outbound click":            round(a.get("cost_per_outbound", 0.0), 2),
-                "Website landing page views":         a.get("landing_page_views", 0),
-                "Cost per landing page view":         round(a.get("cost_per_lp_view", 0.0), 2),
-                "Adds to cart":                       a.get("adds_to_cart", 0),
-                "Website adds to cart":               a.get("adds_to_cart", 0),
-                "Cost per add to cart":               round(a.get("cost_per_add_to_cart", 0.0), 2),
-                "Checkouts initiated":                a.get("checkouts", 0),
-                "Website checkouts initiated":        a.get("checkouts", 0),
-                "Cost per checkout initiated":        round(a.get("cost_per_checkout", 0.0), 2),
-                "Purchases":                          conv,
-                "Website purchases":                  conv,
-                "Cost per purchase":                  round(a.get("cpa", 0.0), 2),
-                "Engagement rate ranking":            a.get("engagement_ranking", "—"),
-                "Quality ranking":                    a.get("quality_ranking", "—"),
-                "Conversion rate ranking":            a.get("conversion_ranking", "—"),
-                "Reporting starts":                   reporting_start,
-                "Reporting ends":                     reporting_end,
-                "Start":                              a.get("campaign_start", "—"),
-                "End":                                a.get("campaign_end", "—"),
-            })
+        ad_rows = [
+            _build_ad_row(a)
+            for a in sorted(ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True)
+        ]
 
-        df_ads = pd.DataFrame(ad_rows)
         st.dataframe(
-            df_ads,
+            pd.DataFrame(ad_rows),
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",
-            column_config={
-                "Ad name":                              st.column_config.TextColumn("Ad name",                              width="large"),
-                "Campaign name":                        st.column_config.TextColumn("Campaign name",                        width="large"),
-                "Delivery status":                      st.column_config.TextColumn("Delivery status",                      width="medium"),
-                "Delivery level":                       st.column_config.TextColumn("Delivery level",                       width="small"),
-                "Ad set name":                          st.column_config.TextColumn("Ad set name",                          width="large"),
-                "Objective":                            st.column_config.TextColumn("Objective",                            width="small"),
-                "Result type":                          st.column_config.TextColumn("Result type",                          width="medium"),
-                "Results":                              st.column_config.NumberColumn("Results",                            format="%d"),
-                "Cost per result":                      st.column_config.NumberColumn("Cost per result",                    format="€%.2f"),
-                "Amount spent (EUR)":                   st.column_config.NumberColumn("Amount spent (EUR)",                 format="€%.2f"),
-                "Campaign Budget":                      st.column_config.NumberColumn("Campaign Budget",                    format="€%.2f"),
-                "Campaign Budget Type":                 st.column_config.TextColumn("Campaign Budget Type",                 width="small"),
-                "Ad Set Budget":                        st.column_config.TextColumn("Ad Set Budget"),
-                "Ad Set Budget Type":                   st.column_config.TextColumn("Ad Set Budget Type",                   width="medium"),
-                "Reach":                                st.column_config.NumberColumn("Reach",                             format="%d"),
-                "Cost per 1,000 Meta Accounts reached": st.column_config.NumberColumn("Cost per 1,000 Meta Accounts reached", format="€%.2f"),
-                "Impressions":                          st.column_config.NumberColumn("Impressions",                       format="%d"),
-                "CPM (cost per 1,000 impressions)":     st.column_config.NumberColumn("CPM (cost per 1,000 impressions)",  format="€%.2f"),
-                "Frequency":                            st.column_config.NumberColumn("Frequency",                         format="%.2f"),
-                "Clicks (all)":                         st.column_config.NumberColumn("Clicks (all)",                      format="%d"),
-                "CPC (all)":                            st.column_config.NumberColumn("CPC (all)",                         format="€%.2f"),
-                "Link clicks":                          st.column_config.NumberColumn("Link clicks",                       format="%d"),
-                "CPC (cost per link click)":            st.column_config.NumberColumn("CPC (cost per link click)",         format="€%.2f"),
-                "CTR (all)":                            st.column_config.NumberColumn("CTR (all)",                         format="%.2f%%"),
-                "CTR (link click-through rate)":        st.column_config.NumberColumn("CTR (link click-through rate)",     format="%.2f%%"),
-                "Outbound clicks":                      st.column_config.NumberColumn("Outbound clicks",                   format="%d"),
-                "Cost per outbound click":              st.column_config.NumberColumn("Cost per outbound click",           format="€%.2f"),
-                "Website landing page views":           st.column_config.NumberColumn("Website landing page views",        format="%d"),
-                "Cost per landing page view":           st.column_config.NumberColumn("Cost per landing page view",        format="€%.2f"),
-                "Adds to cart":                         st.column_config.NumberColumn("Adds to cart",                      format="%d"),
-                "Website adds to cart":                 st.column_config.NumberColumn("Website adds to cart",              format="%d"),
-                "Cost per add to cart":                 st.column_config.NumberColumn("Cost per add to cart",              format="€%.2f"),
-                "Checkouts initiated":                  st.column_config.NumberColumn("Checkouts initiated",               format="%d"),
-                "Website checkouts initiated":          st.column_config.NumberColumn("Website checkouts initiated",       format="%d"),
-                "Cost per checkout initiated":          st.column_config.NumberColumn("Cost per checkout initiated",       format="€%.2f"),
-                "Purchases":                            st.column_config.NumberColumn("Purchases",                         format="%d"),
-                "Website purchases":                    st.column_config.NumberColumn("Website purchases",                 format="%d"),
-                "Cost per purchase":                    st.column_config.NumberColumn("Cost per purchase",                 format="€%.2f"),
-                "Engagement rate ranking":              st.column_config.TextColumn("Engagement rate ranking",             width="medium"),
-                "Quality ranking":                      st.column_config.TextColumn("Quality ranking",                     width="medium"),
-                "Conversion rate ranking":              st.column_config.TextColumn("Conversion rate ranking",             width="medium"),
-                "Reporting starts":                     st.column_config.TextColumn("Reporting starts",                    width="small"),
-                "Reporting ends":                       st.column_config.TextColumn("Reporting ends",                      width="small"),
-                "Start":                                st.column_config.TextColumn("Start",                               width="small"),
-                "End":                                  st.column_config.TextColumn("End",                                 width="small"),
-            },
+            column_config=_csv_col_config(),
         )
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
 
     # ── One expander per campaign ──────────────────────────────────────────────
-    _ADSET_COLS = {
-        "Adset":          st.column_config.TextColumn("Adset", width="large"),
-        "Impressions":    st.column_config.NumberColumn("Impressions",    format="%d"),
-        "Portée":         st.column_config.NumberColumn("Portée",         format="%d"),
-        "Clics":          st.column_config.NumberColumn("Clics",          format="%d"),
-        "CTR (%)":        st.column_config.NumberColumn("CTR (%)",        format="%.2f%%"),
-        "CPC (€)":        st.column_config.NumberColumn("CPC (€)",        format="€%.2f"),
-        "Dépensé (€)":    st.column_config.NumberColumn("Dépensé (€)",    format="€%.2f"),
-        "Répétition":     st.column_config.NumberColumn("Répétition",     format="%.2fx"),
-        "Commandes":      st.column_config.NumberColumn("Commandes",      format="%d"),
-        "Coût/vente (€)": st.column_config.NumberColumn("Coût/vente (€)", format="€%.2f"),
-    }
-    _AD_COLS = {
-        "Ad":             st.column_config.TextColumn("Ad", width="large"),
-        "Impressions":    st.column_config.NumberColumn("Impressions",    format="%d"),
-        "Portée":         st.column_config.NumberColumn("Portée",         format="%d"),
-        "Clics":          st.column_config.NumberColumn("Clics",          format="%d"),
-        "CTR (%)":        st.column_config.NumberColumn("CTR (%)",        format="%.2f%%"),
-        "CPC (€)":        st.column_config.NumberColumn("CPC (€)",        format="€%.2f"),
-        "Dépensé (€)":    st.column_config.NumberColumn("Dépensé (€)",    format="€%.2f"),
-        "Répétition":     st.column_config.NumberColumn("Répétition",     format="%.2fx"),
-        "Commandes":      st.column_config.NumberColumn("Commandes",      format="%d"),
-        "Coût/vente (€)": st.column_config.NumberColumn("Coût/vente (€)", format="€%.2f"),
-    }
-
     for c in sorted(campaigns, key=lambda x: x.get("spend", 0.0), reverse=True):
         name   = c.get("name", "—")
         spend  = c.get("spend", 0.0)
@@ -753,25 +796,11 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                     'color:rgba(255,255,255,0.55);margin-bottom:0.4rem;">📦 ADSETS</div>',
                     unsafe_allow_html=True,
                 )
-                adset_rows = []
-                for a in camp_adsets:
-                    adset_rows.append({
-                        "Adset":          a.get("adset_name", "—"),
-                        "Impressions":    a.get("impressions", 0),
-                        "Portée":         a.get("reach", 0),
-                        "Clics":          a.get("link_clicks", 0),
-                        "CTR (%)":        round(a.get("ctr", 0.0), 2),
-                        "CPC (€)":        round(a.get("cpc", 0.0), 2),
-                        "Dépensé (€)":    round(a.get("spend", 0.0), 2),
-                        "Répétition":     round(a.get("frequency", 0.0), 2),
-                        "Commandes":      a.get("conversions", 0),
-                        "Coût/vente (€)": round(a.get("cpa", 0.0), 2),
-                    })
                 st.dataframe(
-                    pd.DataFrame(adset_rows),
+                    pd.DataFrame([_build_adset_row(a) for a in camp_adsets]),
                     use_container_width=True,
                     hide_index=True,
-                    column_config=_ADSET_COLS,
+                    column_config=_csv_col_config(),
                 )
 
                 # Per-adset ads expander
@@ -787,25 +816,11 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                         if not adset_ads:
                             st.caption("Aucun ad pour cet adset.")
                         else:
-                            ad_rows = []
-                            for a in adset_ads:
-                                ad_rows.append({
-                                    "Ad":             a.get("ad_name", "—"),
-                                    "Impressions":    a.get("impressions", 0),
-                                    "Portée":         a.get("reach", 0),
-                                    "Clics":          a.get("link_clicks", 0),
-                                    "CTR (%)":        round(a.get("ctr", 0.0), 2),
-                                    "CPC (€)":        round(a.get("cpc", 0.0), 2),
-                                    "Dépensé (€)":    round(a.get("spend", 0.0), 2),
-                                    "Répétition":     round(a.get("frequency", 0.0), 2),
-                                    "Commandes":      a.get("conversions", 0),
-                                    "Coût/vente (€)": round(a.get("cpa", 0.0), 2),
-                                })
                             st.dataframe(
-                                pd.DataFrame(ad_rows),
+                                pd.DataFrame([_build_ad_row(a) for a in adset_ads]),
                                 use_container_width=True,
                                 hide_index=True,
-                                column_config=_AD_COLS,
+                                column_config=_csv_col_config(),
                             )
             else:
                 st.caption("Aucune donnée adset disponible pour cette campagne.")
