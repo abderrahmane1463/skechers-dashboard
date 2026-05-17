@@ -529,18 +529,19 @@ def fetch_adset_ad_insights(
     except Exception as e:
         print(f"DEBUG adset_ad: adset meta error: {e}")
 
-    # ── 3. Ad delivery status ─────────────────────────────────────────────────
-    _ad_status: dict[str, str] = {}
-    try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
-            "fields": "id,effective_status",
-            "limit":  500,
-        })
-        for a in resp.get("data", []):
-            _ad_status[a.get("id", "")] = a.get("effective_status", "—")
-        print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
-    except Exception as e:
-        print(f"DEBUG adset_ad: ad status error: {e}")
+    # ── 3. Ad delivery status — derived from campaign status + impressions ────
+    # Meta's /ads endpoint requires special permissions; instead we derive
+    # status from the campaign effective_status we already have.
+    _STATUS_MAP = {
+        "ACTIVE":        "active",
+        "PAUSED":        "inactive",
+        "CAMPAIGN_PAUSED": "inactive",
+        "ADSET_PAUSED":  "inactive",
+        "DELETED":       "deleted",
+        "ARCHIVED":      "archived",
+        "IN_PROCESS":    "in_process",
+        "WITH_ISSUES":   "with_issues",
+    }
 
     # ── Insight field strings ─────────────────────────────────────────────────
     _ADSET_FIELDS = (
@@ -602,7 +603,7 @@ def fetch_adset_ad_insights(
             "campaign_id":         camp_id,
             "campaign_name":       r.get("campaign_name", "—"),
             "campaign_created":    camp.get("created_time", ""),
-            "delivery_status":     _ad_status.get(ad_id, "—"),
+            "delivery_status":     _STATUS_MAP.get(camp.get("status", ""), "not_delivering") if imp > 0 else ("inactive" if camp.get("status") == "PAUSED" else "not_delivering"),
             "delivery_level":      "ad",
             "adset_id":            adset_id,
             "adset_name":          r.get("adset_name", "—"),
