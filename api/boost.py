@@ -529,19 +529,19 @@ def fetch_adset_ad_insights(
     except Exception as e:
         print(f"DEBUG adset_ad: adset meta error: {e}")
 
-    # ── 3. Ad delivery status — fetch per campaign (most reliable) ────────────
+    # ── 3. Ad delivery status — single call, filter in Python ─────────────────
     _ad_status: dict[str, str] = {}
-    for cid in footland_ids:
-        try:
-            resp = _get_ads(f"{cid}/ads", {
-                "fields": "id,effective_status",
-                "limit":  500,
-            })
-            for a in resp.get("data", []):
+    try:
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
+            "fields": "id,effective_status,campaign_id",
+            "limit":  500,
+        })
+        for a in resp.get("data", []):
+            if a.get("campaign_id", "") in footland_set:
                 _ad_status[a.get("id", "")] = a.get("effective_status", "—")
-        except Exception as e:
-            print(f"DEBUG adset_ad: ad status error for campaign {cid}: {e}")
-    print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
+        print(f"DEBUG adset_ad: ad status loaded for {len(_ad_status)} ads")
+    except Exception as e:
+        print(f"DEBUG adset_ad: ad status error: {e}")
 
     # ── Insight field strings ─────────────────────────────────────────────────
     _ADSET_FIELDS = (
