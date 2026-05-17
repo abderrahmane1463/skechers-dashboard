@@ -486,7 +486,7 @@ def fetch_adset_ad_insights(
     _camp_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields": "id,objective,effective_status,daily_budget,lifetime_budget,created_time",
+            "fields": "id,objective,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time",
             "limit":  500,
         })
         for c in resp.get("data", []):
@@ -502,6 +502,8 @@ def fetch_adset_ad_insights(
                 "budget":       daily if daily > 0 else life,
                 "budget_type":  "Daily" if daily > 0 else ("Lifetime" if life > 0 else "—"),
                 "created_time": c.get("created_time", ""),
+                "start_time":   c.get("start_time", ""),
+                "stop_time":    c.get("stop_time", ""),
             }
         print(f"DEBUG adset_ad: campaign meta loaded for {len(_camp_meta)} campaigns")
     except Exception as e:
@@ -597,12 +599,18 @@ def fetch_adset_ad_insights(
         camp  = _camp_meta.get(camp_id, {})
         adset = _adset_meta.get(adset_id, {})
 
+        def _fmt_date(iso: str) -> str:
+            """Extract YYYY-MM-DD from an ISO datetime string."""
+            return iso[:10] if iso and len(iso) >= 10 else "—"
+
         return {
             "ad_id":               ad_id,
             "ad_name":             r.get("ad_name", "—"),
             "campaign_id":         camp_id,
             "campaign_name":       r.get("campaign_name", "—"),
             "campaign_created":    camp.get("created_time", ""),
+            "campaign_start":      _fmt_date(camp.get("start_time", "")),
+            "campaign_end":        _fmt_date(camp.get("stop_time", "")),
             "delivery_status":     _STATUS_MAP.get(camp.get("status", ""), "not_delivering") if imp > 0 else ("inactive" if camp.get("status") == "PAUSED" else "not_delivering"),
             "delivery_level":      "ad",
             "adset_id":            adset_id,

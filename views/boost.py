@@ -610,6 +610,8 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 "Conversion rate ranking":            a.get("conversion_ranking", "—"),
                 "Reporting starts":                   reporting_start,
                 "Reporting ends":                     reporting_end,
+                "Start":                              a.get("campaign_start", "—"),
+                "End":                                a.get("campaign_end", "—"),
             })
 
         df_ads = pd.DataFrame(ad_rows)
@@ -663,6 +665,8 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 "Conversion rate ranking":              st.column_config.TextColumn("Conversion rate ranking",             width="medium"),
                 "Reporting starts":                     st.column_config.TextColumn("Reporting starts",                    width="small"),
                 "Reporting ends":                       st.column_config.TextColumn("Reporting ends",                      width="small"),
+                "Start":                                st.column_config.TextColumn("Start",                               width="small"),
+                "End":                                  st.column_config.TextColumn("End",                                 width="small"),
             },
         )
     else:
