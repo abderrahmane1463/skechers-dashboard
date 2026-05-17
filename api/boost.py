@@ -124,12 +124,11 @@ def _safe_int(val, default=0) -> int:
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 def _get_footland_ids() -> list:
-    """Fetch all Footland campaign IDs from the ad account (all statuses)."""
+    """Fetch all Footland campaign IDs from the ad account."""
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields":           "id,name",
-            "effective_status": '["ACTIVE","PAUSED","ARCHIVED","DELETED","IN_PROCESS","WITH_ISSUES"]',
-            "limit":            500,
+            "fields": "id,name",
+            "limit":  500,
         })
         all_camps = resp.get("data", [])
         ids = [c["id"] for c in all_camps if any(kw in c.get("name", "") for kw in FOOTLAND_CAMPAIGN_KEYWORDS)]
@@ -208,9 +207,8 @@ def fetch_boost_insights(
     _camp_meta: dict[str, dict] = {}
     try:
         resp_meta = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields":           "id,effective_status,daily_budget,lifetime_budget",
-            "effective_status": '["ACTIVE","PAUSED","ARCHIVED","DELETED","IN_PROCESS","WITH_ISSUES"]',
-            "limit":            500,
+            "fields": "id,effective_status,daily_budget,lifetime_budget",
+            "limit":  500,
         })
         for c in resp_meta.get("data", []):
             cid = c.get("id", "")
@@ -488,9 +486,8 @@ def fetch_adset_ad_insights(
     _camp_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields":           "id,objective,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time",
-            "effective_status": '["ACTIVE","PAUSED","ARCHIVED","DELETED","IN_PROCESS","WITH_ISSUES"]',
-            "limit":            500,
+            "fields": "id,objective,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time",
+            "limit":  500,
         })
         for c in resp.get("data", []):
             cid = c.get("id", "")
@@ -516,10 +513,9 @@ def fetch_adset_ad_insights(
     _adset_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/adsets", {
-            "fields":           "id,campaign_id,daily_budget,lifetime_budget,start_time,end_time",
-            "effective_status": '["ACTIVE","PAUSED","ARCHIVED","DELETED","IN_PROCESS","WITH_ISSUES"]',
-            "filtering":        _CAMP_ID_FILTER,
-            "limit":            500,
+            "fields":    "id,campaign_id,daily_budget,lifetime_budget,start_time,end_time",
+            "filtering": _CAMP_ID_FILTER,
+            "limit":     500,
         })
         for a in resp.get("data", []):
             aid   = a.get("id", "")
