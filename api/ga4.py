@@ -41,14 +41,17 @@ def _get_credentials():
         scopes=token_data.get("scopes", _SCOPES),
     )
 
-    if creds.expired and creds.refresh_token:
+    # Always refresh — access token expires every hour
+    try:
         creds.refresh(Request())
-        # Save refreshed token locally if file exists
         if os.path.exists(_TOKEN_PATH):
             with open(_TOKEN_PATH, "w") as f:
                 f.write(creds.to_json())
+    except Exception as e:
+        print(f"DEBUG ga4: token refresh error: {e}")
+        return None
 
-    return creds if creds.valid else None
+    return creds
 
 
 def fetch_ga4_engagement(start: str, end: str) -> dict:
