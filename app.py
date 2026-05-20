@@ -339,15 +339,6 @@ else:
             print(f"DEBUG adset/ad fetch failed: {e}")
             return {"adsets": [], "ads": []}
 
-    @st.cache_data(ttl=900, show_spinner=False)
-    def _cached_ga4(start, end):
-        try:
-            from api.ga4 import fetch_ga4_engagement
-            return fetch_ga4_engagement(start or "", end or "")
-        except Exception as e:
-            print(f"DEBUG ga4 fetch failed: {e}")
-            return {}
-
     # ── Skeleton placeholder — shown while data loads ─────────────────────────
     _skel_b = st.empty()
     _skel_b.markdown(skeleton_boost_html(), unsafe_allow_html=True)
@@ -356,7 +347,15 @@ else:
     prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
     demo_data       = _cached_boost_demo(days, start_date, end_date)
     adset_ad_data   = _cached_adset_ad(days, start_date, end_date)
-    ga4_data        = _cached_ga4(str(start_date) if start_date else "", str(end_date) if end_date else "")
+
+    try:
+        from api.ga4 import fetch_ga4_engagement
+        _ga4_start = str(start_date) if start_date else ""
+        _ga4_end   = str(end_date)   if end_date   else ""
+        ga4_data = fetch_ga4_engagement(_ga4_start, _ga4_end)
+    except Exception as _ga4_err:
+        st.warning(f"⚠️ GA4: {_ga4_err}")
+        ga4_data = {}
 
     # Data loaded — overwrite skeleton (more reliable than .empty() on Streamlit Cloud)
     _skel_b.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
