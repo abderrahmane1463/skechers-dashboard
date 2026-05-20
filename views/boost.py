@@ -1043,9 +1043,38 @@ def _render_geographic(demo: dict):
 
 
 # ─── Public entry point ────────────────────────────────────────────────────────
+def _render_ga4_engagement(ga4: dict):
+    """Bounce rate, session duration, sessions, page views from GA4."""
+    _section_header("📈 ENGAGEMENT SITE (Google Analytics)")
+
+    if not ga4:
+        _no_data_banner("Données Google Analytics non disponibles — lancez ga4_auth.py pour connecter GA4.")
+        return
+
+    sessions  = ga4.get("sessions", 0)
+    bounce    = ga4.get("bounce_rate", 0.0)
+    duration  = ga4.get("avg_session_duration", 0.0)
+    pageviews = ga4.get("page_views", 0)
+
+    # Format duration as mm:ss
+    mins = int(duration) // 60
+    secs = int(duration) % 60
+    duration_str = f"{mins}m {secs:02d}s"
+
+    row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("👥", "Sessions", _fmt_int(sessions), "#7dd3fc")}
+  {_kpi_card("📄", "Pages vues", _fmt_int(pageviews), "#a78bfa")}
+  {_kpi_card("↩️", "Taux de rebond", _fmt_pct(bounce), "#f87171", lower_is_better=True)}
+  {_kpi_card("⏱️", "Durée moyenne", duration_str, "#4ade80")}
+</div>"""
+    st.markdown(row, unsafe_allow_html=True)
+
+
 def render_boost_tab(data: dict | None = None, demo: dict | None = None,
                      prev_data: dict | None = None,
-                     since: str = "", until: str = "", adset_ad_data=None):
+                     since: str = "", until: str = "", adset_ad_data=None,
+                     ga4_data: dict | None = None):
     """
     Render the full Boost (Ads Performance) tab.
 
@@ -1099,6 +1128,8 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     _render_funnel(totals, campaigns)
     st.divider()
     _render_acquisition_kpis(totals, campaigns)
+    st.divider()
+    _render_ga4_engagement(ga4_data or {})
     st.divider()
     _render_by_objective(campaigns, obj_reach,
                          {"since": _period_since, "until": _period_until})
