@@ -246,6 +246,95 @@ def _render_conversion_campaigns(conv: dict, prev_conv: dict | None = None):
         _no_data_banner("Aucune campagne de conversion détectée pour la période sélectionnée.")
 
 
+def _render_funnel(totals: dict, campaigns: list[dict]):
+    """Conversion funnel: Impressions → Clicks → LP Views → Add to Cart → Checkout → Purchases."""
+    _section_header("🔁 FUNNEL DE CONVERSION")
+
+    imp    = totals.get("impressions", 0)
+    clicks = totals.get("link_clicks", 0)
+    lp     = totals.get("landing_page_views", 0) or sum(c.get("landing_page_views", 0) for c in campaigns)
+    cart   = totals.get("adds_to_cart", 0)        or sum(c.get("adds_to_cart", 0)       for c in campaigns)
+    chk    = totals.get("checkouts", 0)            or sum(c.get("checkouts", 0)           for c in campaigns)
+    conv   = totals.get("purchases", 0)            or sum(c.get("conversions", 0)         for c in campaigns)
+
+    stages = ["Impressions", "Clics", "Pages vues", "Ajouts panier", "Checkouts", "Achats"]
+    values = [imp, clicks, lp, cart, chk, conv]
+
+    # Drop trailing zero stages (e.g. if pixel not set up)
+    last_nonzero = max((i for i, v in enumerate(values) if v > 0), default=1)
+    stages = stages[:last_nonzero + 1]
+    values = values[:last_nonzero + 1]
+
+    if not any(v > 0 for v in values):
+        _no_data_banner("Données funnel non disponibles pour cette période.")
+        return
+
+    _dark      = st.session_state.get("theme", "dark") == "dark"
+    _bar_color = "#E8420A"
+    _txt_color = "#ffffff" if _dark else "#111827"
+    _sub_color = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _bg        = "rgba(255,255,255,0.03)" if _dark else "#f9fafb"
+    _brd       = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
+
+    # Build HTML funnel bars
+    max_val = max(values) or 1
+    rows_html = ""
+    for i, (stage, val) in enumerate(zip(stages, values)):
+        bar_pct  = round(val / max_val * 100, 1)
+        drop_pct = round((values[i - 1] - val) / values[i - 1] * 100, 1) if i > 0 and values[i - 1] > 0 else None
+        drop_html = (
+            f'<span style="font-size:0.65rem;color:#f87171;margin-left:0.5rem;">▼ -{drop_pct}%</span>'
+            if drop_pct is not None else ""
+        )
+        rows_html += (
+            f'<div style="margin-bottom:0.6rem;">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
+            f'<span style="font-size:0.78rem;color:{_txt_color};font-weight:600;">{stage}{drop_html}</span>'
+            f'<span style="font-size:0.78rem;color:{_sub_color};">{val:,}</span>'
+            f'</div>'
+            f'<div style="background:{_brd};border-radius:6px;height:10px;">'
+            f'<div style="background:{_bar_color};width:{bar_pct}%;height:10px;border-radius:6px;'
+            f'transition:width 0.4s ease;"></div>'
+            f'</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div style="background:{_bg};border:1px solid {_brd};border-radius:12px;padding:1.2rem 1.4rem;">'
+        f'{rows_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_acquisition_kpis(totals: dict, campaigns: list[dict]):
+    """ROAS + Landing Page CVR + Cart Abandonment + Purchase Rate."""
+    _section_header("💡 KPIs D'ACQUISITION")
+
+    clicks  = totals.get("link_clicks", 0)
+    lp      = totals.get("landing_page_views", 0) or sum(c.get("landing_page_views", 0) for c in campaigns)
+    cart    = totals.get("adds_to_cart", 0)        or sum(c.get("adds_to_cart", 0)       for c in campaigns)
+    chk     = totals.get("checkouts", 0)            or sum(c.get("checkouts", 0)           for c in campaigns)
+    conv    = totals.get("purchases", 0)            or sum(c.get("conversions", 0)         for c in campaigns)
+    roas    = totals.get("roas", 0.0)
+
+    lp_cvr        = round(lp  / clicks * 100, 2) if clicks else 0.0
+    cart_abandon  = round((1 - chk / cart) * 100, 2) if cart else 0.0
+    purchase_rate = round(conv / chk * 100, 2)        if chk  else 0.0
+
+    row = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("📊", "ROAS", f"{roas:.2f}×", "#4ade80")}
+  {_kpi_card("🛬", "LP Conversion", _fmt_pct(lp_cvr), "#7dd3fc")}
+  {_kpi_card("🛒", "Abandon panier", _fmt_pct(cart_abandon), "#f87171", lower_is_better=True)}
+  {_kpi_card("💳", "Taux d'achat", _fmt_pct(purchase_rate), "#a78bfa")}
+</div>"""
+    st.markdown(row, unsafe_allow_html=True)
+
+    if roas == 0 and lp_cvr == 0 and cart_abandon == 0 and purchase_rate == 0:
+        _no_data_banner("KPIs d'acquisition non disponibles — vérifiez que le Meta Pixel est actif sur le site.")
+
+
 def _render_by_objective(campaigns: list[dict], obj_reach: dict | None = None,
                          period: dict | None = None):
     """Single KPI block aggregated from selected objectives (multiselect filter).
@@ -1007,6 +1096,10 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
     _render_global_kpis(totals, prev_totals)
     st.divider()
     _render_conversion_campaigns(conv, prev_conv)
+    st.divider()
+    _render_funnel(totals, campaigns)
+    st.divider()
+    _render_acquisition_kpis(totals, campaigns)
     st.divider()
     _render_by_objective(campaigns, obj_reach,
                          {"since": _period_since, "until": _period_until})

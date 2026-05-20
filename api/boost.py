@@ -108,6 +108,15 @@ def _cost_for_type(cost_per_action: list, types: set) -> float:
     return 0.0
 
 
+def _purchase_value(action_values: list) -> float:
+    """Sum of purchase revenue from action_values (Meta Pixel purchase event value)."""
+    return sum(
+        float(a.get("value", 0))
+        for a in (action_values or [])
+        if a.get("action_type") in _PURCHASE_TYPES
+    )
+
+
 def _safe_float(val, default=0.0) -> float:
     try:
         return float(val)
@@ -169,7 +178,7 @@ def fetch_boost_insights(
         "spend,cpc,ctr,frequency,"
         "outbound_clicks,"
         "quality_ranking,engagement_rate_ranking,conversion_rate_ranking,"
-        "actions,cost_per_action_type"
+        "actions,cost_per_action_type,action_values"
     )
 
     # ── Initialise output with zero defaults ──────────────────────────────────
@@ -268,12 +277,15 @@ def fetch_boost_insights(
         # Accumulators — reach excluded (comes from dedup account-level call)
         t_clicks = t_imp = 0
         t_spend  = 0.0
+        t_purchase_value = 0.0
+        t_lp = t_cart = t_chk = t_purchases = 0
         t_cpcs:  list[float] = []
         t_ctrs:  list[float] = []
         t_freqs: list[float] = []
         # Conversion-objective accumulators
         cv_clicks = cv_imp = cv_purchases = 0
         cv_spend  = 0.0
+        cv_purchase_value = 0.0
         cv_cpcs:  list[float] = []
         cv_ctrs:  list[float] = []
         cv_freqs: list[float] = []
@@ -295,6 +307,9 @@ def fetch_boost_insights(
             camp_id    = r.get("campaign_id", "")
 
             # New fields from expanded API call
+            action_values_list = r.get("action_values") or []
+            purch_value_val = _purchase_value(action_values_list)
+            roas_val        = round(purch_value_val / spend_val, 2) if spend_val else 0.0
             outbound_val    = _outbound_clicks_count(r.get("outbound_clicks"))
             lp_views_val    = _action_count(actions, _LANDING_PAGE_TYPES)
             add_cart_val    = _action_count(actions, _ADD_TO_CART_TYPES)
@@ -337,6 +352,8 @@ def fetch_boost_insights(
                 "cost_per_add_to_cart":   cost_cart_val,
                 "checkouts":              checkout_val,
                 "cost_per_checkout":      cost_chk_val,
+                "purchase_value":          purch_value_val,
+                "roas":                   roas_val,
                 "quality_ranking":        r.get("quality_ranking", "—"),
                 "engagement_ranking":     r.get("engagement_rate_ranking", "—"),
                 "conversion_ranking":     r.get("conversion_rate_ranking", "—"),
@@ -345,18 +362,24 @@ def fetch_boost_insights(
             if camp_id:
                 obj_camp_ids.setdefault(objective, []).append(camp_id)
 
-            t_clicks += link_clicks_val
-            t_imp    += imp_val
-            t_spend  += spend_val
+            t_clicks         += link_clicks_val
+            t_imp            += imp_val
+            t_spend          += spend_val
+            t_purchase_value += purch_value_val
+            t_lp             += lp_views_val
+            t_cart           += add_cart_val
+            t_chk            += checkout_val
+            t_purchases      += purchases
             if cpc_val:  t_cpcs.append(cpc_val)
             if ctr_val:  t_ctrs.append(ctr_val)
             if freq_val: t_freqs.append(freq_val)
 
             if objective in _CONV_OBJECTIVES:
-                cv_clicks    += link_clicks_val
-                cv_imp       += imp_val
-                cv_spend     += spend_val
-                cv_purchases += purchases
+                cv_clicks         += link_clicks_val
+                cv_imp            += imp_val
+                cv_spend          += spend_val
+                cv_purchases      += purchases
+                cv_purchase_value += purch_value_val
                 if camp_id:  conv_ids.append(camp_id)
                 if cpc_val:  cv_cpcs.append(cpc_val)
                 if ctr_val:  cv_ctrs.append(ctr_val)
@@ -418,15 +441,24 @@ def fetch_boost_insights(
         cv_cpc    = round(cv_spend  / cv_clicks,  2) if cv_clicks else 0.0
         cv_ctr    = round(cv_clicks / cv_imp * 100, 2) if cv_imp  else 0.0
 
+        total_roas = round(t_purchase_value / t_spend, 2) if t_spend else 0.0
+        cv_roas    = round(cv_purchase_value / cv_spend, 2) if cv_spend else 0.0
+
         out["totals"].update({
-            "campaigns_count": active_count,
-            "link_clicks":     t_clicks,
+            "campaigns_count":  active_count,
+            "link_clicks":      t_clicks,
             # reach already set by account-level dedup call above — preserved
-            "impressions":     t_imp,
-            "spend":           t_spend,
-            "cpc":             total_cpc,
-            "ctr":             total_ctr,
-            "frequency":       total_freq,
+            "impressions":      t_imp,
+            "spend":            t_spend,
+            "cpc":              total_cpc,
+            "ctr":              total_ctr,
+            "frequency":        total_freq,
+            "purchase_value":   t_purchase_value,
+            "roas":             total_roas,
+            "landing_page_views": t_lp,
+            "adds_to_cart":     t_cart,
+            "checkouts":        t_chk,
+            "purchases":        t_purchases,
         })
 
         cv_count = sum(1 for c in campaigns if c["objective"] in _CONV_OBJECTIVES)
@@ -441,6 +473,8 @@ def fetch_boost_insights(
             "frequency":           cv_freq,
             "total_conversions":   cv_purchases,
             "cost_per_conversion": cv_spend / cv_purchases if cv_purchases else 0.0,
+            "purchase_value":      cv_purchase_value,
+            "roas":                cv_roas,
         })
 
     except Exception as e:
