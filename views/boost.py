@@ -323,15 +323,14 @@ def _render_acquisition_kpis(totals: dict, campaigns: list[dict]):
     purchase_rate = round(conv / chk * 100, 2)        if chk  else 0.0
 
     row = f"""
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi_card("📊", "ROAS", f"{roas:.2f}×", "#4ade80")}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem;">
   {_kpi_card("🛬", "LP Conversion", _fmt_pct(lp_cvr), "#7dd3fc")}
   {_kpi_card("🛒", "Abandon panier", _fmt_pct(cart_abandon), "#f87171", lower_is_better=True)}
   {_kpi_card("💳", "Taux d'achat", _fmt_pct(purchase_rate), "#a78bfa")}
 </div>"""
     st.markdown(row, unsafe_allow_html=True)
 
-    if roas == 0 and lp_cvr == 0 and cart_abandon == 0 and purchase_rate == 0:
+    if lp_cvr == 0 and cart_abandon == 0 and purchase_rate == 0:
         _no_data_banner("KPIs d'acquisition non disponibles — vérifiez que le Meta Pixel est actif sur le site.")
 
 
