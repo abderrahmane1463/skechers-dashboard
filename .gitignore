@@ -4,3 +4,5 @@ __pycache__/
 *.pyo
 .streamlit/secrets.toml
 scratch/
+ga4_token.json
+oauth_client.json
