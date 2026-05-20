@@ -20,9 +20,11 @@ def _get_credentials():
     # Try Streamlit secrets first (cloud deployment)
     try:
         import streamlit as st
-        token_data = json.loads(st.secrets["ga4"]["token_json"])
-    except Exception:
-        pass
+        raw = st.secrets["ga4"]["token_json"]
+        token_data = json.loads(raw)
+        print("DEBUG ga4: loaded token from Streamlit secrets")
+    except Exception as e:
+        print(f"DEBUG ga4: secrets read failed: {e}")
 
     # Fall back to local file
     if token_data is None:
@@ -31,27 +33,26 @@ def _get_credentials():
             return None
         with open(_TOKEN_PATH) as f:
             token_data = json.load(f)
+        print("DEBUG ga4: loaded token from local file")
 
-    creds = Credentials(
-        token=token_data.get("token"),
-        refresh_token=token_data.get("refresh_token"),
-        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=token_data.get("client_id"),
-        client_secret=token_data.get("client_secret"),
-        scopes=token_data.get("scopes", _SCOPES),
-    )
-
-    # Always refresh — access token expires every hour
     try:
+        creds = Credentials(
+            token=token_data.get("token"),
+            refresh_token=token_data.get("refresh_token"),
+            token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=token_data.get("client_id"),
+            client_secret=token_data.get("client_secret"),
+            scopes=token_data.get("scopes", _SCOPES),
+        )
         creds.refresh(Request())
+        print("DEBUG ga4: token refreshed successfully")
         if os.path.exists(_TOKEN_PATH):
             with open(_TOKEN_PATH, "w") as f:
                 f.write(creds.to_json())
+        return creds
     except Exception as e:
-        print(f"DEBUG ga4: token refresh error: {e}")
+        print(f"DEBUG ga4: credentials error: {e}")
         return None
-
-    return creds
 
 
 def fetch_ga4_engagement(start: str, end: str) -> dict:
