@@ -303,10 +303,10 @@ elif platform == "Instagram":
 elif platform == "Google Analytics":
     # ── Google Analytics 4 ───────────────────────────────────────────────────
     try:
-        from api.ga4 import fetch_ga4_engagement
+        from api.ga4 import fetch_all_ga4_data
         _ga4_start = str(start_date) if start_date else ""
         _ga4_end   = str(end_date)   if end_date   else ""
-        ga4_data = fetch_ga4_engagement(_ga4_start, _ga4_end)
+        ga4_data = fetch_all_ga4_data(_ga4_start, _ga4_end)
     except Exception as _ga4_err:
         st.warning(f"⚠️ GA4: {_ga4_err}")
         ga4_data = {}
