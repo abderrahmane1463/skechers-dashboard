@@ -1,8 +1,9 @@
 """
 api/ga4.py — Google Analytics 4 data fetching.
-Uses OAuth token saved by ga4_auth.py.
+Uses OAuth token from ga4_token.json (local) or Streamlit secrets (cloud).
 """
 import os
+import json
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import DateRange, Metric, RunReportRequest
 from google.oauth2.credentials import Credentials
@@ -14,15 +15,40 @@ _SCOPES         = ["https://www.googleapis.com/auth/analytics.readonly"]
 
 
 def _get_credentials():
-    if not os.path.exists(_TOKEN_PATH):
-        print("DEBUG ga4: ga4_token.json not found — run ga4_auth.py first")
-        return None
-    creds = Credentials.from_authorized_user_file(_TOKEN_PATH, _SCOPES)
-    if creds and creds.expired and creds.refresh_token:
+    token_data = None
+
+    # Try Streamlit secrets first (cloud deployment)
+    try:
+        import streamlit as st
+        token_data = json.loads(st.secrets["ga4"]["token_json"])
+    except Exception:
+        pass
+
+    # Fall back to local file
+    if token_data is None:
+        if not os.path.exists(_TOKEN_PATH):
+            print("DEBUG ga4: ga4_token.json not found — run ga4_auth.py first")
+            return None
+        with open(_TOKEN_PATH) as f:
+            token_data = json.load(f)
+
+    creds = Credentials(
+        token=token_data.get("token"),
+        refresh_token=token_data.get("refresh_token"),
+        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+        client_id=token_data.get("client_id"),
+        client_secret=token_data.get("client_secret"),
+        scopes=token_data.get("scopes", _SCOPES),
+    )
+
+    if creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        with open(_TOKEN_PATH, "w") as f:
-            f.write(creds.to_json())
-    return creds if (creds and creds.valid) else None
+        # Save refreshed token locally if file exists
+        if os.path.exists(_TOKEN_PATH):
+            with open(_TOKEN_PATH, "w") as f:
+                f.write(creds.to_json())
+
+    return creds if creds.valid else None
 
 
 def fetch_ga4_engagement(start: str, end: str) -> dict:
