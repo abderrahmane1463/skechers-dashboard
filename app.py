@@ -12,6 +12,7 @@ from components.sidebar import render_sidebar
 from views.facebook import render_facebook_dashboard
 from views.instagram import render_instagram_dashboard
 from views.boost import render_boost_tab, empty_boost_data
+from views.analytics import render_analytics_tab
 from views.login import render_login
 from views.documentation import render_documentation
 from components.skeleton import skeleton_boost_html
@@ -285,7 +286,7 @@ platform, period_label, days, start_date, end_date = render_sidebar(log_refresh)
 # ─── Page Title ───────────────────────────────────────────────────────────────
 col_t1, col_t2 = st.columns([3, 1])
 with col_t1:
-    _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost", "Documentation": "📖 Documentation"}[platform]
+    _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost", "Google Analytics": "📊 Google Analytics", "Documentation": "📖 Documentation"}[platform]
     st.markdown(f"## {_icon} — {period_label}")
 with col_t2:
     st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
@@ -299,6 +300,18 @@ elif platform == "Facebook":
 elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
     _start_prefetch("Instagram", days, start_date, end_date)
+elif platform == "Google Analytics":
+    # ── Google Analytics 4 ───────────────────────────────────────────────────
+    try:
+        from api.ga4 import fetch_ga4_engagement
+        _ga4_start = str(start_date) if start_date else ""
+        _ga4_end   = str(end_date)   if end_date   else ""
+        ga4_data = fetch_ga4_engagement(_ga4_start, _ga4_end)
+    except Exception as _ga4_err:
+        st.warning(f"⚠️ GA4: {_ga4_err}")
+        ga4_data = {}
+    render_analytics_tab(ga4_data, since=str(start_date) if start_date else "",
+                         until=str(end_date) if end_date else "")
 else:
     # ── Boost (paid campaigns) ────────────────────────────────────────────────
     from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
@@ -348,21 +361,11 @@ else:
     demo_data       = _cached_boost_demo(days, start_date, end_date)
     adset_ad_data   = _cached_adset_ad(days, start_date, end_date)
 
-    try:
-        from api.ga4 import fetch_ga4_engagement
-        _ga4_start = str(start_date) if start_date else ""
-        _ga4_end   = str(end_date)   if end_date   else ""
-        ga4_data = fetch_ga4_engagement(_ga4_start, _ga4_end)
-    except Exception as _ga4_err:
-        st.warning(f"⚠️ GA4: {_ga4_err}")
-        ga4_data = {}
-
     # Data loaded — overwrite skeleton (more reliable than .empty() on Streamlit Cloud)
     _skel_b.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
 
     render_boost_tab(boost_data, demo_data, prev_boost_data,
                      since=str(start_date) if start_date else "",
                      until=str(end_date)   if end_date   else "",
-                     adset_ad_data=adset_ad_data,
-                     ga4_data=ga4_data)
+                     adset_ad_data=adset_ad_data)
     _start_prefetch("Boost", days, start_date, end_date)
