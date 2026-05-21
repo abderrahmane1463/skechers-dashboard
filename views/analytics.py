@@ -529,16 +529,27 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
         _no_data("Données Google Analytics non disponibles. Vérifiez que le token GA4 est configuré.")
         return
 
-    _render_overview(ga4_data.get("overview", {}))
-    st.divider()
-    _render_traffic_sources(ga4_data.get("traffic_sources", []))
-    st.divider()
-    _render_purchase_journey(ga4_data.get("purchase_journey", {}))
-    st.divider()
-    _render_ecommerce_items(ga4_data.get("ecommerce_items", []))
-    st.divider()
-    _render_events(ga4_data.get("events", []))
-    st.divider()
-    _render_geography(ga4_data.get("geography", {}))
-    st.divider()
-    _render_devices(ga4_data.get("devices", []))
+    t1, t2, t3, t4 = st.tabs([
+        "📊 Vue d'ensemble",
+        "🛒 E-commerce",
+        "⚡ Événements",
+        "🌍 Audience",
+    ])
+
+    with t1:
+        _render_overview(ga4_data.get("overview", {}))
+        st.divider()
+        _render_traffic_sources(ga4_data.get("traffic_sources", []))
+
+    with t2:
+        _render_purchase_journey(ga4_data.get("purchase_journey", {}))
+        st.divider()
+        _render_ecommerce_items(ga4_data.get("ecommerce_items", []))
+
+    with t3:
+        _render_events(ga4_data.get("events", []))
+
+    with t4:
+        _render_geography(ga4_data.get("geography", {}))
+        st.divider()
+        _render_devices(ga4_data.get("devices", []))
