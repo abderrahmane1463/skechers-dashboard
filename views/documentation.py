@@ -97,7 +97,7 @@ def render_documentation():
 
     col4, col5 = st.columns(2)
     with col4:
-        st.info("📊 **Google Analytics** — Vue d'ensemble site, Sources de trafic, Top pages, Géographie visiteurs, Appareils")
+        st.info("📊 **Google Analytics** — Vue d'ensemble site, Sources de trafic, Géographie visiteurs, Appareils")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -344,7 +344,7 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
     # ── Google Analytics ──────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">📊 Google Analytics 4</div>', unsafe_allow_html=True)
 
-    g1, g2, g3, g4, g5 = st.tabs(["📊 Vue d'ensemble", "📡 Sources de trafic", "📄 Top Pages", "🌍 Géographie", "📱 Appareils"])
+    g1, g2, g3, g4 = st.tabs(["📊 Vue d'ensemble", "📡 Sources de trafic", "🌍 Géographie", "📱 Appareils"])
 
     with g1:
         st.markdown("""
@@ -377,19 +377,6 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
 
     with g3:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Top 10 pages les plus visitées sur la période.</p><br>
-<table class="kpi-table">
-  <tr><th>Indicateur</th><th>Description</th><th>Métrique / Dimension GA4</th></tr>
-  <tr><td class="kpi-name">Page (chemin)</td><td class="kpi-desc">URL relative de la page (ex: /produit/chaussures).</td><td><span class="endpoint">pagePath</span></td></tr>
-  <tr><td class="kpi-name">Titre</td><td class="kpi-desc">Titre HTML de la page.</td><td><span class="endpoint">pageTitle</span></td></tr>
-  <tr><td class="kpi-name">Vues</td><td class="kpi-desc">Nombre total d'affichages de la page.</td><td><span class="endpoint">screenPageViews</span></td></tr>
-  <tr><td class="kpi-name">Utilisateurs</td><td class="kpi-desc">Utilisateurs actifs ayant visité cette page.</td><td><span class="endpoint">activeUsers</span></td></tr>
-  <tr><td class="kpi-name">Durée moy.</td><td class="kpi-desc">Durée moyenne passée sur cette page (en secondes).</td><td><span class="endpoint">averageSessionDuration</span></td></tr>
-  <tr><td class="kpi-name">Taux de rebond</td><td class="kpi-desc">Taux de rebond spécifique à cette page.</td><td><span class="endpoint">bounceRate</span></td></tr>
-</table>""", unsafe_allow_html=True)
-
-    with g4:
-        st.markdown("""
 <p style="color:#a1a1aa;font-size:14px;">Répartition géographique des visiteurs du site. Top 10 pays et Top 15 villes.</p><br>
 <table class="kpi-table">
   <tr><th>Section</th><th>Description</th><th>Dimension GA4</th></tr>
@@ -397,7 +384,7 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
   <tr><td class="kpi-name">🏙️ Top Villes</td><td class="kpi-desc">Top 15 villes par utilisateurs actifs (valeurs "(not set)" exclues), avec nombre de sessions et % du total.</td><td><span class="endpoint">city</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
-    with g5:
+    with g4:
         st.markdown("""
 <p style="color:#a1a1aa;font-size:14px;">Répartition des sessions par type d'appareil.</p><br>
 <table class="kpi-table">

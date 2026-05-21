@@ -362,8 +362,6 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
     st.divider()
     _render_traffic_sources(ga4_data.get("traffic_sources", []))
     st.divider()
-    _render_top_pages(ga4_data.get("top_pages", []))
-    st.divider()
     _render_geography(ga4_data.get("geography", {}))
     st.divider()
     _render_devices(ga4_data.get("devices", []))
