@@ -97,7 +97,7 @@ def render_documentation():
 
     col4, col5 = st.columns(2)
     with col4:
-        st.info("📊 **Google Analytics** — Vue d'ensemble site, Sources de trafic, Géographie visiteurs, Appareils")
+        st.info("📊 **Google Analytics** — Vue d'ensemble + Sources de trafic, E-commerce (Parcours d'achat + Top articles), Événements, Audience (Géographie + Appareils)")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -344,11 +344,11 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
     # ── Google Analytics ──────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">📊 Google Analytics 4</div>', unsafe_allow_html=True)
 
-    g1, g2, g3, g4 = st.tabs(["📊 Vue d'ensemble", "📡 Sources de trafic", "🌍 Géographie", "📱 Appareils"])
+    g1, g2, g3, g4 = st.tabs(["📊 Vue d'ensemble", "🛒 E-commerce", "⚡ Événements", "🌍 Audience"])
 
     with g1:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">KPIs globaux du site footland.dz sur la période sélectionnée. Source : Google Analytics 4 Data API (v1beta).</p><br>
+<p style="color:#a1a1aa;font-size:14px;">KPIs globaux du site footland.dz + sources de trafic. Source : Google Analytics 4 Data API (v1beta).</p><br>
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Métrique GA4</th></tr>
   <tr><td class="kpi-name">👥 Utilisateurs actifs</td><td class="kpi-desc">Utilisateurs ayant déclenché au moins un événement sur la période.</td><td><span class="endpoint">activeUsers</span></td></tr>
@@ -360,11 +360,9 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
   <tr><td class="kpi-name">⏱️ Durée moyenne</td><td class="kpi-desc">Durée moyenne d'une session en minutes et secondes.</td><td><span class="endpoint">averageSessionDuration</span></td></tr>
   <tr><td class="kpi-name">📄 Pages vues</td><td class="kpi-desc">Nombre total de pages affichées (rechargements inclus).</td><td><span class="endpoint">screenPageViews</span></td></tr>
   <tr><td class="kpi-name">📑 Pages / Session</td><td class="kpi-desc">Nombre moyen de pages consultées par session.</td><td><span class="endpoint">screenPageViewsPerSession</span></td></tr>
-</table>""", unsafe_allow_html=True)
-
-    with g2:
-        st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Top 10 canaux d'acquisition classés par nombre de sessions.</p><br>
+</table>
+<br>
+<p style="color:#a1a1aa;font-size:14px;font-weight:600;">🚦 Sources de trafic — Top 10 canaux classés par sessions.</p><br>
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Métrique / Dimension GA4</th></tr>
   <tr><td class="kpi-name">Canal</td><td class="kpi-desc">Groupe de canaux par défaut (Organic Search, Direct, Paid Social, Organic Social, Email, Referral…).</td><td><span class="endpoint">sessionDefaultChannelGroup</span></td></tr>
@@ -375,18 +373,55 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
   <tr><td class="kpi-name">% du total</td><td class="kpi-desc">Part de sessions de ce canal sur le total des sessions.</td><td><span class="endpoint">Calculé</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
+    with g2:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Parcours d'achat des visiteurs + détail par article.</p><br>
+<p style="color:#a1a1aa;font-size:13px;font-weight:600;">🛒 Parcours d'achat — Funnel session → achat par étape et par appareil.</p><br>
+<table class="kpi-table">
+  <tr><th>Étape</th><th>Description</th><th>Événement GA4</th></tr>
+  <tr><td class="kpi-name">1. Ouverture de session</td><td class="kpi-desc">Utilisateurs ayant démarré une session.</td><td><span class="endpoint">session_start</span></td></tr>
+  <tr><td class="kpi-name">2. Affichage du produit</td><td class="kpi-desc">Utilisateurs ayant consulté une fiche produit.</td><td><span class="endpoint">view_item</span></td></tr>
+  <tr><td class="kpi-name">3. Ajout au panier</td><td class="kpi-desc">Utilisateurs ayant ajouté un article au panier.</td><td><span class="endpoint">add_to_cart</span></td></tr>
+  <tr><td class="kpi-name">4. Paiement initié</td><td class="kpi-desc">Utilisateurs ayant commencé le processus de paiement.</td><td><span class="endpoint">begin_checkout</span></td></tr>
+  <tr><td class="kpi-name">5. Achat finalisé</td><td class="kpi-desc">Utilisateurs ayant complété un achat.</td><td><span class="endpoint">purchase</span></td></tr>
+  <tr><td class="kpi-name">▼ % abandon</td><td class="kpi-desc">Pourcentage d'utilisateurs perdus entre deux étapes consécutives.</td><td><span class="endpoint">Calculé</span></td></tr>
+  <tr><td class="kpi-name">Tableau par appareil</td><td class="kpi-desc">Même funnel ventilé par mobile, desktop, tablet, smart tv.</td><td><span class="endpoint">deviceCategory</span></td></tr>
+</table>
+<br>
+<p style="color:#a1a1aa;font-size:13px;font-weight:600;">🛍️ Achats d'e-commerce — Top articles consultés, ajoutés au panier, achetés et revenu généré.</p><br>
+<table class="kpi-table">
+  <tr><th>Indicateur</th><th>Description</th><th>Métrique GA4</th></tr>
+  <tr><td class="kpi-name">Article</td><td class="kpi-desc">Nom du produit tel que défini dans les événements e-commerce WooCommerce.</td><td><span class="endpoint">itemName</span></td></tr>
+  <tr><td class="kpi-name">Consultés</td><td class="kpi-desc">Nombre de fois que la fiche produit a été vue.</td><td><span class="endpoint">itemsViewed</span></td></tr>
+  <tr><td class="kpi-name">Ajoutés au panier</td><td class="kpi-desc">Nombre d'ajouts au panier pour cet article.</td><td><span class="endpoint">itemsAddedToCart</span></td></tr>
+  <tr><td class="kpi-name">Achetés</td><td class="kpi-desc">Nombre d'articles achetés (quantité totale vendue).</td><td><span class="endpoint">itemsPurchased</span></td></tr>
+  <tr><td class="kpi-name">Revenu (DZD)</td><td class="kpi-desc">Revenu total généré par cet article.</td><td><span class="endpoint">itemRevenue</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
     with g3:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Répartition géographique des visiteurs du site. Top 10 pays et Top 15 villes.</p><br>
+<p style="color:#a1a1aa;font-size:14px;">Tous les événements GA4 déclenchés sur la période, triés par nombre d'occurrences.</p><br>
 <table class="kpi-table">
-  <tr><th>Section</th><th>Description</th><th>Dimension GA4</th></tr>
-  <tr><td class="kpi-name">🌍 Top Pays</td><td class="kpi-desc">Top 10 pays par utilisateurs actifs, avec nombre de sessions et % du total.</td><td><span class="endpoint">country</span></td></tr>
-  <tr><td class="kpi-name">🏙️ Top Villes</td><td class="kpi-desc">Top 15 villes par utilisateurs actifs (valeurs "(not set)" exclues), avec nombre de sessions et % du total.</td><td><span class="endpoint">city</span></td></tr>
+  <tr><th>Indicateur</th><th>Description</th><th>Métrique GA4</th></tr>
+  <tr><td class="kpi-name">Événement</td><td class="kpi-desc">Nom de l'événement GA4 (view_item, session_start, add_to_cart, begin_checkout, purchase…).</td><td><span class="endpoint">eventName</span></td></tr>
+  <tr><td class="kpi-name">Nombre d'événements</td><td class="kpi-desc">Total de fois que cet événement a été déclenché sur la période.</td><td><span class="endpoint">eventCount</span></td></tr>
+  <tr><td class="kpi-name">% du total</td><td class="kpi-desc">Part de cet événement sur le total de tous les événements.</td><td><span class="endpoint">Calculé</span></td></tr>
+  <tr><td class="kpi-name">Utilisateurs</td><td class="kpi-desc">Nombre total d'utilisateurs ayant déclenché cet événement.</td><td><span class="endpoint">totalUsers</span></td></tr>
+  <tr><td class="kpi-name">Événements / utilisateur</td><td class="kpi-desc">Nombre moyen de fois qu'un utilisateur actif a déclenché cet événement.</td><td><span class="endpoint">eventCountPerUser</span></td></tr>
+  <tr><td class="kpi-name">Revenu (DZD)</td><td class="kpi-desc">Revenu associé à cet événement (non nul uniquement pour purchase).</td><td><span class="endpoint">totalRevenue</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     with g4:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">Répartition des sessions par type d'appareil.</p><br>
+<p style="color:#a1a1aa;font-size:14px;">Répartition géographique et par appareil des visiteurs du site.</p><br>
+<p style="color:#a1a1aa;font-size:13px;font-weight:600;">🌍 Géographie — Top 10 pays et Top 15 villes.</p><br>
+<table class="kpi-table">
+  <tr><th>Section</th><th>Description</th><th>Dimension GA4</th></tr>
+  <tr><td class="kpi-name">🌍 Top Pays</td><td class="kpi-desc">Top 10 pays par utilisateurs actifs, avec nombre de sessions et % du total.</td><td><span class="endpoint">country</span></td></tr>
+  <tr><td class="kpi-name">🏙️ Top Villes</td><td class="kpi-desc">Top 15 villes par utilisateurs actifs (valeurs "(not set)" exclues), avec nombre de sessions et % du total.</td><td><span class="endpoint">city</span></td></tr>
+</table>
+<br>
+<p style="color:#a1a1aa;font-size:13px;font-weight:600;">📱 Appareils — Répartition des sessions par type d'appareil.</p><br>
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Dimension / Métrique GA4</th></tr>
   <tr><td class="kpi-name">Appareil</td><td class="kpi-desc">Catégorie d'appareil : mobile, desktop, tablet.</td><td><span class="endpoint">deviceCategory</span></td></tr>
