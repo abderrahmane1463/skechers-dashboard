@@ -1125,5 +1125,3 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
         _render_demographics(demo)
         st.divider()
         _render_geographic(demo)
-        st.divider()
-        _render_insights_panel(totals, conv)
