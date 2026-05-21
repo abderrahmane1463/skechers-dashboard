@@ -1092,23 +1092,38 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
         unsafe_allow_html=True,
     )
 
-    _render_global_kpis(totals, prev_totals)
-    st.divider()
-    _render_conversion_campaigns(conv, prev_conv)
-    st.divider()
-    _render_funnel(totals, campaigns)
-    st.divider()
-    _render_acquisition_kpis(totals, campaigns)
-    st.divider()
-    _render_by_objective(campaigns, obj_reach,
-                         {"since": _period_since, "until": _period_until})
-    st.divider()
-    _render_top_campaigns(campaigns)
-    st.divider()
-    _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data)
-    st.divider()
-    _render_demographics(demo)
-    st.divider()
-    _render_geographic(demo)
-    st.divider()
-    _render_insights_panel(totals, conv)
+    t1, t2, t3, t4, t5, t6 = st.tabs([
+        "📊 Global",
+        "🎯 Conversion",
+        "🗂️ Par Objectif",
+        "🏆 Top #3 Campagnes",
+        "📋 Tableau Ads",
+        "👥 Démographie & Géo",
+    ])
+
+    with t1:
+        _render_global_kpis(totals, prev_totals)
+        st.divider()
+        _render_conversion_campaigns(conv, prev_conv)
+
+    with t2:
+        _render_funnel(totals, campaigns)
+        st.divider()
+        _render_acquisition_kpis(totals, campaigns)
+
+    with t3:
+        _render_by_objective(campaigns, obj_reach,
+                             {"since": _period_since, "until": _period_until})
+
+    with t4:
+        _render_top_campaigns(campaigns)
+
+    with t5:
+        _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data)
+
+    with t6:
+        _render_demographics(demo)
+        st.divider()
+        _render_geographic(demo)
+        st.divider()
+        _render_insights_panel(totals, conv)
