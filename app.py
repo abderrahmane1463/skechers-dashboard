@@ -302,10 +302,15 @@ elif platform == "Instagram":
     _start_prefetch("Instagram", days, start_date, end_date)
 elif platform == "Google Analytics":
     # ── Google Analytics 4 ───────────────────────────────────────────────────
+    from datetime import datetime as _gdt, timezone as _gtz, timedelta as _gtd
+    if start_date and end_date:
+        _ga4_start, _ga4_end = str(start_date), str(end_date)
+    else:
+        _ga4_today = _gdt.now(_gtz.utc).date()
+        _ga4_end   = str(_ga4_today)
+        _ga4_start = str(_ga4_today - _gtd(days=days - 1))
     try:
         from api.ga4 import fetch_all_ga4_data
-        _ga4_start = str(start_date) if start_date else ""
-        _ga4_end   = str(end_date)   if end_date   else ""
         ga4_data = fetch_all_ga4_data(_ga4_start, _ga4_end)
     except Exception as _ga4_err:
         st.warning(f"⚠️ GA4: {_ga4_err}")
