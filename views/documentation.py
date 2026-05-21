@@ -95,6 +95,10 @@ def render_documentation():
     with col3:
         st.info("🚀 **Boost** — Campagnes payantes, Conversions, Par Objectif, Top #3, Tableau Ads (format CSV Meta), Drill-down Adset/Ad, Démographie, Géographie")
 
+    col4, col5 = st.columns(2)
+    with col4:
+        st.info("📊 **Google Analytics** — Vue d'ensemble site, Sources de trafic, Top pages, Géographie visiteurs, Appareils")
+
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Facebook ──────────────────────────────────────────────────────────────
@@ -333,7 +337,77 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
   <tr><th>Section</th><th>Description</th><th>Endpoint</th></tr>
   <tr><td class="kpi-name">👥 Démographie</td><td class="kpi-desc">Répartition Hommes/Femmes par tranche d'âge.</td><td><span class="endpoint">/{ad_account}/insights?breakdowns=age,gender&fields=reach&level=campaign</span></td></tr>
   <tr><td class="kpi-name">🌍 Géographie</td><td class="kpi-desc">Top villes/régions par portée.</td><td><span class="endpoint">/{ad_account}/insights?breakdowns=region&fields=reach&level=campaign</span></td></tr>
-  <tr><td class="kpi-name">🧠 Analyse automatique</td><td class="kpi-desc">Interprétation automatique : CTR vs benchmark, CPC vs benchmark, taux de conversion, recommandations.</td><td><span class="endpoint">Calculé depuis les données campagnes</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Google Analytics ──────────────────────────────────────────────────────
+    st.markdown('<div class="doc-section-title">📊 Google Analytics 4</div>', unsafe_allow_html=True)
+
+    g1, g2, g3, g4, g5 = st.tabs(["📊 Vue d'ensemble", "📡 Sources de trafic", "📄 Top Pages", "🌍 Géographie", "📱 Appareils"])
+
+    with g1:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">KPIs globaux du site footland.dz sur la période sélectionnée. Source : Google Analytics 4 Data API (v1beta).</p><br>
+<table class="kpi-table">
+  <tr><th>Indicateur</th><th>Description</th><th>Métrique GA4</th></tr>
+  <tr><td class="kpi-name">👥 Utilisateurs actifs</td><td class="kpi-desc">Utilisateurs ayant déclenché au moins un événement sur la période.</td><td><span class="endpoint">activeUsers</span></td></tr>
+  <tr><td class="kpi-name">🆕 Nouveaux utilisateurs</td><td class="kpi-desc">Utilisateurs visitant le site pour la première fois.</td><td><span class="endpoint">newUsers</span></td></tr>
+  <tr><td class="kpi-name">🔄 Sessions</td><td class="kpi-desc">Nombre total de sessions (visites) sur la période.</td><td><span class="endpoint">sessions</span></td></tr>
+  <tr><td class="kpi-name">✅ Sessions engagées</td><td class="kpi-desc">Sessions durant plus de 10 secondes, ayant une conversion ou au moins 2 pages vues.</td><td><span class="endpoint">engagedSessions</span></td></tr>
+  <tr><td class="kpi-name">💡 Taux d'engagement</td><td class="kpi-desc">Sessions engagées ÷ Sessions totales × 100.</td><td><span class="endpoint">engagementRate</span></td></tr>
+  <tr><td class="kpi-name">↩️ Taux de rebond</td><td class="kpi-desc">Sessions non engagées ÷ Sessions totales × 100.</td><td><span class="endpoint">bounceRate</span></td></tr>
+  <tr><td class="kpi-name">⏱️ Durée moyenne</td><td class="kpi-desc">Durée moyenne d'une session en minutes et secondes.</td><td><span class="endpoint">averageSessionDuration</span></td></tr>
+  <tr><td class="kpi-name">📄 Pages vues</td><td class="kpi-desc">Nombre total de pages affichées (rechargements inclus).</td><td><span class="endpoint">screenPageViews</span></td></tr>
+  <tr><td class="kpi-name">📑 Pages / Session</td><td class="kpi-desc">Nombre moyen de pages consultées par session.</td><td><span class="endpoint">screenPageViewsPerSession</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with g2:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Top 10 canaux d'acquisition classés par nombre de sessions.</p><br>
+<table class="kpi-table">
+  <tr><th>Indicateur</th><th>Description</th><th>Métrique / Dimension GA4</th></tr>
+  <tr><td class="kpi-name">Canal</td><td class="kpi-desc">Groupe de canaux par défaut (Organic Search, Direct, Paid Social, Organic Social, Email, Referral…).</td><td><span class="endpoint">sessionDefaultChannelGroup</span></td></tr>
+  <tr><td class="kpi-name">Sessions</td><td class="kpi-desc">Nombre de sessions provenant de ce canal.</td><td><span class="endpoint">sessions</span></td></tr>
+  <tr><td class="kpi-name">Utilisateurs</td><td class="kpi-desc">Utilisateurs actifs provenant de ce canal.</td><td><span class="endpoint">activeUsers</span></td></tr>
+  <tr><td class="kpi-name">Taux d'engagement</td><td class="kpi-desc">Sessions engagées ÷ Sessions × 100 pour ce canal.</td><td><span class="endpoint">engagementRate</span></td></tr>
+  <tr><td class="kpi-name">Taux de rebond</td><td class="kpi-desc">Sessions non engagées ÷ Sessions × 100 pour ce canal.</td><td><span class="endpoint">bounceRate</span></td></tr>
+  <tr><td class="kpi-name">% du total</td><td class="kpi-desc">Part de sessions de ce canal sur le total des sessions.</td><td><span class="endpoint">Calculé</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with g3:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Top 10 pages les plus visitées sur la période.</p><br>
+<table class="kpi-table">
+  <tr><th>Indicateur</th><th>Description</th><th>Métrique / Dimension GA4</th></tr>
+  <tr><td class="kpi-name">Page (chemin)</td><td class="kpi-desc">URL relative de la page (ex: /produit/chaussures).</td><td><span class="endpoint">pagePath</span></td></tr>
+  <tr><td class="kpi-name">Titre</td><td class="kpi-desc">Titre HTML de la page.</td><td><span class="endpoint">pageTitle</span></td></tr>
+  <tr><td class="kpi-name">Vues</td><td class="kpi-desc">Nombre total d'affichages de la page.</td><td><span class="endpoint">screenPageViews</span></td></tr>
+  <tr><td class="kpi-name">Utilisateurs</td><td class="kpi-desc">Utilisateurs actifs ayant visité cette page.</td><td><span class="endpoint">activeUsers</span></td></tr>
+  <tr><td class="kpi-name">Durée moy.</td><td class="kpi-desc">Durée moyenne passée sur cette page (en secondes).</td><td><span class="endpoint">averageSessionDuration</span></td></tr>
+  <tr><td class="kpi-name">Taux de rebond</td><td class="kpi-desc">Taux de rebond spécifique à cette page.</td><td><span class="endpoint">bounceRate</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with g4:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Répartition géographique des visiteurs du site. Top 10 pays et Top 15 villes.</p><br>
+<table class="kpi-table">
+  <tr><th>Section</th><th>Description</th><th>Dimension GA4</th></tr>
+  <tr><td class="kpi-name">🌍 Top Pays</td><td class="kpi-desc">Top 10 pays par utilisateurs actifs, avec nombre de sessions et % du total.</td><td><span class="endpoint">country</span></td></tr>
+  <tr><td class="kpi-name">🏙️ Top Villes</td><td class="kpi-desc">Top 15 villes par utilisateurs actifs (valeurs "(not set)" exclues), avec nombre de sessions et % du total.</td><td><span class="endpoint">city</span></td></tr>
+</table>""", unsafe_allow_html=True)
+
+    with g5:
+        st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">Répartition des sessions par type d'appareil.</p><br>
+<table class="kpi-table">
+  <tr><th>Indicateur</th><th>Description</th><th>Dimension / Métrique GA4</th></tr>
+  <tr><td class="kpi-name">Appareil</td><td class="kpi-desc">Catégorie d'appareil : mobile, desktop, tablet.</td><td><span class="endpoint">deviceCategory</span></td></tr>
+  <tr><td class="kpi-name">Utilisateurs</td><td class="kpi-desc">Utilisateurs actifs sur cet appareil.</td><td><span class="endpoint">activeUsers</span></td></tr>
+  <tr><td class="kpi-name">Sessions</td><td class="kpi-desc">Nombre de sessions sur cet appareil.</td><td><span class="endpoint">sessions</span></td></tr>
+  <tr><td class="kpi-name">Taux d'engagement</td><td class="kpi-desc">Sessions engagées ÷ Sessions × 100 pour cet appareil.</td><td><span class="endpoint">engagementRate</span></td></tr>
+  <tr><td class="kpi-name">Taux de rebond</td><td class="kpi-desc">Taux de rebond pour cet appareil.</td><td><span class="endpoint">bounceRate</span></td></tr>
+  <tr><td class="kpi-name">% du total</td><td class="kpi-desc">Part de cet appareil sur le total des utilisateurs.</td><td><span class="endpoint">Calculé</span></td></tr>
 </table>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
