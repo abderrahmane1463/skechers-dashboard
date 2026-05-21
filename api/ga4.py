@@ -7,6 +7,7 @@ import json
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import (
     DateRange, Dimension, Metric, OrderBy, RunReportRequest,
+    FilterExpression, Filter,
 )
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -231,6 +232,59 @@ def _fetch_devices(client, start: str, end: str) -> list:
     return result
 
 
+def _fetch_purchase_journey(client, start: str, end: str) -> dict:
+    _EVENTS = ["session_start", "view_item", "add_to_cart", "begin_checkout", "purchase"]
+    _event_filter = FilterExpression(
+        filter=Filter(
+            field_name="eventName",
+            in_list_filter=Filter.InListFilter(values=_EVENTS),
+        )
+    )
+
+    req_total = RunReportRequest(
+        property=_prop(),
+        date_ranges=[DateRange(start_date=start, end_date=end)],
+        dimensions=[Dimension(name="eventName")],
+        metrics=[Metric(name="activeUsers")],
+        dimension_filter=_event_filter,
+    )
+    req_device = RunReportRequest(
+        property=_prop(),
+        date_ranges=[DateRange(start_date=start, end_date=end)],
+        dimensions=[Dimension(name="eventName"), Dimension(name="deviceCategory")],
+        metrics=[Metric(name="activeUsers")],
+        dimension_filter=_event_filter,
+    )
+
+    resp_total  = client.run_report(req_total)
+    resp_device = client.run_report(req_device)
+
+    totals = {}
+    for row in resp_total.rows:
+        totals[row.dimension_values[0].value] = int(float(row.metric_values[0].value))
+
+    by_device = {}
+    for row in resp_device.rows:
+        event  = row.dimension_values[0].value
+        device = row.dimension_values[1].value
+        users  = int(float(row.metric_values[0].value))
+        by_device.setdefault(device, {})[event] = users
+
+    _STEPS = [
+        ("session_start",  "Ouverture de session"),
+        ("view_item",      "Affichage du produit"),
+        ("add_to_cart",    "Ajout au panier"),
+        ("begin_checkout", "Paiement initié"),
+        ("purchase",       "Achat finalisé"),
+    ]
+
+    funnel = []
+    for event_key, label in _STEPS:
+        funnel.append({"event": event_key, "label": label, "users": totals.get(event_key, 0)})
+
+    return {"funnel": funnel, "by_device": by_device}
+
+
 # ─── Main entry point ──────────────────────────────────────────────────────────
 def fetch_all_ga4_data(start: str, end: str) -> dict:
     """
@@ -241,19 +295,21 @@ def fetch_all_ga4_data(start: str, end: str) -> dict:
     client = BetaAnalyticsDataClient(credentials=creds)
 
     result = {
-        "overview":        {},
-        "traffic_sources": [],
-        "top_pages":       [],
-        "geography":       {"countries": [], "cities": []},
-        "devices":         [],
+        "overview":         {},
+        "traffic_sources":  [],
+        "top_pages":        [],
+        "geography":        {"countries": [], "cities": []},
+        "devices":          [],
+        "purchase_journey": {"funnel": [], "by_device": {}},
     }
 
     for key, fn in [
-        ("overview",        lambda: _fetch_overview(client, start, end)),
-        ("traffic_sources", lambda: _fetch_traffic_sources(client, start, end)),
-        ("top_pages",       lambda: _fetch_top_pages(client, start, end)),
-        ("geography",       lambda: _fetch_geography(client, start, end)),
-        ("devices",         lambda: _fetch_devices(client, start, end)),
+        ("overview",         lambda: _fetch_overview(client, start, end)),
+        ("traffic_sources",  lambda: _fetch_traffic_sources(client, start, end)),
+        ("top_pages",        lambda: _fetch_top_pages(client, start, end)),
+        ("geography",        lambda: _fetch_geography(client, start, end)),
+        ("devices",          lambda: _fetch_devices(client, start, end)),
+        ("purchase_journey", lambda: _fetch_purchase_journey(client, start, end)),
     ]:
         try:
             result[key] = fn()

@@ -166,6 +166,78 @@ def _render_top_pages(pages: list):
     )
 
 
+def _render_purchase_journey(pj: dict):
+    _section_header("🛒 PARCOURS D'ACHAT")
+    funnel    = pj.get("funnel", [])
+    by_device = pj.get("by_device", {})
+
+    if not funnel or not any(s["users"] > 0 for s in funnel):
+        _no_data("Données parcours d'achat non disponibles — vérifiez que les événements e-commerce sont configurés dans GA4.")
+        return
+
+    _dark    = st.session_state.get("theme", "dark") == "dark"
+    _bg      = "rgba(255,255,255,0.03)" if _dark else "#f9fafb"
+    _brd     = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
+    _txt_c   = "#ffffff"                 if _dark else "#111827"
+    _sub_c   = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _red_c   = "#f87171"
+
+    # ── Overall funnel bars ───────────────────────────────────────────────────
+    max_users = max(s["users"] for s in funnel) or 1
+    rows_html = ""
+    for i, step in enumerate(funnel):
+        users   = step["users"]
+        bar_pct = round(users / max_users * 100, 1)
+        prev    = funnel[i - 1]["users"] if i > 0 else users
+        abandon_pct = round((prev - users) / prev * 100, 1) if i > 0 and prev > 0 else None
+        abandon_html = (
+            f'<span style="font-size:0.65rem;color:{_red_c};margin-left:6px;">▼ {abandon_pct}% abandon</span>'
+            if abandon_pct is not None else ""
+        )
+        rows_html += (
+            f'<div style="margin-bottom:0.75rem;">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
+            f'<span style="font-size:0.8rem;color:{_txt_c};font-weight:600;">'
+            f'{i+1}. {step["label"]}{abandon_html}</span>'
+            f'<span style="font-size:0.78rem;color:{_sub_c};">{users:,} utilisateurs</span>'
+            f'</div>'
+            f'<div style="background:{_brd};border-radius:6px;height:10px;">'
+            f'<div style="background:#E8420A;width:{bar_pct}%;height:10px;border-radius:6px;"></div>'
+            f'</div></div>'
+        )
+
+    st.markdown(
+        f'<div style="background:{_bg};border:1px solid {_brd};border-radius:12px;padding:1.2rem 1.4rem;">'
+        f'{rows_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Device breakdown table ────────────────────────────────────────────────
+    if by_device:
+        st.markdown("<br>", unsafe_allow_html=True)
+        _DEVICE_ICONS = {"mobile": "📱", "desktop": "🖥️", "tablet": "📲", "smart tv": "📺"}
+        step_events   = [s["event"] for s in funnel]
+        step_labels   = [s["label"] for s in funnel]
+        devices       = sorted(by_device.keys(), key=lambda d: by_device[d].get("session_start", 0), reverse=True)
+
+        header_cols = ["Appareil"] + step_labels
+        rows = []
+        for device in devices:
+            icon = _DEVICE_ICONS.get(device.lower(), "💻")
+            row  = {"Appareil": f"{icon} {device.capitalize()}"}
+            for event, label in zip(step_events, step_labels):
+                row[label] = f"{by_device[device].get(event, 0):,}"
+            rows.append(row)
+
+        import pandas as pd
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True,
+            column_config={"Appareil": st.column_config.TextColumn("Appareil", width="small")},
+        )
+
+
 def _render_geography(geo: dict):
     _section_header("🌍 GÉOGRAPHIE")
     countries = geo.get("countries", [])
@@ -361,6 +433,8 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
     _render_overview(ga4_data.get("overview", {}))
     st.divider()
     _render_traffic_sources(ga4_data.get("traffic_sources", []))
+    st.divider()
+    _render_purchase_journey(ga4_data.get("purchase_journey", {}))
     st.divider()
     _render_geography(ga4_data.get("geography", {}))
     st.divider()
