@@ -232,6 +232,36 @@ def _fetch_devices(client, start: str, end: str) -> list:
     return result
 
 
+def _fetch_ecommerce_items(client, start: str, end: str, limit: int = 20) -> list:
+    req = RunReportRequest(
+        property=_prop(),
+        date_ranges=[DateRange(start_date=start, end_date=end)],
+        dimensions=[Dimension(name="itemName")],
+        metrics=[
+            Metric(name="itemsViewed"),
+            Metric(name="itemsAddedToCart"),
+            Metric(name="itemsPurchased"),
+            Metric(name="itemRevenue"),
+        ],
+        order_bys=[OrderBy(
+            metric=OrderBy.MetricOrderBy(metric_name="itemsViewed"),
+            desc=True,
+        )],
+        limit=limit,
+    )
+    resp = client.run_report(req)
+    result = []
+    for row in resp.rows:
+        result.append({
+            "name":        row.dimension_values[0].value,
+            "viewed":      int(float(row.metric_values[0].value)),
+            "add_to_cart": int(float(row.metric_values[1].value)),
+            "purchased":   int(float(row.metric_values[2].value)),
+            "revenue":     round(float(row.metric_values[3].value), 2),
+        })
+    return result
+
+
 def _fetch_purchase_journey(client, start: str, end: str) -> dict:
     _EVENTS = ["session_start", "view_item", "add_to_cart", "begin_checkout", "purchase"]
     _event_filter = FilterExpression(
@@ -301,6 +331,7 @@ def fetch_all_ga4_data(start: str, end: str) -> dict:
         "geography":        {"countries": [], "cities": []},
         "devices":          [],
         "purchase_journey": {"funnel": [], "by_device": {}},
+        "ecommerce_items":  [],
     }
 
     for key, fn in [
@@ -310,6 +341,7 @@ def fetch_all_ga4_data(start: str, end: str) -> dict:
         ("geography",        lambda: _fetch_geography(client, start, end)),
         ("devices",          lambda: _fetch_devices(client, start, end)),
         ("purchase_journey", lambda: _fetch_purchase_journey(client, start, end)),
+        ("ecommerce_items",  lambda: _fetch_ecommerce_items(client, start, end)),
     ]:
         try:
             result[key] = fn()

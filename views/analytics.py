@@ -166,6 +166,58 @@ def _render_top_pages(pages: list):
     )
 
 
+def _render_ecommerce_items(items: list):
+    _section_header("🛍️ ACHATS D'E-COMMERCE — TOP ARTICLES")
+    if not items or not any(i["viewed"] > 0 for i in items):
+        _no_data("Données e-commerce non disponibles — vérifiez que le suivi des articles est configuré dans GA4.")
+        return
+
+    total_viewed   = sum(i["viewed"]      for i in items) or 1
+    total_cart     = sum(i["add_to_cart"] for i in items) or 1
+    total_purchase = sum(i["purchased"]   for i in items) or 1
+    total_revenue  = sum(i["revenue"]     for i in items)
+
+    _dark  = st.session_state.get("theme", "dark") == "dark"
+    _bg    = "rgba(255,255,255,0.05)" if _dark else "#ffffff"
+    _brd   = "none"                    if _dark else "1px solid #e5e7eb"
+    _lc    = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
+    _vc    = "#ffffff"                 if _dark else "#111827"
+
+    summary = f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("👁️", "Articles consultés",      f"{total_viewed:,}",        "#7dd3fc")}
+  {_kpi_card("🛒", "Ajouts au panier",         f"{total_cart:,}",          "#4ade80")}
+  {_kpi_card("✅", "Articles achetés",         f"{total_purchase:,}",      "#a78bfa")}
+  {_kpi_card("💰", "Revenu total",             f"{total_revenue:,.0f} DZD","#f97316")}
+</div>"""
+    st.markdown(summary, unsafe_allow_html=True)
+
+    df = pd.DataFrame([
+        {
+            "#":                     i + 1,
+            "Article":               item["name"],
+            "Consultés":             item["viewed"],
+            "Ajoutés au panier":     item["add_to_cart"],
+            "Achetés":               item["purchased"],
+            "Revenu (DZD)":          item["revenue"],
+        }
+        for i, item in enumerate(items)
+    ])
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "#":                 st.column_config.NumberColumn("#",                  width="small", format="%d"),
+            "Article":           st.column_config.TextColumn("Article",              width="large"),
+            "Consultés":         st.column_config.NumberColumn("Consultés",          format="%d"),
+            "Ajoutés au panier": st.column_config.NumberColumn("Ajoutés au panier",  format="%d"),
+            "Achetés":           st.column_config.NumberColumn("Achetés",            format="%d"),
+            "Revenu (DZD)":      st.column_config.NumberColumn("Revenu (DZD)",       format="%.0f"),
+        },
+    )
+
+
 def _render_purchase_journey(pj: dict):
     _section_header("🛒 PARCOURS D'ACHAT")
     funnel    = pj.get("funnel", [])
@@ -435,6 +487,8 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
     _render_traffic_sources(ga4_data.get("traffic_sources", []))
     st.divider()
     _render_purchase_journey(ga4_data.get("purchase_journey", {}))
+    st.divider()
+    _render_ecommerce_items(ga4_data.get("ecommerce_items", []))
     st.divider()
     _render_geography(ga4_data.get("geography", {}))
     st.divider()
