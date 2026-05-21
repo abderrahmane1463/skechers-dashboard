@@ -232,6 +232,41 @@ def _fetch_devices(client, start: str, end: str) -> list:
     return result
 
 
+def _fetch_events(client, start: str, end: str) -> list:
+    req = RunReportRequest(
+        property=_prop(),
+        date_ranges=[DateRange(start_date=start, end_date=end)],
+        dimensions=[Dimension(name="eventName")],
+        metrics=[
+            Metric(name="eventCount"),
+            Metric(name="totalUsers"),
+            Metric(name="eventCountPerUser"),
+            Metric(name="totalRevenue"),
+        ],
+        order_bys=[OrderBy(
+            metric=OrderBy.MetricOrderBy(metric_name="eventCount"),
+            desc=True,
+        )],
+    )
+    resp = client.run_report(req)
+    total_events = sum(int(float(r.metric_values[0].value)) for r in resp.rows) or 1
+    total_users  = sum(int(float(r.metric_values[1].value)) for r in resp.rows) or 1
+    result = []
+    for row in resp.rows:
+        event_count = int(float(row.metric_values[0].value))
+        users       = int(float(row.metric_values[1].value))
+        result.append({
+            "event":             row.dimension_values[0].value,
+            "event_count":       event_count,
+            "users":             users,
+            "events_per_user":   round(float(row.metric_values[2].value), 2),
+            "revenue":           round(float(row.metric_values[3].value), 2),
+            "pct_events":        round(event_count / total_events * 100, 2),
+            "pct_users":         round(users / total_users * 100, 2),
+        })
+    return result
+
+
 def _fetch_ecommerce_items(client, start: str, end: str, limit: int = 5000) -> list:
     req = RunReportRequest(
         property=_prop(),
@@ -332,6 +367,7 @@ def fetch_all_ga4_data(start: str, end: str) -> dict:
         "devices":          [],
         "purchase_journey": {"funnel": [], "by_device": {}},
         "ecommerce_items":  [],
+        "events":           [],
     }
 
     for key, fn in [
@@ -342,6 +378,7 @@ def fetch_all_ga4_data(start: str, end: str) -> dict:
         ("devices",          lambda: _fetch_devices(client, start, end)),
         ("purchase_journey", lambda: _fetch_purchase_journey(client, start, end)),
         ("ecommerce_items",  lambda: _fetch_ecommerce_items(client, start, end)),
+        ("events",           lambda: _fetch_events(client, start, end)),
     ]:
         try:
             result[key] = fn()

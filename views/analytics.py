@@ -166,6 +166,53 @@ def _render_top_pages(pages: list):
     )
 
 
+def _render_events(events: list):
+    _section_header("⚡ ÉVÉNEMENTS")
+    if not events:
+        _no_data()
+        return
+
+    total_events  = sum(e["event_count"] for e in events) or 1
+    total_users   = max(e["users"] for e in events) or 1
+    total_revenue = sum(e["revenue"] for e in events)
+
+    _dark = st.session_state.get("theme", "dark") == "dark"
+    summary = f"""
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem;">
+  {_kpi_card("⚡", "Total événements",  f"{total_events:,}",        "#7dd3fc")}
+  {_kpi_card("👥", "Utilisateurs",      f"{total_users:,}",         "#4ade80")}
+  {_kpi_card("💰", "Revenu total",      f"{total_revenue:,.0f} DZD","#f97316")}
+</div>"""
+    st.markdown(summary, unsafe_allow_html=True)
+
+    df = pd.DataFrame([
+        {
+            "#":                          i + 1,
+            "Événement":                  e["event"],
+            "Nombre d'événements":        e["event_count"],
+            "% du total":                 f'{e["pct_events"]}%',
+            "Utilisateurs":               e["users"],
+            "Événements / utilisateur":   e["events_per_user"],
+            "Revenu (DZD)":               e["revenue"],
+        }
+        for i, e in enumerate(events)
+    ])
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "#":                        st.column_config.NumberColumn("#",                       width="small", format="%d"),
+            "Événement":                st.column_config.TextColumn("Événement",                 width="medium"),
+            "Nombre d'événements":      st.column_config.NumberColumn("Nombre d'événements",     format="%d"),
+            "% du total":               st.column_config.TextColumn("% du total",                width="small"),
+            "Utilisateurs":             st.column_config.NumberColumn("Utilisateurs",            format="%d"),
+            "Événements / utilisateur": st.column_config.NumberColumn("Événements / utilisateur",format="%.2f"),
+            "Revenu (DZD)":             st.column_config.NumberColumn("Revenu (DZD)",            format="%.0f"),
+        },
+    )
+
+
 def _render_ecommerce_items(items: list):
     _section_header("🛍️ ACHATS D'E-COMMERCE — TOP ARTICLES")
     if not items or not any(i["viewed"] > 0 for i in items):
@@ -489,6 +536,8 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
     _render_purchase_journey(ga4_data.get("purchase_journey", {}))
     st.divider()
     _render_ecommerce_items(ga4_data.get("ecommerce_items", []))
+    st.divider()
+    _render_events(ga4_data.get("events", []))
     st.divider()
     _render_geography(ga4_data.get("geography", {}))
     st.divider()
