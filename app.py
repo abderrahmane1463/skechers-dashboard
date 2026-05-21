@@ -107,8 +107,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 [data-testid="metric-container"] [data-testid="stMetricLabel"] { color: #a1a1aa !important; }
 [data-testid="metric-container"] [data-testid="stMetricValue"] { color: #ffffff !important; }
 
-.stTabs [data-baseweb="tab-list"] { background: #161616; border-radius: 12px; padding: 4px; gap: 4px; width: fit-content; }
-.stTabs [data-baseweb="tab"] { border-radius: 8px; padding: 8px 20px; font-weight: 500; color: #a1a1aa !important; }
+.stTabs [data-baseweb="tab-list"] { background: #161616; border-radius: 12px; padding: 4px; gap: 4px; width: 100%; }
+.stTabs [data-baseweb="tab"] { border-radius: 8px; padding: 8px 20px; font-weight: 500; color: #a1a1aa !important; flex: 1; text-align: center; justify-content: center; }
 .stTabs [aria-selected="true"] { background: #262626 !important; color: #E8420A !important; border: 1px solid #E8420A !important; }
 
 .post-card { background: #161616; border: 1px solid #262626; border-radius: 16px; padding: 16px; margin-bottom: 12px; transition: border-color 0.2s, box-shadow 0.2s; }
@@ -170,8 +170,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 [data-testid="metric-container"] [data-testid="stMetricLabel"] { color: #6b7280 !important; }
 [data-testid="metric-container"] [data-testid="stMetricValue"] { color: #111827 !important; }
 
-.stTabs [data-baseweb="tab-list"] { background: #e5e7eb; border-radius: 12px; padding: 4px; gap: 4px; width: fit-content; }
-.stTabs [data-baseweb="tab"] { border-radius: 8px; padding: 8px 20px; font-weight: 500; color: #6b7280 !important; }
+.stTabs [data-baseweb="tab-list"] { background: #e5e7eb; border-radius: 12px; padding: 4px; gap: 4px; width: 100%; }
+.stTabs [data-baseweb="tab"] { border-radius: 8px; padding: 8px 20px; font-weight: 500; color: #6b7280 !important; flex: 1; text-align: center; justify-content: center; }
 .stTabs [aria-selected="true"] { background: #ffffff !important; color: #E8420A !important; border: 1px solid #E8420A !important; }
 
 .post-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
