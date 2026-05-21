@@ -232,7 +232,7 @@ def _fetch_devices(client, start: str, end: str) -> list:
     return result
 
 
-def _fetch_ecommerce_items(client, start: str, end: str, limit: int = 20) -> list:
+def _fetch_ecommerce_items(client, start: str, end: str, limit: int = 5000) -> list:
     req = RunReportRequest(
         property=_prop(),
         date_ranges=[DateRange(start_date=start, end_date=end)],
