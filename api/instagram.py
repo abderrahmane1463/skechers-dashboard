@@ -291,13 +291,24 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
         posts = data.get("data", [])
 
         def _process_ig_post(p):
-            # 1. Start with Public Snapshot (Fallback)
-            likes, comments = p.get("like_count", 0), p.get("comments_count", 0)
+            # 1. Fetch lifetime like/comment counts without date parameters.
+            # The /media list call includes since/until which causes the API to
+            # return only NEW interactions in the selected period — not the post's
+            # lifetime total. A direct /{post_id} call has no date filter and
+            # always returns the real cumulative counts shown on Instagram.
+            post_id = p["id"]
+            likes    = p.get("like_count", 0)
+            comments = p.get("comments_count", 0)
+            try:
+                snap = _get(post_id, {"fields": "like_count,comments_count"})
+                likes    = snap.get("like_count",    likes)
+                comments = snap.get("comments_count", comments)
+            except Exception as e:
+                print(f"DEBUG IG post {post_id} snapshot error: {e}")
 
             # 2. Fetch Deep Insights via /media_id/insights endpoint
             impressions, reach, saves, shares = 0, 0, 0, 0
             media_type = p.get("media_type", "")
-            post_id    = p["id"]
 
             # Choose metrics by media type — each type supports a different set.
             # Reels come back as media_type="VIDEO" with /reel/ in the permalink;
