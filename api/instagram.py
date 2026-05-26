@@ -307,10 +307,13 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 print(f"DEBUG IG post {post_id} snapshot error: {e}")
 
             # 2. Fetch Deep Insights via /media_id/insights endpoint
-            impressions, reach, saves, shares = 0, 0, 0, 0
+            impressions, reach, saves, shares, total_int_val = 0, 0, 0, 0, 0
             media_type = p.get("media_type", "")
 
             # Choose metrics by media type — each type supports a different set.
+            # Always include total_interactions — Meta's analytics backend computes
+            # it from real engagement data, letting us infer likes accurately even
+            # when like_count from the media field is privacy-filtered/incomplete.
             # Reels come back as media_type="VIDEO" with /reel/ in the permalink;
             # check that BEFORE the generic VIDEO branch.
             is_reel = (
@@ -318,7 +321,6 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 or "/reel/" in p.get("permalink", "")
             )
             if is_reel:
-                # Try plays first — fall back gracefully if the API rejects it
                 metric_sets = [
                     "plays,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
@@ -327,15 +329,17 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 ]
             elif media_type == "VIDEO":
                 metric_sets = [
-                    "impressions,reach,saved,shares,video_views",
-                    "reach,saved,shares,video_views",
+                    "impressions,reach,saved,shares,video_views,total_interactions",
+                    "reach,saved,shares,video_views,total_interactions",
+                    "reach,saved,shares,total_interactions",
                     "reach,saved,shares",
                     "reach,saved",
                 ]
             else:
-                # IMAGE, CAROUSEL_ALBUM — try impressions first, fall back to reach
+                # IMAGE, CAROUSEL_ALBUM
                 metric_sets = [
-                    "impressions,reach,saved,shares",
+                    "impressions,reach,saved,shares,total_interactions",
+                    "reach,saved,shares,total_interactions",
                     "reach,saved,shares",
                     "reach,saved",
                 ]
@@ -348,7 +352,6 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                         continue
                     for item in ins_list:
                         name = item.get("name", "")
-                        # v19 returns period totals in item["values"][0]["value"]
                         val = 0
                         if item.get("values"):
                             val = item["values"][0].get("value", 0)
@@ -362,13 +365,24 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                             saves = val
                         elif name == "shares":
                             shares = val
+                        elif name == "total_interactions":
+                            total_int_val = val
                     break   # success — don't try remaining fallback sets
                 except Exception as e:
                     err_txt = str(e)
-                    # Reel metrics not supported on this post type → try next set
                     if "400" in err_txt or "Unsupported" in err_txt or "invalid" in err_txt.lower():
                         continue
                     break   # non-recoverable error
+
+            # Infer likes from total_interactions when it exceeds the media-field
+            # like_count (which can be privacy-filtered by Instagram's API).
+            # total_interactions (insights) = likes + comments + saves + shares.
+            if total_int_val > 0:
+                inferred_likes = max(0, total_int_val - comments - saves - shares)
+                if inferred_likes > likes:
+                    likes = inferred_likes
+                    print(f"DEBUG IG post {post_id}: likes inferred from total_interactions "
+                          f"({total_int_val} - {comments}c - {saves}s - {shares}sh = {inferred_likes})")
 
             # Extract hour + weekday from full timestamp for heatmap
             _ts = p.get("timestamp", "")
