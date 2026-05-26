@@ -323,28 +323,32 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 media_type in ("REEL", "IG_REEL")
                 or "/reel/" in p.get("permalink", "")
             )
+            # Metric sets follow the documented endpoint:
+            #   /{media_id}?fields=insights.metric(impressions,views,plays)
+            # `views` is the v22+ metric for image/carousel total affichages.
+            # `impressions` is tried first (works for VIDEO); on 400 the waterfall
+            # progresses to `views` alone, then reach-only as last resort.
             if is_reel:
-                # plays = view count for Reels (may also be deprecated in v22+)
                 metric_sets = [
-                    "plays,reach,saved,shares,total_interactions",
+                    "plays,views,reach,saved,shares,total_interactions",
+                    "views,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
-                    "reach,saved,shares",
                     "reach,saved",
                 ]
             elif media_type == "VIDEO":
                 metric_sets = [
-                    "impressions,reach,saved,shares,video_views,total_interactions",
-                    "reach,saved,shares,video_views,total_interactions",
+                    "impressions,views,video_views,reach,saved,shares,total_interactions",
+                    "views,video_views,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
                     "reach,saved",
                 ]
             else:
                 # IMAGE / CAROUSEL_ALBUM
-                # impressions is deprecated in v22+ → will 400 → waterfall to reach
+                # `impressions` deprecated in v22+; `views` is the replacement metric.
                 metric_sets = [
-                    "impressions,reach,saved,shares,total_interactions",
+                    "impressions,views,reach,saved,shares,total_interactions",
+                    "views,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
-                    "reach,saved,shares",
                     "reach,saved",
                 ]
 
@@ -357,7 +361,8 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                         name = item.get("name", "")
                         val  = (item["values"][0].get("value", 0)
                                 if item.get("values") else item.get("value", 0))
-                        if name in ("impressions", "plays", "video_views"):
+                        # `views` = v22+ unified view count (replaces impressions for images)
+                        if name in ("impressions", "plays", "video_views", "views"):
                             impressions = max(impressions, val)
                         elif name == "reach":
                             reach = val
@@ -485,14 +490,15 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
             media_type in ("REEL", "IG_REEL")
             or "/reel/" in p.get("permalink", "")
         )
-        # For VIDEO we still try video_views as a secondary metric;
-        # reach is always the universal fallback.
+        # Follows documented endpoint: /{media_id}?fields=insights.metric(impressions,views,plays)
+        # `views` = v22+ unified view count, replaces `impressions` for IMAGE/CAROUSEL.
         if is_reel:
-            metric_sets = ["plays,reach", "reach"]
+            metric_sets = ["plays,views,reach", "views,reach", "reach"]
         elif media_type == "VIDEO":
-            metric_sets = ["video_views,reach", "reach"]
+            metric_sets = ["video_views,views,reach", "views,reach", "reach"]
         else:
-            metric_sets = ["reach"]
+            # IMAGE / CAROUSEL: try impressions+views first, then views alone
+            metric_sets = ["impressions,views,reach", "views,reach", "reach"]
 
         for m_list in metric_sets:
             try:
@@ -502,8 +508,8 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
                     name = item.get("name", "")
                     v = (item["values"][0].get("value", 0)
                          if item.get("values") else item.get("value", 0))
-                    # video_views preferred over reach for VIDEO posts when available
-                    if name == "video_views":
+                    # Prefer view-count metrics; fall back to reach last
+                    if name in ("video_views", "plays", "impressions", "views"):
                         val = max(val, v)
                     elif name == "reach" and val == 0:
                         val = v
@@ -524,12 +530,13 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
             results = list(executor.map(_get_reach_per_post, all_posts))
         total_reach = sum(results)
 
-    print(f"DEBUG fetch_ig_post_totals: {total_posts} posts, {total_reach} reach")
+    print(f"DEBUG fetch_ig_post_totals: {total_posts} posts, {total_reach} total views")
     return {
         "total_posts":  total_posts,
-        # NOTE: this was previously named total_impressions but impressions is
-        # deprecated for IMAGE/CAROUSEL in Meta API v22+. This is now the sum
-        # of per-post reach across all posts in the period (not deduplicated).
+        # Sum of per-post view counts across all posts in the period.
+        # Uses `views` (v22+ metric) or `impressions`/`plays`/`video_views` per post type,
+        # falling back to `reach` only when no view-count metric is available.
+        # Matches documented endpoint: /{media_id}?fields=insights.metric(impressions,views,plays)
         "total_impressions": total_reach,
     }
 
