@@ -402,9 +402,7 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "thumbnail":        p.get("thumbnail_url") or p.get("media_url", ""),
                 "permalink":        p.get("permalink", ""),
                 "reach":            reach,
-                # v22+ dropped impressions for feed posts — use reach as the
-                # equivalent "views" metric so the UI never shows 0 Vues.
-                "impressions":      impressions or reach,
+                "impressions":      impressions,
                 "reactions":        likes,
                 "comments":         comments,
                 "saves":            saves,
@@ -464,21 +462,25 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
         params = {**params, "after": next_cursor}
 
     def _get_impressions(p):
+        """Return the impressions count for a post — strictly impressions metrics only,
+        never reach. reach is a different metric and must not pollute this total."""
         post_id    = p["id"]
         media_type = p.get("media_type", "")
-        # Reels are returned as media_type=VIDEO with /reel/ in the permalink
         is_reel = (
             media_type in ("REEL", "IG_REEL")
             or "/reel/" in p.get("permalink", "")
         )
-        # Try the most-likely metric set first, then fall back
         if is_reel:
-            metric_sets = ["plays,reach", "reach,shares", "reach"]
+            # plays = the impressions equivalent for Reels
+            metric_sets  = ["plays,reach"]
+            imp_names    = {"plays"}
         elif media_type == "VIDEO":
-            metric_sets = ["impressions,video_views", "reach,video_views", "reach,shares", "reach"]
+            metric_sets  = ["impressions,video_views", "impressions"]
+            imp_names    = {"impressions", "video_views"}
         else:
-            # IMAGE/CAROUSEL — try impressions first, fall back to reach
-            metric_sets = ["impressions,reach", "reach,shares", "reach"]
+            # IMAGE / CAROUSEL
+            metric_sets  = ["impressions,reach", "impressions"]
+            imp_names    = {"impressions"}
 
         for m_list in metric_sets:
             try:
@@ -486,14 +488,15 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
                 imp = 0
                 for item in d.get("data", []):
                     name = item.get("name", "")
-                    val  = 0
+                    if name not in imp_names:
+                        continue          # skip reach and any other metric
+                    val = 0
                     if item.get("values"):
                         val = item["values"][0].get("value", 0)
                     elif "value" in item:
                         val = item["value"]
-                    if name in ("impressions", "plays", "video_views", "reach"):
-                        imp = max(imp, val)
-                if imp or d.get("data"):   # got a valid (possibly 0) response
+                    imp = max(imp, val)
+                if d.get("data"):         # API responded — use whatever we got
                     return imp
             except Exception as e:
                 err_txt = str(e)
