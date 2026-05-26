@@ -237,7 +237,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👁️", "Couvertures",        _ig_reach_display, note=_ig_reach_note,
            delta=None if _ig_reach_unavailable else _d(total_ig_reach, _prev_ig_reach))}
-  {_ig_kpi("📢", "Impressions (Posts)", f"{total_ig_impressions:,}", delta=_d(total_ig_impressions, _prev_ig_impr))}
+  {_ig_kpi("📢", "Couverture (Posts)", f"{total_ig_impressions:,}", delta=_d(total_ig_impressions, _prev_ig_impr))}
   {_ig_kpi("🔖", "Enregistrements",    f"{total_ig_saves:,}", "#60a5fa", delta=_d(total_ig_saves,  _prev_ig_saves))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">

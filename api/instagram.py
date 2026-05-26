@@ -291,36 +291,40 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
         posts = data.get("data", [])
 
         def _process_ig_post(p):
-            # 1. Fetch lifetime like/comment counts without date parameters.
-            # The /media list call includes since/until which causes the API to
-            # return only NEW interactions in the selected period — not the post's
-            # lifetime total. A direct /{post_id} call has no date filter and
-            # always returns the real cumulative counts shown on Instagram.
-            post_id = p["id"]
-            likes    = p.get("like_count", 0)
-            comments = p.get("comments_count", 0)
-            try:
-                snap = _get(post_id, {"fields": "like_count,comments_count"})
-                likes    = snap.get("like_count",    likes)
-                comments = snap.get("comments_count", comments)
-            except Exception as e:
-                print(f"DEBUG IG post {post_id} snapshot error: {e}")
-
-            # 2. Fetch Deep Insights via /media_id/insights endpoint
-            impressions, reach, saves, shares, total_int_val = 0, 0, 0, 0, 0
+            post_id    = p["id"]
             media_type = p.get("media_type", "")
 
-            # Choose metrics by media type — each type supports a different set.
-            # Always include total_interactions — Meta's analytics backend computes
-            # it from real engagement data, letting us infer likes accurately even
-            # when like_count from the media field is privacy-filtered/incomplete.
-            # Reels come back as media_type="VIDEO" with /reel/ in the permalink;
-            # check that BEFORE the generic VIDEO branch.
+            # ── Known API limitations (Meta Graph API for Business accounts) ──────
+            #
+            # like_count  : The API returns a privacy-filtered subset — NOT the same
+            #               number shown publicly on Instagram (e.g. API returns 28,
+            #               Instagram shows 1.4K). This is a Meta API restriction and
+            #               cannot be bypassed. We mitigate it using total_interactions
+            #               from insights (see below).
+            #
+            # comments_count: Same privacy filtering as like_count. Minor difference
+            #               (e.g. 0 vs 2) — no reliable workaround available.
+            #
+            # impressions : Deprecated by Meta from v22+ for IMAGE and CAROUSEL posts.
+            #               Returns a 400 error for those types — the metric no longer
+            #               exists. Only VIDEO (video_views) and Reels (plays) still
+            #               have a view-count equivalent. The only universal visibility
+            #               metric remaining is `reach` (unique accounts that saw post).
+            # ─────────────────────────────────────────────────────────────────────
+            likes    = p.get("like_count", 0)
+            comments = p.get("comments_count", 0)
+
+            # ── Insights from /{post_id}/insights ────────────────────────────────
+            # Waterfall: try the richest metric set first; on 400 try the next one.
+            # Reels are returned as media_type=VIDEO with /reel/ in the permalink.
+            impressions, reach, saves, shares, total_int_val = 0, 0, 0, 0, 0
+
             is_reel = (
                 media_type in ("REEL", "IG_REEL")
                 or "/reel/" in p.get("permalink", "")
             )
             if is_reel:
+                # plays = view count for Reels (may also be deprecated in v22+)
                 metric_sets = [
                     "plays,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
@@ -332,11 +336,11 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                     "impressions,reach,saved,shares,video_views,total_interactions",
                     "reach,saved,shares,video_views,total_interactions",
                     "reach,saved,shares,total_interactions",
-                    "reach,saved,shares",
                     "reach,saved",
                 ]
             else:
-                # IMAGE, CAROUSEL_ALBUM
+                # IMAGE / CAROUSEL_ALBUM
+                # impressions is deprecated in v22+ → will 400 → waterfall to reach
                 metric_sets = [
                     "impressions,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
@@ -347,16 +351,12 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             for m_list in metric_sets:
                 try:
                     d = _get(f"{post_id}/insights", {"metric": m_list})
-                    ins_list = d.get("data", [])
-                    if not ins_list:
+                    if not d.get("data"):
                         continue
-                    for item in ins_list:
+                    for item in d["data"]:
                         name = item.get("name", "")
-                        val = 0
-                        if item.get("values"):
-                            val = item["values"][0].get("value", 0)
-                        elif "value" in item:
-                            val = item["value"]
+                        val  = (item["values"][0].get("value", 0)
+                                if item.get("values") else item.get("value", 0))
                         if name in ("impressions", "plays", "video_views"):
                             impressions = max(impressions, val)
                         elif name == "reach":
@@ -367,22 +367,22 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                             shares = val
                         elif name == "total_interactions":
                             total_int_val = val
-                    break   # success — don't try remaining fallback sets
+                    break
                 except Exception as e:
                     err_txt = str(e)
                     if "400" in err_txt or "Unsupported" in err_txt or "invalid" in err_txt.lower():
                         continue
-                    break   # non-recoverable error
+                    break
 
-            # Infer likes from total_interactions when it exceeds the media-field
-            # like_count (which can be privacy-filtered by Instagram's API).
-            # total_interactions (insights) = likes + comments + saves + shares.
+            # ── Like count correction via total_interactions ───────────────────
+            # total_interactions (from Meta's analytics backend) = likes + comments
+            # + saves + shares. It is NOT subject to the same privacy filtering as
+            # like_count, so we can infer a more accurate likes figure from it.
+            # We only override like_count when the inferred value is higher.
             if total_int_val > 0:
-                inferred_likes = max(0, total_int_val - comments - saves - shares)
-                if inferred_likes > likes:
-                    likes = inferred_likes
-                    print(f"DEBUG IG post {post_id}: likes inferred from total_interactions "
-                          f"({total_int_val} - {comments}c - {saves}s - {shares}sh = {inferred_likes})")
+                inferred = max(0, total_int_val - comments - saves - shares)
+                if inferred > likes:
+                    likes = inferred
 
             # Extract hour + weekday from full timestamp for heatmap
             _ts = p.get("timestamp", "")
@@ -461,43 +461,54 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
             break
         params = {**params, "after": next_cursor}
 
-    def _get_impressions(p):
-        """Return the impressions count for a post — strictly impressions metrics only,
-        never reach. reach is a different metric and must not pollute this total."""
+    def _get_reach_per_post(p):
+        """
+        Return the visibility count for a single post.
+
+        ── Why reach and not impressions? ──────────────────────────────────────
+        Meta deprecated the `impressions` metric for IMAGE and CAROUSEL posts
+        from API v22+. It returns a 400 error for those post types — the metric
+        simply no longer exists. `plays` is also deprecated for Reels in v22+.
+
+        `reach` (unique accounts that saw the post) is the only per-post
+        visibility metric that still works for ALL post types. It is a different
+        metric from impressions (reach is deduplicated, impressions counts repeat
+        views), but it is the only real number Meta still provides.
+
+        The KPI in the UI is therefore labelled "Couverture (Posts)" / reach,
+        not impressions — to reflect what is actually being measured.
+        ────────────────────────────────────────────────────────────────────────
+        """
         post_id    = p["id"]
         media_type = p.get("media_type", "")
         is_reel = (
             media_type in ("REEL", "IG_REEL")
             or "/reel/" in p.get("permalink", "")
         )
+        # For VIDEO we still try video_views as a secondary metric;
+        # reach is always the universal fallback.
         if is_reel:
-            # plays = the impressions equivalent for Reels
-            metric_sets  = ["plays,reach"]
-            imp_names    = {"plays"}
+            metric_sets = ["plays,reach", "reach"]
         elif media_type == "VIDEO":
-            metric_sets  = ["impressions,video_views", "impressions"]
-            imp_names    = {"impressions", "video_views"}
+            metric_sets = ["video_views,reach", "reach"]
         else:
-            # IMAGE / CAROUSEL
-            metric_sets  = ["impressions,reach", "impressions"]
-            imp_names    = {"impressions"}
+            metric_sets = ["reach"]
 
         for m_list in metric_sets:
             try:
                 d = _get(f"{post_id}/insights", {"metric": m_list})
-                imp = 0
+                val = 0
                 for item in d.get("data", []):
                     name = item.get("name", "")
-                    if name not in imp_names:
-                        continue          # skip reach and any other metric
-                    val = 0
-                    if item.get("values"):
-                        val = item["values"][0].get("value", 0)
-                    elif "value" in item:
-                        val = item["value"]
-                    imp = max(imp, val)
-                if d.get("data"):         # API responded — use whatever we got
-                    return imp
+                    v = (item["values"][0].get("value", 0)
+                         if item.get("values") else item.get("value", 0))
+                    # video_views preferred over reach for VIDEO posts when available
+                    if name == "video_views":
+                        val = max(val, v)
+                    elif name == "reach" and val == 0:
+                        val = v
+                if d.get("data"):
+                    return val
             except Exception as e:
                 err_txt = str(e)
                 if "400" in err_txt or "Unsupported" in err_txt:
@@ -505,18 +516,21 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
                 break
         return 0
 
-    total_impressions = 0
-    total_posts       = len(all_posts)
+    total_reach = 0
+    total_posts = len(all_posts)
 
     if all_posts:
         with ThreadPoolExecutor(max_workers=20) as executor:
-            results = list(executor.map(_get_impressions, all_posts))
-        total_impressions = sum(results)
+            results = list(executor.map(_get_reach_per_post, all_posts))
+        total_reach = sum(results)
 
-    print(f"DEBUG fetch_ig_post_totals: {total_posts} posts, {total_impressions} impressions")
+    print(f"DEBUG fetch_ig_post_totals: {total_posts} posts, {total_reach} reach")
     return {
-        "total_posts":       total_posts,
-        "total_impressions": total_impressions,
+        "total_posts":  total_posts,
+        # NOTE: this was previously named total_impressions but impressions is
+        # deprecated for IMAGE/CAROUSEL in Meta API v22+. This is now the sum
+        # of per-post reach across all posts in the period (not deduplicated).
+        "total_impressions": total_reach,
     }
 
 
