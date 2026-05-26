@@ -52,61 +52,60 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         print(f"DEBUG: IG followers snapshot error: {e}")
 
     # 2. Daily Visibility and Interaction Metrics
+    # v22+: reach/views/profile_views/total_interactions require metric_type=time_series
+    # for daily series (old period=day alone is rejected).
+    # reach uses until_ts_exact to stay within the 30-day API window limit.
     metrics_to_fetch = {
-        "reach": "reach",
-        "views": "impressions",           # Account-level total views
-        "profile_views": "profile_views",
-        "total_interactions": "total_interactions_series", # Account-level total engagement
+        "reach":              ("reach",                    until_ts_exact),  # strict 30-day limit
+        "views":              ("impressions",              until_ts),
+        "profile_views":      ("profile_views",            until_ts),
+        "total_interactions": ("total_interactions_series", until_ts),
     }
-    for metric, key in metrics_to_fetch.items():
-        try:
+    for metric, (key, metric_until) in metrics_to_fetch.items():
+        for m_type in ("time_series", "day"):
+            # "time_series" is the v22+ way; "day" (no metric_type) is the legacy fallback
             params = {
                 "metric": metric,
                 "period": "day",
-                "since": since_ts,
-                "until": until_ts,
+                "since":  since_ts,
+                "until":  metric_until,
             }
-            data = _get(f"{INSTAGRAM_USER_ID}/insights", params)
-            for m in data.get("data", []):
-                if m["name"] == metric:
-                    result[key] = [
-                        {"date": v["end_time"][:10], "value": v["value"]}
-                        for v in m.get("values", [])
-                        if isinstance(v.get("value"), (int, float))
-                    ]
-        except Exception as e:
-            print(f"DEBUG: IG {metric} fetch error: {e}")
-            # Final fallback: try 'impressions' if 'views' failed
-            if metric == "views" and not result["impressions"]:
-                try:
-                    data = _get(f"{INSTAGRAM_USER_ID}/insights", {
-                        "metric": "impressions",
-                        "period": "day", "since": since_ts, "until": until_ts
-                    })
-                    for m in data.get("data", []):
-                        result["impressions"] = [{"date": v["end_time"][:10], "value": v["value"]} for v in m["values"]]
-                except: pass
+            if m_type == "time_series":
+                params["metric_type"] = "time_series"
+            try:
+                data = _get(f"{INSTAGRAM_USER_ID}/insights", params)
+                for m in data.get("data", []):
+                    if m["name"] == metric:
+                        vals = [
+                            {"date": v["end_time"][:10], "value": v["value"]}
+                            for v in m.get("values", [])
+                            if isinstance(v.get("value"), (int, float))
+                        ]
+                        if vals:
+                            result[key] = vals
+                if result[key]:
+                    break   # got data — no need to try legacy fallback
+            except Exception as e:
+                print(f"DEBUG: IG {metric} ({m_type}) fetch error: {e}")
+                if m_type == "time_series":
+                    continue   # try legacy period=day
+                # Final fallback: try 'impressions' if 'views' failed
+                if metric == "views" and not result["impressions"]:
+                    try:
+                        data = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                            "metric": "impressions", "period": "day",
+                            "metric_type": "time_series",
+                            "since": since_ts, "until": until_ts,
+                        })
+                        for m in data.get("data", []):
+                            result["impressions"] = [
+                                {"date": v["end_time"][:10], "value": v["value"]}
+                                for v in m.get("values", [])
+                            ]
+                    except Exception:
+                        pass
 
-    # Fallback for profile_views: try metric_type=time_series
-    if not result["profile_views"]:
-        try:
-            data = _get(f"{INSTAGRAM_USER_ID}/insights", {
-                "metric": "profile_views",
-                "period": "day",
-                "metric_type": "time_series",
-                "since": since_ts,
-                "until": until_ts,
-            })
-            for m in data.get("data", []):
-                if m["name"] == "profile_views":
-                    result["profile_views"] = [
-                        {"date": v["end_time"][:10], "value": v["value"]}
-                        for v in m.get("values", [])
-                        if isinstance(v.get("value"), (int, float))
-                    ]
-            print(f"DEBUG IG profile_views (time_series): {len(result['profile_views'])} points")
-        except Exception as e:
-            print(f"DEBUG: IG profile_views time_series fallback error: {e}")
+    # profile_views fallback is now handled inside the metrics_to_fetch loop above
 
     # 3. Deduplicated Period Reach — try multiple approaches to get the closest
     # value to what Meta Business Suite reports.
@@ -220,32 +219,54 @@ def fetch_ig_engagement(days: int, start: str = None, end: str = None) -> dict:
 
     result = {"likes": 0, "comments": 0, "shares": 0, "saves": 0, "daily": []}
 
-    # Mirroring FB: Try individual insights for the period
+    # v22+: likes/comments/shares/saves require metric_type=total_value for aggregation.
+    # We fetch the period total first, then try metric_type=time_series for the daily chart.
     metric_map = {
-        "likes": "likes",
+        "likes":    "likes",
         "comments": "comments",
-        "shares": "shares",
-        "saves": "saves"
+        "shares":   "shares",
+        "saves":    "saves",
     }
 
+    # ── 1. Period totals (metric_type=total_value) ─────────────────────────────
     for metric, key in metric_map.items():
         try:
             data = _get(f"{INSTAGRAM_USER_ID}/insights", {
-                "metric": metric,
-                "period": "day",
-                "since": since_ts,
-                "until": until_ts,
+                "metric":      metric,
+                "period":      "day",
+                "metric_type": "total_value",
+                "since":       since_ts,
+                "until":       until_ts,
+            })
+            for m in data.get("data", []):
+                if m["name"] == metric:
+                    tv = m.get("total_value", {})
+                    if isinstance(tv, dict):
+                        result[key] = tv.get("value", 0)
+                    elif isinstance(tv, (int, float)):
+                        result[key] = int(tv)
+        except Exception as e:
+            print(f"DEBUG IG engagement total_value {metric}: {e}")
+
+    # ── 2. Daily series (metric_type=time_series) — optional, for charts ──────
+    for metric, key in metric_map.items():
+        try:
+            data = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                "metric":      metric,
+                "period":      "day",
+                "metric_type": "time_series",
+                "since":       since_ts,
+                "until":       until_ts,
             })
             for m in data.get("data", []):
                 if m["name"] == metric:
                     vals = m.get("values", [])
-                    result[key] = sum(v["value"] for v in vals)
                     result["daily"].extend([
                         {"date": v["end_time"][:10], "metric": key, "value": v["value"]}
-                        for v in vals
+                        for v in vals if isinstance(v.get("value"), (int, float))
                     ])
         except Exception:
-            pass
+            pass   # daily series is optional — totals already captured above
 
     return result
 
@@ -286,21 +307,23 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 or "/reel/" in p.get("permalink", "")
             )
             if is_reel:
+                # v22+: plays is deprecated for Reels; use reach as primary visibility metric
                 metric_sets = [
-                    "plays,reach,saved,shares,total_interactions",
-                    "plays,reach,saved",
+                    "reach,saved,shares,total_interactions",
+                    "reach,saved,shares",
                     "reach,saved",
                 ]
             elif media_type == "VIDEO":
+                # v22+: impressions deprecated for VIDEO; video_views still valid
                 metric_sets = [
-                    "impressions,reach,saved,shares,video_views",
-                    "plays,reach,saved,shares",
+                    "reach,saved,shares,video_views",
+                    "reach,saved,shares",
                     "reach,saved",
                 ]
             else:
-                # IMAGE, CAROUSEL_ALBUM, etc.
+                # IMAGE, CAROUSEL_ALBUM — v22+: impressions deprecated
                 metric_sets = [
-                    "impressions,reach,saved,shares",
+                    "reach,saved,shares",
                     "reach,saved",
                 ]
 
@@ -421,11 +444,14 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
         )
         # Try the most-likely metric set first, then fall back
         if is_reel:
-            metric_sets = ["plays,reach", "reach"]
+            # v22+: plays deprecated for Reels
+            metric_sets = ["reach,shares", "reach"]
         elif media_type == "VIDEO":
-            metric_sets = ["impressions,video_views", "plays,reach", "reach"]
+            # v22+: impressions deprecated; video_views still valid
+            metric_sets = ["reach,video_views", "reach,shares", "reach"]
         else:
-            metric_sets = ["impressions,reach", "reach"]
+            # IMAGE/CAROUSEL — v22+: impressions deprecated
+            metric_sets = ["reach,shares", "reach"]
 
         for m_list in metric_sets:
             try:

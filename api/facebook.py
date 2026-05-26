@@ -133,32 +133,41 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
     except Exception:
         pass
 
-    # Follower vs Non-follower daily breakdown
-    # page_impressions_fan  = content seen by people who follow the page
-    # page_impressions_nonviral = content seen by non-followers via direct page posts
-    try:
-        fan_data = _get_insights_chunked(
-            f"{FACEBOOK_PAGE_ID}/insights",
-            {"metric": "page_impressions_fan,page_impressions_nonviral", "period": "day"},
-            since, until,
-        )
-        for m in fan_data.get("data", []):
-            series = [
-                {"date": v["end_time"][:10], "value": v["value"]}
-                for v in m.get("values", [])
-            ]
-            if m["name"] == "page_impressions_fan":
-                result["fan_daily"] = series
-            elif m["name"] == "page_impressions_nonviral":
-                result["nonfan_daily"] = series
-    except Exception as e:
-        print(f"DEBUG: fan/nonfan engagement error: {e}")
+    # Follower vs Non-follower daily breakdown.
+    # page_impressions_fan and page_impressions_nonviral are deprecated for New Page
+    # Experience pages (return "#100 The value must be a valid insights metric").
+    # page_posts_impressions_fan / page_posts_impressions_nonviral are the successors
+    # where available; fall through silently if neither is supported.
+    for fan_metric, nonfan_metric in [
+        ("page_posts_impressions_fan", "page_posts_impressions_nonviral"),
+        ("page_impressions_fan_unique", "page_impressions_nonviral_unique"),
+    ]:
+        try:
+            fan_data = _get_insights_chunked(
+                f"{FACEBOOK_PAGE_ID}/insights",
+                {"metric": f"{fan_metric},{nonfan_metric}", "period": "day"},
+                since, until,
+            )
+            for m in fan_data.get("data", []):
+                series = [
+                    {"date": v["end_time"][:10], "value": v["value"]}
+                    for v in m.get("values", [])
+                ]
+                if m["name"] == fan_metric:
+                    result["fan_daily"] = series
+                elif m["name"] == nonfan_metric:
+                    result["nonfan_daily"] = series
+            if result["fan_daily"] or result["nonfan_daily"]:
+                break
+        except Exception as e:
+            print(f"DEBUG: fan/nonfan engagement ({fan_metric}) error: {e}")
 
     # Previous-period totals for % change indicators
+    # Use page_posts_impressions (confirmed working) instead of deprecated page_impressions.
     try:
         prev_since, prev_until = _prev_date_range(days)
         prev_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions_fan,page_impressions_nonviral",
+            "metric": "page_posts_impressions",
             "period": "day",
             "since": prev_since,
             "until": prev_until,
@@ -166,12 +175,10 @@ def fetch_fb_engagement(days: int, start: str = None, end: str = None) -> dict:
         for m in prev_data.get("data", []):
             vals = m.get("values", [])
             total = sum(v["value"] for v in vals if isinstance(v.get("value"), (int, float)))
-            if m["name"] == "page_impressions_fan":
-                result["prev_fan_total"] = total
-            elif m["name"] == "page_impressions_nonviral":
-                result["prev_nonfan_total"] = total
+            if m["name"] == "page_posts_impressions":
+                result["prev_fan_total"] = total   # re-use fan_total field as total impressions
     except Exception as e:
-        print(f"DEBUG: prev fan/nonfan error: {e}")
+        print(f"DEBUG: prev impressions error: {e}")
 
     return result
 
@@ -241,31 +248,40 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: page_posts_impressions daily error: {e}")
 
-    # 1c-b. Organic + Paid breakdown — optional, needs ads_read permission.
-    #       Failure here must NOT affect the main impressions series.
-    try:
-        op_data = _get_insights_chunked(
-            f"{FACEBOOK_PAGE_ID}/insights",
-            {"metric": "page_impressions_organic,page_impressions_paid", "period": "day"},
-            since, until,
-        )
-        for m in op_data.get("data", []):
-            series = [
-                {"date": v["end_time"][:10], "value": v["value"]}
-                for v in m.get("values", [])
-            ]
-            if m["name"] == "page_impressions_organic":
-                result["page_views_organic"] = series
-            elif m["name"] == "page_impressions_paid":
-                result["page_views_paid"] = series
-    except Exception as e:
-        print(f"DEBUG: organic/paid impressions breakdown error: {e}")
+    # 1c-b. Organic + Paid breakdown — optional.
+    # page_impressions_organic / page_impressions_paid are deprecated for New Page Experience.
+    # Try the posts-level variants; failure here must NOT affect the main impressions series.
+    for org_m, paid_m in [
+        ("page_posts_impressions_organic", "page_posts_impressions_paid"),
+        ("page_impressions_organic_unique", "page_impressions_paid_unique"),
+    ]:
+        try:
+            op_data = _get_insights_chunked(
+                f"{FACEBOOK_PAGE_ID}/insights",
+                {"metric": f"{org_m},{paid_m}", "period": "day"},
+                since, until,
+            )
+            for m in op_data.get("data", []):
+                series = [
+                    {"date": v["end_time"][:10], "value": v["value"]}
+                    for v in m.get("values", [])
+                ]
+                if m["name"] == org_m:
+                    result["page_views_organic"] = series
+                elif m["name"] == paid_m:
+                    result["page_views_paid"] = series
+            if result["page_views_organic"] or result["page_views_paid"]:
+                break
+        except Exception as e:
+            print(f"DEBUG: organic/paid impressions breakdown ({org_m}) error: {e}")
 
     # 1d. Previous-period totals for growth indicators (period-over-period %)
+    # page_impressions / page_impressions_organic / page_impressions_paid are all
+    # deprecated for New Page Experience. Use page_posts_impressions (confirmed valid).
     try:
         prev_since, prev_until = _prev_date_range(days)
         prev_data = _get(f"{FACEBOOK_PAGE_ID}/insights", {
-            "metric": "page_impressions,page_impressions_organic,page_impressions_paid",
+            "metric": "page_posts_impressions",
             "period": "day",
             "since": prev_since,
             "until": prev_until,
@@ -273,12 +289,8 @@ def fetch_fb_visibility(days: int, start: str = None, end: str = None) -> dict:
         for m in prev_data.get("data", []):
             vals = m.get("values", [])
             total_val = sum(v["value"] for v in vals if isinstance(v.get("value"), (int, float)))
-            if m["name"] == "page_impressions":
+            if m["name"] == "page_posts_impressions":
                 result["prev_total_views"] = total_val
-            elif m["name"] == "page_impressions_organic":
-                result["prev_organic_views"] = total_val
-            elif m["name"] == "page_impressions_paid":
-                result["prev_paid_views"] = total_val
     except Exception as e:
         print(f"DEBUG: prev period impressions error: {e}")
 
