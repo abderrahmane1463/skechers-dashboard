@@ -307,22 +307,24 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 or "/reel/" in p.get("permalink", "")
             )
             if is_reel:
-                # v22+: plays is deprecated for Reels; use reach as primary visibility metric
+                # Try plays first — fall back gracefully if the API rejects it
                 metric_sets = [
+                    "plays,reach,saved,shares,total_interactions",
                     "reach,saved,shares,total_interactions",
                     "reach,saved,shares",
                     "reach,saved",
                 ]
             elif media_type == "VIDEO":
-                # v22+: impressions deprecated for VIDEO; video_views still valid
                 metric_sets = [
+                    "impressions,reach,saved,shares,video_views",
                     "reach,saved,shares,video_views",
                     "reach,saved,shares",
                     "reach,saved",
                 ]
             else:
-                # IMAGE, CAROUSEL_ALBUM — v22+: impressions deprecated
+                # IMAGE, CAROUSEL_ALBUM — try impressions first, fall back to reach
                 metric_sets = [
+                    "impressions,reach,saved,shares",
                     "reach,saved,shares",
                     "reach,saved",
                 ]
@@ -446,14 +448,12 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
         )
         # Try the most-likely metric set first, then fall back
         if is_reel:
-            # v22+: plays deprecated for Reels
-            metric_sets = ["reach,shares", "reach"]
+            metric_sets = ["plays,reach", "reach,shares", "reach"]
         elif media_type == "VIDEO":
-            # v22+: impressions deprecated; video_views still valid
-            metric_sets = ["reach,video_views", "reach,shares", "reach"]
+            metric_sets = ["impressions,video_views", "reach,video_views", "reach,shares", "reach"]
         else:
-            # IMAGE/CAROUSEL — v22+: impressions deprecated
-            metric_sets = ["reach,shares", "reach"]
+            # IMAGE/CAROUSEL — try impressions first, fall back to reach
+            metric_sets = ["impressions,reach", "reach,shares", "reach"]
 
         for m_list in metric_sets:
             try:
