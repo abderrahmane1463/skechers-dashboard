@@ -157,9 +157,11 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     _ig_reach_display = "—" if _ig_reach_unavailable else f"{total_ig_reach:,}"
     _ig_reach_note    = "ℹ️ Indisponible pour cette période" if _ig_reach_unavailable else None
 
+    # Prefer the full paginated total (all posts in period) from post_totals,
+    # fall back to summing the 20 displayed posts if post_totals is unavailable.
     total_ig_impressions = (
-        sum(p.get("impressions", 0) for p in ig_posts)
-        or ig_post_totals.get("total_impressions")
+        ig_post_totals.get("total_impressions")
+        or sum(p.get("impressions", 0) for p in ig_posts)
     )
 
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)

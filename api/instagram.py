@@ -375,7 +375,9 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "thumbnail":        p.get("thumbnail_url") or p.get("media_url", ""),
                 "permalink":        p.get("permalink", ""),
                 "reach":            reach,
-                "impressions":      impressions,
+                # v22+ dropped impressions for feed posts — use reach as the
+                # equivalent "views" metric so the UI never shows 0 Vues.
+                "impressions":      impressions or reach,
                 "reactions":        likes,
                 "comments":         comments,
                 "saves":            saves,
