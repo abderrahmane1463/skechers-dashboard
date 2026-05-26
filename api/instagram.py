@@ -273,32 +273,66 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             # 1. Start with Public Snapshot (Fallback)
             likes, comments = p.get("like_count", 0), p.get("comments_count", 0)
 
-            # 2. Fetch Deep Insights (Bulletproof Node-Fields Syntax)
+            # 2. Fetch Deep Insights via /media_id/insights endpoint
             impressions, reach, saves, shares = 0, 0, 0, 0
-            try:
-                # This syntax is robust: it only returns what the post supports
-                m_list = "total_likes,total_comments,total_views,reach,saved,shares,plays,views,impressions"
-                data = _get(p["id"], {"fields": f"insights.metric({m_list})"})
+            media_type = p.get("media_type", "")
+            post_id    = p["id"]
 
-                ins_list = data.get("insights", {}).get("data", [])
-                for item in ins_list:
-                    name = item["name"]
-                    val = item["values"][0]["value"] if item.get("values") else 0
+            # Choose metrics by media type — each type supports a different set.
+            # Reels come back as media_type="VIDEO" with /reel/ in the permalink;
+            # check that BEFORE the generic VIDEO branch.
+            is_reel = (
+                media_type in ("REEL", "IG_REEL")
+                or "/reel/" in p.get("permalink", "")
+            )
+            if is_reel:
+                metric_sets = [
+                    "plays,reach,saved,shares,total_interactions",
+                    "plays,reach,saved",
+                    "reach,saved",
+                ]
+            elif media_type == "VIDEO":
+                metric_sets = [
+                    "impressions,reach,saved,shares,video_views",
+                    "plays,reach,saved,shares",
+                    "reach,saved",
+                ]
+            else:
+                # IMAGE, CAROUSEL_ALBUM, etc.
+                metric_sets = [
+                    "impressions,reach,saved,shares",
+                    "reach,saved",
+                ]
 
-                    if name == "total_likes":
-                        likes = val
-                    elif name == "total_comments":
-                        comments = val
-                    elif name in ["total_views", "impressions", "views", "plays"]:
-                        impressions = max(impressions, val)
-                    elif name == "reach":
-                        reach = val
-                    elif name == "saved":
-                        saves = val
-                    elif name == "shares":
-                        shares = val
-            except:
-                pass
+            for m_list in metric_sets:
+                try:
+                    d = _get(f"{post_id}/insights", {"metric": m_list})
+                    ins_list = d.get("data", [])
+                    if not ins_list:
+                        continue
+                    for item in ins_list:
+                        name = item.get("name", "")
+                        # v19 returns period totals in item["values"][0]["value"]
+                        val = 0
+                        if item.get("values"):
+                            val = item["values"][0].get("value", 0)
+                        elif "value" in item:
+                            val = item["value"]
+                        if name in ("impressions", "plays", "video_views"):
+                            impressions = max(impressions, val)
+                        elif name == "reach":
+                            reach = val
+                        elif name == "saved":
+                            saves = val
+                        elif name == "shares":
+                            shares = val
+                    break   # success — don't try remaining fallback sets
+                except Exception as e:
+                    err_txt = str(e)
+                    # Reel metrics not supported on this post type → try next set
+                    if "400" in err_txt or "Unsupported" in err_txt or "invalid" in err_txt.lower():
+                        continue
+                    break   # non-recoverable error
 
             # Extract hour + weekday from full timestamp for heatmap
             _ts = p.get("timestamp", "")
@@ -354,7 +388,7 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
         until_incl = until
 
     params = {
-        "fields": "id,timestamp,media_type",
+        "fields": "id,timestamp,media_type,permalink",
         "limit":  100,
         "since":  since,
         "until":  until_incl,
@@ -378,16 +412,42 @@ def fetch_ig_post_totals(days: int = None, start: str = None, end: str = None) -
         params = {**params, "after": next_cursor}
 
     def _get_impressions(p):
-        try:
-            m_list = "total_views,impressions,views,plays"
-            d = _get(p["id"], {"fields": f"insights.metric({m_list})"})
-            imp = 0
-            for item in d.get("insights", {}).get("data", []):
-                val = item["values"][0]["value"] if item.get("values") else 0
-                imp = max(imp, val)
-            return imp
-        except Exception:
-            return 0
+        post_id    = p["id"]
+        media_type = p.get("media_type", "")
+        # Reels are returned as media_type=VIDEO with /reel/ in the permalink
+        is_reel = (
+            media_type in ("REEL", "IG_REEL")
+            or "/reel/" in p.get("permalink", "")
+        )
+        # Try the most-likely metric set first, then fall back
+        if is_reel:
+            metric_sets = ["plays,reach", "reach"]
+        elif media_type == "VIDEO":
+            metric_sets = ["impressions,video_views", "plays,reach", "reach"]
+        else:
+            metric_sets = ["impressions,reach", "reach"]
+
+        for m_list in metric_sets:
+            try:
+                d = _get(f"{post_id}/insights", {"metric": m_list})
+                imp = 0
+                for item in d.get("data", []):
+                    name = item.get("name", "")
+                    val  = 0
+                    if item.get("values"):
+                        val = item["values"][0].get("value", 0)
+                    elif "value" in item:
+                        val = item["value"]
+                    if name in ("impressions", "plays", "video_views", "reach"):
+                        imp = max(imp, val)
+                if imp or d.get("data"):   # got a valid (possibly 0) response
+                    return imp
+            except Exception as e:
+                err_txt = str(e)
+                if "400" in err_txt or "Unsupported" in err_txt:
+                    continue
+                break
+        return 0
 
     total_impressions = 0
     total_posts       = len(all_posts)
