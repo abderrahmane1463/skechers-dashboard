@@ -100,6 +100,7 @@ def _render_ig_post_card(post: dict):
 
 # ─── Main render function ─────────────────────────────────────────────────────
 def render_instagram_dashboard(period_label: str, days: int, start_date, end_date, log_refresh_fn):
+    st.warning("⚠️ Under repair")
     # ── Compute previous equivalent period dates ──────────────────────────────
     from datetime import datetime as _vdt, timedelta as _vtd, timezone as _vtz
     if start_date and end_date:
