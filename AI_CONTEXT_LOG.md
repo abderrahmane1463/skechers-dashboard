@@ -1,5 +1,5 @@
 # AI_CONTEXT_LOG.md
-## Footland Dashboard — Rolling AI Context & Change Log
+## Skechers Dashboard — Rolling AI Context & Change Log
 
 > This file is **automatically appended** by `log_refresh()` in `app.py` every time the data refresh logic runs.  
 > It serves as a handoff document for AI context continuity across sessions.
@@ -2417,4 +2417,122 @@
 - **Period:** Last 30 Days
 - **Status:** ✅ Data Loaded
 - **Notes:** Followers: 501264, Posts: 30, Reach: 6029395
+---
+
+### [2026-06-03 12:18 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 0, Posts: 0, Reach: 0
+---
+
+### [2026-06-03 13:17 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9043177, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 13:22 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 127580, Posts: 16, Reach: 1960957
+---
+
+### [2026-06-03 13:22 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9043177, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 13:22 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 127580, Posts: 16, Reach: 1960957
+---
+
+### [2026-06-03 13:46 UTC] — Data Refresh
+- **Platform:** Boost
+- **Period:** Last 30 Days
+- **Status:** 🔄 Manual Refresh Triggered
+---
+
+### [2026-06-03 13:48 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042992, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:07 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9043146, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:18 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9043146, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:25 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9043146, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:28 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042135, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:32 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042135, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:36 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042135, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:41 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042135, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:46 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042135, Posts: 16, Reach: 3512467
+---
+
+### [2026-06-03 14:51 UTC] — Data Refresh
+- **Platform:** Instagram
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 127582, Posts: 16, Reach: 1960957
+---
+
+### [2026-06-03 14:52 UTC] — Data Refresh
+- **Platform:** Facebook
+- **Period:** Last 30 Days
+- **Status:** ✅ Data Loaded
+- **Notes:** Followers: 9042135, Posts: 16, Reach: 3512467
 ---

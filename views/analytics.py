@@ -123,7 +123,7 @@ def _render_traffic_sources(sources: list):
             f'eng. {_fmt_pct(s["engagement_rate"])}'
             f'</span></div>'
             f'<div style="background:{_brd};border-radius:6px;height:8px;">'
-            f'<div style="background:#E8420A;width:{bar_w}%;height:8px;border-radius:6px;"></div>'
+            f'<div style="background:#003594;width:{bar_w}%;height:8px;border-radius:6px;"></div>'
             f'</div></div>'
         )
 
@@ -301,7 +301,7 @@ def _render_purchase_journey(pj: dict):
             f'<span style="font-size:0.78rem;color:{_sub_c};">{users:,} utilisateurs</span>'
             f'</div>'
             f'<div style="background:{_brd};border-radius:6px;height:10px;">'
-            f'<div style="background:#E8420A;width:{bar_pct}%;height:10px;border-radius:6px;"></div>'
+            f'<div style="background:#003594;width:{bar_pct}%;height:10px;border-radius:6px;"></div>'
             f'</div></div>'
         )
 
@@ -374,7 +374,7 @@ def _render_geography(geo: dict):
                 f'{_fmt_int(item["users"])} · {item["pct"]}%</span>'
                 f'</div>'
                 f'<div style="background:{_brd};border-radius:4px;height:5px;">'
-                f'<div style="background:#E8420A;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
+                f'<div style="background:#003594;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
                 f'</div></div></div>'
             )
         return (
@@ -397,7 +397,7 @@ def _render_devices(devices: list):
         return
 
     _dark   = st.session_state.get("theme", "dark") == "dark"
-    _COLORS = ["#E8420A", "#7dd3fc", "#4ade80", "#a78bfa"]
+    _COLORS = ["#003594", "#7dd3fc", "#4ade80", "#a78bfa"]
     _ICONS  = {"mobile": "📱", "desktop": "🖥️", "tablet": "📲"}
 
     labels = [d["device"].capitalize() for d in devices]
@@ -521,7 +521,7 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
         f'<p style="font-size:1.4rem;font-weight:800;letter-spacing:0.08em;'
         f'color:{_hdr_c};margin:0 0 0.2rem;">GOOGLE ANALYTICS 4</p>'
         f'<p style="font-size:0.8rem;color:{_sub_c};margin:0 0 1rem;">'
-        f'Comportement des visiteurs · footland.dz</p>',
+        f'Comportement des visiteurs · skechers.dz</p>',
         unsafe_allow_html=True,
     )
 

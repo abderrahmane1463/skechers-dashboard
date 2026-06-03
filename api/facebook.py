@@ -373,7 +373,7 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
       - country       → top countries table
       - region        → top cities/regions table
 
-    Filters to Footland campaigns only via FOOTLAND_CAMPAIGN_KEYWORDS.
+    Filters to Skechers campaigns only via SKECHERS_CAMPAIGN_KEYWORDS.
     page_fans_gender_age is blocked for New Page Experience pages; this
     uses paid reach demographics as a proxy (matches the report which is
     also driven primarily by paid campaigns).
@@ -391,7 +391,7 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
     """
     import requests as _requests
     from api.boost import _get_ads
-    from config import BLOCKED_AD_ACCOUNTS, FOOTLAND_CAMPAIGN_KEYWORDS, GRAPH_BASE_URL
+    from config import BLOCKED_AD_ACCOUNTS, SKECHERS_CAMPAIGN_KEYWORDS, GRAPH_BASE_URL
 
     AD_ACCOUNT = BLOCKED_AD_ACCOUNTS[0]
     since, until = _date_range(days, start, end)
@@ -409,12 +409,12 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
         "source": "marketing_api",
     }
 
-    def _is_footland(name: str) -> bool:
+    def _is_skechers(name: str) -> bool:
         n = (name or "").lower()
-        return any(kw.lower() in n for kw in FOOTLAND_CAMPAIGN_KEYWORDS)
+        return any(kw.lower() in n for kw in SKECHERS_CAMPAIGN_KEYWORDS)
 
     def _fetch_breakdown(breakdown: str) -> list:
-        """Fetch campaign-level insights for a breakdown, return Footland rows only."""
+        """Fetch campaign-level insights for a breakdown, return Skechers rows only."""
         rows = []
         params = {
             "level": "campaign",
@@ -427,7 +427,7 @@ def fetch_fb_demographics(days: int = 30, start: str = None, end: str = None) ->
             page = _get_ads(f"{AD_ACCOUNT}/insights", params)
             while True:
                 for row in page.get("data", []):
-                    if _is_footland(row.get("campaign_name", "")):
+                    if _is_skechers(row.get("campaign_name", "")):
                         rows.append(row)
                 next_url = page.get("paging", {}).get("next")
                 if not next_url:

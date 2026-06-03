@@ -1,5 +1,5 @@
 """
-views/login.py — Login page for Footland dashboard.
+views/login.py — Login page for Skechers dashboard.
 """
 
 import base64
@@ -29,7 +29,7 @@ _LOGIN_CSS = """
 .login-logo {
     font-size: 36px;
     font-weight: 800;
-    background: linear-gradient(90deg, #E8420A, #FF6B35, #C1320A);
+    background: linear-gradient(90deg, #003594, #0050D0, #00205A);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-align: center;
@@ -50,7 +50,7 @@ def render_login():
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
-        _logo = pathlib.Path(__file__).parent.parent / "assets" / "footland_logo.png"
+        _logo = pathlib.Path(__file__).parent.parent / "assets" / "skechers_logo.png"
         if _logo.exists():
             _b64 = base64.b64encode(_logo.read_bytes()).decode()
             st.markdown(
@@ -60,7 +60,7 @@ def render_login():
                 unsafe_allow_html=True,
             )
         else:
-            st.markdown('<div class="login-logo">⚽ Footland</div>', unsafe_allow_html=True)
+            st.markdown('<div class="login-logo">⚽ Skechers</div>', unsafe_allow_html=True)
         st.markdown('<div class="login-sub">Analytics Dashboard</div>', unsafe_allow_html=True)
 
         with st.form("login_form", clear_on_submit=False):

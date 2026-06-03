@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pip install -r requirements.txt
-export FOOTLAND_TOKEN="<meta-graph-api-long-lived-page-access-token>"
+export SKECHERS_TOKEN="<meta-graph-api-long-lived-page-access-token>"
 streamlit run app.py
 ```
 
@@ -27,7 +27,7 @@ app.py  (Streamlit UI)
 
 **`api_client.py`** — All HTTP calls. `_get()` implements exponential-backoff retry (3 attempts, multiplier=2.0). Every endpoint runs through `_assert_not_blocked()` which raises `ValueError` if the URL contains a blocklisted ad account ID — this enforces the organic-only constraint. Per-post insight fetching uses `ThreadPoolExecutor(max_workers=10)`. API calls use fallback metric names when primary names fail (e.g. `page_daily_follows` → `page_fan_adds`).
 
-**`config.py`** — Constants only. `ACCESS_TOKEN` reads from the `FOOTLAND_TOKEN` environment variable. Metric name arrays (`FB_AUDIENCE_METRICS`, `IG_ENGAGEMENT_METRICS`, etc.) used by api_client live here. `BLOCKED_AD_ACCOUNTS` contains the hardcoded ad account IDs that `_assert_not_blocked()` enforces.
+**`config.py`** — Constants only. `ACCESS_TOKEN` reads from the `SKECHERS_TOKEN` environment variable. Metric name arrays (`FB_AUDIENCE_METRICS`, `IG_ENGAGEMENT_METRICS`, etc.) used by api_client live here. `BLOCKED_AD_ACCOUNTS` contains the hardcoded ad account IDs that `_assert_not_blocked()` enforces.
 
 ## Tab Data Sources
 

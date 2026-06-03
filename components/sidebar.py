@@ -34,7 +34,7 @@ def render_sidebar(log_refresh_fn):
     log_refresh_fn is called when the user clicks Refresh.
     """
     with st.sidebar:
-        _logo_path = pathlib.Path("assets/footland_logo.png")
+        _logo_path = pathlib.Path("assets/skechers_logo.png")
         if _logo_path.exists():
             _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
             st.markdown(
@@ -45,7 +45,7 @@ def render_sidebar(log_refresh_fn):
                 unsafe_allow_html=True
             )
         else:
-            st.markdown('<div class="brand-header">⚽ Footland</div>', unsafe_allow_html=True)
+            st.markdown('<div class="brand-header">👟 Skechers</div>', unsafe_allow_html=True)
         st.markdown('<div class="brand-sub">Analytics Dashboard</div>', unsafe_allow_html=True)
 
         platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram", "🚀 Boost", "📊 Google Analytics", "📖 Documentation"], label_visibility="collapsed")

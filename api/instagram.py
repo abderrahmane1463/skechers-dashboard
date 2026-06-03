@@ -40,14 +40,14 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "follower_additions": [],
         "period_reach": 0,
         "story_impressions": 0,
-        "username": "footland"
+        "username": "skechers"
     }
 
     # 1. Total Followers (Fallback logic like FB page_fans)
     try:
         data = _get(INSTAGRAM_USER_ID, {"fields": "followers_count,username"})
         result["followers_count"] = data.get("followers_count", 0)
-        result["username"] = data.get("username", "footland")
+        result["username"] = data.get("username", "skechers")
     except Exception as e:
         print(f"DEBUG: IG followers snapshot error: {e}")
 

@@ -17,7 +17,7 @@ _DOC_CSS = """
 .doc-hero h1 {
     font-size: 32px;
     font-weight: 800;
-    background: linear-gradient(90deg, #E8420A, #FF6B35);
+    background: linear-gradient(90deg, #003594, #0050D0);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 8px;
@@ -26,7 +26,7 @@ _DOC_CSS = """
 .doc-section-title {
     font-size: 20px;
     font-weight: 700;
-    color: #E8420A !important;
+    color: #003594 !important;
     margin-bottom: 16px;
     padding-bottom: 10px;
     border-bottom: 1px solid #262626;
@@ -57,7 +57,7 @@ _DOC_CSS = """
     font-family: monospace;
     font-size: 12px;
     background: #1e1e1e;
-    color: #E8420A !important;
+    color: #003594 !important;
     padding: 2px 6px;
     border-radius: 4px;
     white-space: nowrap;
@@ -438,7 +438,7 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
     with st.expander("⚠️ Limitations & Données Indisponibles", expanded=False):
         st.markdown("""
 <div style="margin-bottom:0.8rem;font-size:0.9rem;color:#a1a1aa;">
-Certains indicateurs affichent <strong style="color:#E8420A;">—</strong> ou peuvent différer de Meta Business Suite.
+Certains indicateurs affichent <strong style="color:#003594;">—</strong> ou peuvent différer de Meta Business Suite.
 Ce n'est pas une erreur du dashboard — ce sont des contraintes imposées par l'API Meta.
 </div>
 """, unsafe_allow_html=True)

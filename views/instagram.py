@@ -52,7 +52,7 @@ def _render_ig_post_card(post: dict):
     _no_img_bg = "rgba(255,255,255,0.05)" if _dark else "#f3f4f6"
     _no_img_tc = "rgba(255,255,255,0.3)"  if _dark else "#d1d5db"
     _total_lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
-    _total_bg  = "rgba(232,66,10,0.15)"   if _dark else "rgba(232,66,10,0.08)"
+    _total_bg  = "rgba(0,53,148,0.15)"   if _dark else "rgba(0,53,148,0.08)"
 
     if thumbnail:
         st.image(thumbnail, use_container_width=True)
@@ -90,7 +90,7 @@ def _render_ig_post_card(post: dict):
         f'</div>'
         f'<div style="background:{_total_bg};border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.5rem;">'
         f'<div style="font-size:0.7rem;color:{_total_lc};">⚡ Total interactions</div>'
-        f'<div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>'
+        f'<div style="font-size:1.1rem;font-weight:800;color:#0050D0;">{total:,}</div>'
         f'</div>'
         f'<a href="{permalink}" target="_blank" style="font-size:0.75rem;color:#6c8ebf;text-decoration:none;">'
         f'🔗 Voir la publication</a><br><br>',
@@ -242,7 +242,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
   {_ig_kpi("🔖", "Enregistrements",    f"{total_ig_saves:,}", "#60a5fa", delta=_d(total_ig_saves,  _prev_ig_saves))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#FF6B35", delta=_d(total_ig_interactions, _prev_ig_interactions))}
+  {_ig_kpi("🔥", "Total interactions", f"{total_ig_interactions:,}", "#0050D0", delta=_d(total_ig_interactions, _prev_ig_interactions))}
   {_ig_kpi("❤️", "Réactions",   f"{total_ig_likes:,}",    "#f87171", delta=_d(total_ig_likes,    _prev_ig_likes))}
   {_ig_kpi("💬", "Commentaires", f"{total_ig_comments:,}", "#a78bfa", delta=_d(total_ig_comments, _prev_ig_comments))}
   {_ig_kpi("↗️", "Partages",     f"{total_ig_shares:,}",   "#34d399", delta=_d(total_ig_shares,   _prev_ig_shares))}
@@ -324,7 +324,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             fig_eng.add_trace(go.Scatter(
                 x=ci_df["date"], y=ci_df["value"],
                 name="Total interactions",
-                line=dict(color="#FF6B35", width=3), mode="lines",
+                line=dict(color="#0050D0", width=3), mode="lines",
                 yaxis="y1",
             ))
             fig_eng.add_trace(go.Scatter(
@@ -395,7 +395,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 f'<span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:0.08em;color:{"#ffffff" if _dark else "#111827"};">'
                 f'⏰ Meilleur moment pour publier</span>'
-                f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
+                f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#003594,#0050D0);'
                 f'border-radius:2px;margin:0.4rem auto 0;"></div></div>',
                 unsafe_allow_html=True,
             )
@@ -439,11 +439,11 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     text=_text_mat,
                     hovertemplate="<b>%{y} %{x}</b><br>%{text}<extra></extra>",
                     colorscale=[
-                        [0.0,  "rgba(232,66,10,0.08)"],
-                        [0.25, "rgba(232,66,10,0.3)"],
-                        [0.5,  "rgba(232,66,10,0.55)"],
-                        [0.75, "rgba(232,66,10,0.8)"],
-                        [1.0,  "#E8420A"],
+                        [0.0,  "rgba(0,53,148,0.08)"],
+                        [0.25, "rgba(0,53,148,0.3)"],
+                        [0.5,  "rgba(0,53,148,0.55)"],
+                        [0.75, "rgba(0,53,148,0.8)"],
+                        [1.0,  "#003594"],
                     ],
                     showscale=True,
                     colorbar=dict(
@@ -469,22 +469,22 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                             if avg > _best_val:
                                 _best_val, _best_d, _best_h = avg, d, h
                 if _best_val > 0:
-                    _note_bg = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+                    _note_bg = "rgba(0,53,148,0.08)" if _dark else "rgba(0,53,148,0.06)"
                     _note_tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
                     st.markdown(
-                        f'<div style="background:{_note_bg};border-left:3px solid #E8420A;'
+                        f'<div style="background:{_note_bg};border-left:3px solid #003594;'
                         f'border-radius:0 8px 8px 0;padding:0.6rem 1rem;margin-top:0.5rem;'
                         f'font-size:0.85rem;color:{_note_tc};">'
-                        f'🏆 Meilleur créneau : <b style="color:#E8420A;">{_days_fr[_best_d]} à {_best_h:02d}h</b> '
-                        f'— moyenne de <b style="color:#E8420A;">{_best_val:.0f} interactions</b> par publication.'
+                        f'🏆 Meilleur créneau : <b style="color:#003594;">{_days_fr[_best_d]} à {_best_h:02d}h</b> '
+                        f'— moyenne de <b style="color:#003594;">{_best_val:.0f} interactions</b> par publication.'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
             else:
-                _nb = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+                _nb = "rgba(0,53,148,0.08)" if _dark else "rgba(0,53,148,0.06)"
                 _tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
                 st.markdown(
-                    f'<div style="background:{_nb};border-left:3px solid #E8420A;border-radius:0 8px 8px 0;'
+                    f'<div style="background:{_nb};border-left:3px solid #003594;border-radius:0 8px 8px 0;'
                     f'padding:0.8rem 1.2rem;font-size:0.9rem;color:{_tc};">'
                     f'🔄 Cliquez sur <b>Refresh Data</b> dans la barre latérale pour activer ce graphique.'
                     f'</div>',
@@ -647,7 +647,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 f'<span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:0.08em;color:{"#ffffff" if _dark else "#111827"};">'
                 f'📊 Performance par type de contenu</span>'
-                f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
+                f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#003594,#0050D0);'
                 f'border-radius:2px;margin:0.4rem auto 0;"></div></div>',
                 unsafe_allow_html=True,
             )

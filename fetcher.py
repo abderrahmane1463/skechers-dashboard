@@ -134,7 +134,7 @@ def _fetch_and_save(metric_key, fn, period_start, period_end, days):
 def run():
     started = datetime.now(timezone.utc)
     print(f"\n{'═'*56}")
-    print(f"  Footland Fetcher — {started.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"  Skechers Fetcher — {started.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"{'═'*56}\n")
 
     periods = _periods()

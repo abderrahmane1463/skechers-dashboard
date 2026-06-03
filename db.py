@@ -1,5 +1,5 @@
 """
-db.py — Supabase REST API layer for Footland dashboard.
+db.py — Supabase REST API layer for Skechers dashboard.
 Stores and retrieves metric results as JSON blobs keyed by (metric_key, period_start, period_end).
 """
 

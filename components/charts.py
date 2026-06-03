@@ -86,7 +86,7 @@ def render_top3_podium(
         f'<span style="font-size:1.15rem;font-weight:700;'
         f'text-transform:uppercase;letter-spacing:0.1em;'
         f'color:{"#ffffff" if _dark else "#111827"};">🏆 {title}</span>'
-        f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
+        f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#003594,#0050D0);'
         f'border-radius:2px;margin:0.4rem auto 0;"></div>'
         f'</div>',
         unsafe_allow_html=True,

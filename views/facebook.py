@@ -46,7 +46,7 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
     _no_img_bg = "rgba(255,255,255,0.05)" if _dark else "#f3f4f6"
     _no_img_tc = "rgba(255,255,255,0.3)"  if _dark else "#d1d5db"
     _total_lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
-    _total_bg  = "rgba(232,66,10,0.15)"   if _dark else "rgba(232,66,10,0.08)"
+    _total_bg  = "rgba(0,53,148,0.15)"   if _dark else "rgba(0,53,148,0.08)"
 
     def _cell(icon, label, value, color=None):
         _vc  = color if color else _cell_vc
@@ -127,7 +127,7 @@ def _render_post_card(post: dict, link_color: str = "#6c8ebf"):
     st.markdown(
         f'<div style="margin-top:0.4rem;background:{_total_bg};border-radius:8px;padding:0.5rem 0.7rem;">'
         f'<div style="font-size:0.7rem;color:{_total_lc};">⚡ Total interactions</div>'
-        f'<div style="font-size:1.1rem;font-weight:800;color:#FF6B35;">{total:,}</div>'
+        f'<div style="font-size:1.1rem;font-weight:800;color:#0050D0;">{total:,}</div>'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -330,7 +330,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("📝", "Publications",             str(len(posts)),                   delta=_d(len(posts), _prev_posts))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">
-  {_kpi("🔥", "Total interactions (posts)", f"{total_engagements:,}", "#FF6B35", delta=_d(total_engagements, _prev_engs))}
+  {_kpi("🔥", "Total interactions (posts)", f"{total_engagements:,}", "#0050D0", delta=_d(total_engagements, _prev_engs))}
   {_kpi("❤️", "Réactions",   f"{total_reacs:,}", delta=_d(total_reacs, _prev_reacs))}
   {_kpi("💬", "Commentaires", f"{total_comms:,}", delta=_d(total_comms, _prev_comms))}
   {_kpi("🔁", "Partages",     f"{total_shars:,}", delta=_d(total_shars, _prev_shars))}
@@ -486,7 +486,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     f'<div>'
                     f'<div style="font-size:0.7rem;color:{_sb_lc};'
                     f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Followers (Lifetime)</div>'
-                    f'<div style="font-size:1.5rem;font-weight:800;color:#FF6B35;">{total_fans:,}</div>'
+                    f'<div style="font-size:1.5rem;font-weight:800;color:#0050D0;">{total_fans:,}</div>'
                     f'</div>'
 
                     f'</div>',
@@ -574,7 +574,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             fig_eng.add_trace(go.Scatter(
                 x=ci_df["date"], y=ci_df["value"],
                 name="Total interactions",
-                line=dict(color="#FF6B35", width=3), mode="lines",
+                line=dict(color="#0050D0", width=3), mode="lines",
                 yaxis="y1",
             ))
             fig_eng.add_trace(go.Scatter(
@@ -649,7 +649,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
             f'<span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;'
             f'letter-spacing:0.08em;color:{"#ffffff" if _dark else "#111827"};">'
             f'⏰ Meilleur moment pour publier</span>'
-            f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#E8420A,#FF6B35);'
+            f'<div style="height:3px;width:60px;background:linear-gradient(90deg,#003594,#0050D0);'
             f'border-radius:2px;margin:0.4rem auto 0;"></div></div>',
             unsafe_allow_html=True,
           )
@@ -693,11 +693,11 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                     text=_text_fb,
                     hovertemplate="<b>%{y} %{x}</b><br>%{text}<extra></extra>",
                     colorscale=[
-                        [0.0,  "rgba(232,66,10,0.08)"],
-                        [0.25, "rgba(232,66,10,0.3)"],
-                        [0.5,  "rgba(232,66,10,0.55)"],
-                        [0.75, "rgba(232,66,10,0.8)"],
-                        [1.0,  "#E8420A"],
+                        [0.0,  "rgba(0,53,148,0.08)"],
+                        [0.25, "rgba(0,53,148,0.3)"],
+                        [0.5,  "rgba(0,53,148,0.55)"],
+                        [0.75, "rgba(0,53,148,0.8)"],
+                        [1.0,  "#003594"],
                     ],
                     showscale=True,
                     colorbar=dict(
@@ -723,22 +723,22 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
                             if avg > _best_val_fb:
                                 _best_val_fb, _best_d_fb, _best_h_fb = avg, d, h
                 if _best_val_fb > 0:
-                    _note_bg = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+                    _note_bg = "rgba(0,53,148,0.08)" if _dark else "rgba(0,53,148,0.06)"
                     _note_tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
                     st.markdown(
-                        f'<div style="background:{_note_bg};border-left:3px solid #E8420A;'
+                        f'<div style="background:{_note_bg};border-left:3px solid #003594;'
                         f'border-radius:0 8px 8px 0;padding:0.6rem 1rem;margin-top:0.5rem;'
                         f'font-size:0.85rem;color:{_note_tc};">'
-                        f'🏆 Meilleur créneau : <b style="color:#E8420A;">{_days_fr[_best_d_fb]} à {_best_h_fb:02d}h</b> '
-                        f'— moyenne de <b style="color:#E8420A;">{_best_val_fb:.0f} interactions</b> par publication.'
+                        f'🏆 Meilleur créneau : <b style="color:#003594;">{_days_fr[_best_d_fb]} à {_best_h_fb:02d}h</b> '
+                        f'— moyenne de <b style="color:#003594;">{_best_val_fb:.0f} interactions</b> par publication.'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
             else:
-                _nb = "rgba(232,66,10,0.08)" if _dark else "rgba(232,66,10,0.06)"
+                _nb = "rgba(0,53,148,0.08)" if _dark else "rgba(0,53,148,0.06)"
                 _tc = "rgba(255,255,255,0.7)" if _dark else "#374151"
                 st.markdown(
-                    f'<div style="background:{_nb};border-left:3px solid #E8420A;border-radius:0 8px 8px 0;'
+                    f'<div style="background:{_nb};border-left:3px solid #003594;border-radius:0 8px 8px 0;'
                     f'padding:0.8rem 1.2rem;font-size:0.9rem;color:{_tc};">'
                     f'🔄 Cliquez sur <b>Refresh Data</b> dans la barre latérale pour activer ce graphique.'
                     f'</div>',

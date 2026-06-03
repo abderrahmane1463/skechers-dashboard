@@ -18,7 +18,7 @@ import requests
 from config import (
     ADS_ACCESS_TOKEN,
     FACEBOOK_PAGE_ID,
-    FOOTLAND_CAMPAIGN_KEYWORDS,
+    SKECHERS_CAMPAIGN_KEYWORDS,
     GRAPH_BASE_URL,
     BLOCKED_AD_ACCOUNTS,
     REQUEST_TIMEOUT,
@@ -132,19 +132,19 @@ def _safe_int(val, default=0) -> int:
 
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
-def _get_footland_ids() -> list:
-    """Fetch all Footland campaign IDs from the ad account."""
+def _get_skechers_ids() -> list:
+    """Fetch all Skechers campaign IDs from the ad account."""
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
             "fields": "id,name",
             "limit":  500,
         })
         all_camps = resp.get("data", [])
-        ids = [c["id"] for c in all_camps if any(kw in c.get("name", "") for kw in FOOTLAND_CAMPAIGN_KEYWORDS)]
-        print(f"DEBUG boost: {len(ids)} Footland campaign IDs found")
+        ids = [c["id"] for c in all_camps if any(kw in c.get("name", "") for kw in SKECHERS_CAMPAIGN_KEYWORDS)]
+        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found")
         return ids
     except Exception as e:
-        print(f"DEBUG boost: _get_footland_ids error: {e}")
+        print(f"DEBUG boost: _get_skechers_ids error: {e}")
         return []
 
 
@@ -209,8 +209,8 @@ def fetch_boost_insights(
         "period": {"since": since, "until": until},
     }
 
-    # ── 1. Resolve Footland campaign IDs + status/budget ─────────────────────
-    footland_ids = _get_footland_ids()
+    # ── 1. Resolve Skechers campaign IDs + status/budget ─────────────────────
+    skechers_ids = _get_skechers_ids()
 
     # Fetch delivery status and budget per campaign
     _camp_meta: dict[str, dict] = {}
@@ -235,16 +235,16 @@ def fetch_boost_insights(
     except Exception as e:
         print(f"DEBUG boost: campaign meta fetch error: {e}")
 
-    if not footland_ids:
+    if not skechers_ids:
         return out
 
     _FILTERING = json.dumps([{
         "field":    "campaign.id",
         "operator": "IN",
-        "value":    footland_ids,
+        "value":    skechers_ids,
     }])
 
-    # ── 2. Account-level deduplicated reach (Footland only) ───────────────────
+    # ── 2. Account-level deduplicated reach (Skechers only) ───────────────────
     try:
         # Use a more explicit time_range parameter for account insights
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
@@ -259,7 +259,7 @@ def fetch_boost_insights(
     except Exception as e:
         print(f"DEBUG boost: account-level reach error: {e}")
 
-    # ── 3. Campaign-level insights (Footland only) ────────────────────────────
+    # ── 3. Campaign-level insights (Skechers only) ────────────────────────────
     try:
         # Ensure the time_range is strictly passed to prevent lifetime defaults
         resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
@@ -489,34 +489,34 @@ def fetch_adset_ad_insights(
     end: str = None,
 ) -> dict:
     """
-    Fetch adset-level and ad-level insights for all Footland campaigns.
+    Fetch adset-level and ad-level insights for all Skechers campaigns.
     Returns {"adsets": [...], "ads": [...], "period": {"since": ..., "until": ...}}
     Ad rows mirror the columns of the Meta Ads Manager CSV export.
     """
     since, until = _date_range(days, start, end)
     time_range   = f'{{"since":"{since}","until":"{until}"}}'
 
-    footland_ids = _get_footland_ids()
-    if not footland_ids:
+    skechers_ids = _get_skechers_ids()
+    if not skechers_ids:
         return {"adsets": [], "ads": [], "period": {"since": since, "until": until}}
 
     # insights-level filter (campaign.id is valid here)
     _FILTERING = json.dumps([{
         "field":    "campaign.id",
         "operator": "IN",
-        "value":    footland_ids,
+        "value":    skechers_ids,
     }])
     # non-insights endpoints use campaign_id (no dot notation)
     _CAMP_ID_FILTER = json.dumps([{
         "field":    "campaign_id",
         "operator": "IN",
-        "value":    footland_ids,
+        "value":    skechers_ids,
     }])
-    footland_set = set(footland_ids)
+    skechers_set = set(skechers_ids)
 
     # ── 1. Campaign metadata (objective, status, budget) ──────────────────────
     # Fetch ALL campaigns (no filter — id-based filter not supported here),
-    # then keep only Footland ones.
+    # then keep only Skechers ones.
     _camp_meta: dict[str, dict] = {}
     try:
         resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
@@ -525,7 +525,7 @@ def fetch_adset_ad_insights(
         })
         for c in resp.get("data", []):
             cid = c.get("id", "")
-            if cid not in footland_set:
+            if cid not in skechers_set:
                 continue
             # Meta returns budgets in cents (smallest currency unit) → divide by 100 for euros
             daily = _safe_float(c.get("daily_budget",    0)) / 100

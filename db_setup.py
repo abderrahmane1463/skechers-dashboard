@@ -1,5 +1,5 @@
 """
-db_setup.py — Create Supabase tables for Footland dashboard cache.
+db_setup.py — Create Supabase tables for Skechers dashboard cache.
 Run once: python db_setup.py
 """
 

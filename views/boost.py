@@ -270,7 +270,7 @@ def _render_funnel(totals: dict, campaigns: list[dict]):
         return
 
     _dark      = st.session_state.get("theme", "dark") == "dark"
-    _bar_color = "#E8420A"
+    _bar_color = "#003594"
     _txt_color = "#ffffff" if _dark else "#111827"
     _sub_color = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
     _bg        = "rgba(255,255,255,0.03)" if _dark else "#f9fafb"
@@ -1029,7 +1029,7 @@ def _render_geographic(demo: dict):
                 f'<span style="font-size:0.78rem;color:{_stat_c};">{item["reach"]:,} impr. · {item["pct"]}%</span>'
                 f'</div>'
                 f'<div style="background:{_bar_bg};border-radius:4px;height:5px;">'
-                f'<div style="background:#E8420A;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
+                f'<div style="background:#003594;width:{bar_w}%;height:5px;border-radius:4px;"></div>'
                 f'</div></div></div>'
             )
         return (

@@ -1,5 +1,5 @@
 """
-auth.py — Supabase Auth helpers for Footland dashboard.
+auth.py — Supabase Auth helpers for Skechers dashboard.
 """
 
 import os

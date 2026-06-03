@@ -1,5 +1,5 @@
 """
-config.py — Footland Dashboard Configuration & Constants
+config.py — Skechers Dashboard Configuration & Constants
 Strict Constraint: No ad account or paid benchmark data is ever used.
 """
 
@@ -10,34 +10,31 @@ GRAPH_API_VERSION = "v19.0"
 GRAPH_BASE_URL = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 
 # Page Access Token — organic data (FB posts, insights, IG)
-# Can be overridden via environment variable FOOTLAND_TOKEN
+# Can be overridden via environment variable SKECHERS_TOKEN
 ACCESS_TOKEN = os.environ.get(
-    "FOOTLAND_TOKEN",
-    "EAAXdQDmFoT8BRYOvKeaEYk9az3iqKbDnlHks3hT5WZBKmMT8cXjO7D03YX3QOelqZCxHOjKmCbZBLx6rMi7vOrcRLMbYofDwfBbPd7TNOlE2ZCbnWPkEOQ9QZAIbzpNuqpFRP9OvX3LuZC4M1lZAuDszoCxwRkGfKmZBvdeZBr1fZCx41Tv9t7AZAsXhutOo7pQfPzrPSwUpZCy11mn70VINXyXwOvIZD"
+    "SKECHERS_TOKEN",
+    "EAAVwSFsZAbnMBRlNPX2M380gVE6PpW67x5KWYGxVLfLTraVUSNe3ZBJFmWphH49KdJQtE4OBXnu1CBZAAyyyeNUnGC3P5yzL15vcLwpOoSMrNLjQA9mXZBFRVYywPGb01ospdbPGFpsF9UcrazGyoS0ECWsZAZAfNBLJbL8A06khS7r7mEoVOQ5DubSeitxfYb1j2apDDfipUwf52OZBjFMrriV"
 )
 
 # User Access Token — Marketing API only (Boost tab)
-# Can be overridden via environment variable FOOTLAND_ADS_TOKEN
+# Can be overridden via environment variable SKECHERS_ADS_TOKEN
 ADS_ACCESS_TOKEN = os.environ.get(
-    "FOOTLAND_ADS_TOKEN",
-    "EAAXdQDmFoT8BRVJ0R2CRwHDsjLiOKZA6B1OLQv2Wmzg0n0TGaZBShCnOJwrxsPZC9OFD7KZCZCrzEPCn2mabS4Xtt6M6nAcYZAPIMwG39ZBy5n6Dq1axERYaSgDg4yEB5ATZCCLxAcZBrmykPacCD2tmbThqUhsn55CZCxMn6c7StzYTMCiiIGuKkAa0XZBOiGZB1ulQ866PiY9T3KOlKgni"
+    "SKECHERS_ADS_TOKEN",
+    "EAAXdQDmFoT8BRkOmkmrG15MzkurTX3E57EPGjU5BCzOLo8MAZAgyxovCIlpzem5VvZCaZA0Xo7caUvDNt1i8k6LHRJHvZBEZCXZCdCoviXlv00S1m9EzwLp2EcvvWZCJTYC5JrqYmsq7bAs3p8WIJqp1NtazvvXryGN0gi9H9alxbX88nuZCvQcnS5IShgrTZAimgXbvrdpVSL0Vd8f6U"
 )
 
 # ─── Asset IDs ─────────────────────────────────────────────────────────────────
-FACEBOOK_PAGE_ID = "144124252311741"
-INSTAGRAM_USER_ID = "17841403000855491"
+FACEBOOK_PAGE_ID = "707444622669651"
+INSTAGRAM_USER_ID = "17841408456074839"
 
-# ─── Boost — Footland campaign identification keywords ────────────────────────
+# ─── Boost — Skechers campaign identification keywords ────────────────────────
 # The ad account (act_765947885726761) manages multiple clients.
-# A campaign is considered Footland if its name contains ANY of these strings.
+# A campaign is considered Skechers if its name contains ANY of these strings.
 # Update this list when the agency changes their naming convention.
-FOOTLAND_CAMPAIGN_KEYWORDS = [
-    "144124252311741",  # page ID  — post-boost campaigns
-    "- FL -",           # agency code — brand/weekly campaigns
-    "ON- FL",           # agency code variant
-    "-FL-",             # agency code without spaces
-    " FL -",            # agency code with leading space
-    "Footland",         # explicit brand name
+SKECHERS_CAMPAIGN_KEYWORDS = [
+    "707444622669651",  # page ID  — post-boost campaigns
+    "SKX ",
+    "Skechers",
 ]
 
 # ─── Blocklisted (Paid) Assets — NEVER query these ────────────────────────────
