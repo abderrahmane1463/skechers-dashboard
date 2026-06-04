@@ -26,6 +26,6 @@ jobs:
         env:
           SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
-          FOOTLAND_TOKEN:     ${{ secrets.FOOTLAND_TOKEN }}
-          FOOTLAND_ADS_TOKEN: ${{ secrets.FOOTLAND_ADS_TOKEN }}
+          SKECHERS_TOKEN:     ${{ secrets.SKECHERS_TOKEN }}
+          SKECHERS_ADS_TOKEN: ${{ secrets.SKECHERS_ADS_TOKEN }}
         run: python fetcher.py
