@@ -48,13 +48,15 @@ def render_sidebar(log_refresh_fn):
             st.markdown('<div class="brand-header">👟 Skechers</div>', unsafe_allow_html=True)
         st.markdown('<div class="brand-sub">Analytics Dashboard</div>', unsafe_allow_html=True)
 
-        platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram", "🚀 Boost", "📖 Documentation"], label_visibility="collapsed")
+        platform = st.radio("Platform", ["🔵 Facebook", "📸 Instagram", "🚀 Boost", "📊 Google Analytics", "📖 Documentation"], label_visibility="collapsed")
         if "Facebook" in platform:
             platform = "Facebook"
         elif "Instagram" in platform:
             platform = "Instagram"
         elif "Boost" in platform:
             platform = "Boost"
+        elif "Google Analytics" in platform:
+            platform = "Google Analytics"
         else:
             platform = "Documentation"
 
