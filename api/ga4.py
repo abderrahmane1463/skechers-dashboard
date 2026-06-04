@@ -9,10 +9,9 @@ from google.analytics.data_v1beta.types import (
     DateRange, Dimension, Metric, OrderBy, RunReportRequest,
     FilterExpression, Filter,
 )
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
+from google.oauth2.service_account import Credentials
 
-GA4_PROPERTY_ID = "377768319"
+GA4_PROPERTY_ID = "313002599"
 _TOKEN_PATH     = "ga4_token.json"
 _SCOPES         = ["https://www.googleapis.com/auth/analytics.readonly"]
 
@@ -37,18 +36,7 @@ def _get_credentials():
         with open(_TOKEN_PATH) as f:
             token_data = json.load(f)
 
-    creds = Credentials(
-        token=token_data.get("token"),
-        refresh_token=token_data.get("refresh_token"),
-        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=token_data.get("client_id"),
-        client_secret=token_data.get("client_secret"),
-        scopes=token_data.get("scopes", _SCOPES),
-    )
-    creds.refresh(Request())
-    if os.path.exists(_TOKEN_PATH):
-        with open(_TOKEN_PATH, "w") as f:
-            f.write(creds.to_json())
+    creds = Credentials.from_service_account_info(token_data, scopes=_SCOPES)
     return creds
 
 

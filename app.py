@@ -301,9 +301,24 @@ elif platform == "Instagram":
     render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
     _start_prefetch("Instagram", days, start_date, end_date)
 elif platform == "Google Analytics":
-    # ── Google Analytics 4 (In Progress) ─────────────────────────────────────
-    st.markdown("## 📊 Google Analytics")
-    st.info("🚧 **L'intégration Google Analytics pour Skechers DZ est en cours de configuration.**\n\nNous attendons les droits administrateurs pour lier le tableau de bord.")
+    # ── Google Analytics 4 ───────────────────────────────────────────────────
+    from datetime import datetime as _gdt, timezone as _gtz, timedelta as _gtd
+    if start_date and end_date:
+        _ga4_start, _ga4_end = str(start_date), str(end_date)
+    else:
+        _ga4_today = _gdt.now(_gtz.utc).date()
+        _ga4_end   = str(_ga4_today)
+        _ga4_start = str(_ga4_today - _gtd(days=days - 1))
+    try:
+        from api.ga4 import fetch_all_ga4_data
+        ga4_data = fetch_all_ga4_data(_ga4_start, _ga4_end)
+    except Exception as _ga4_err:
+        st.warning(f"⚠️ GA4: {_ga4_err}")
+        ga4_data = {}
+    
+    from views.analytics import render_analytics_tab
+    render_analytics_tab(ga4_data, since=str(start_date) if start_date else "",
+                         until=str(end_date) if end_date else "")
 else:
     # ── Boost (paid campaigns) ────────────────────────────────────────────────
     from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
