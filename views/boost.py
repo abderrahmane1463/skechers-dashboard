@@ -983,7 +983,7 @@ def _render_demographics(demo: dict):
     )
     st.markdown(
         f'<p style="font-size:0.7rem;color:{_note_c};text-align:center;margin-top:4px;">'
-        f'* Basé sur la portée des campagnes payantes Footland (Marketing API)</p>',
+        f'* Basé sur la portée des campagnes payantes Skechers (Marketing API)</p>',
         unsafe_allow_html=True,
     )
 

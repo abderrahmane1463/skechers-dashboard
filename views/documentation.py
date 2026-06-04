@@ -1,5 +1,5 @@
 """
-views/documentation.py — Guide du dashboard Footland.
+views/documentation.py — Guide du dashboard Skechers.
 """
 
 import streamlit as st
@@ -83,7 +83,7 @@ def render_documentation():
     st.markdown("""
 <div class="doc-hero">
   <h1>📖 Guide du Dashboard</h1>
-  <p>Ce guide explique chaque indicateur (KPI) affiché dans le dashboard Footland — ce qu'il mesure, comment il est calculé, et l'endpoint Meta API utilisé pour le récupérer.</p>
+  <p>Ce guide explique chaque indicateur (KPI) affiché dans le dashboard Skechers — ce qu'il mesure, comment il est calculé, et l'endpoint Meta API utilisé pour le récupérer.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -348,7 +348,7 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
 
     with g1:
         st.markdown("""
-<p style="color:#a1a1aa;font-size:14px;">KPIs globaux du site footland.dz + sources de trafic. Source : Google Analytics 4 Data API (v1beta).</p><br>
+<p style="color:#a1a1aa;font-size:14px;">KPIs globaux du site skechers.dz + sources de trafic. Source : Google Analytics 4 Data API (v1beta).</p><br>
 <table class="kpi-table">
   <tr><th>Indicateur</th><th>Description</th><th>Métrique GA4</th></tr>
   <tr><td class="kpi-name">👥 Utilisateurs actifs</td><td class="kpi-desc">Utilisateurs ayant déclenché au moins un événement sur la période.</td><td><span class="endpoint">activeUsers</span></td></tr>
