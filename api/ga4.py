@@ -36,6 +36,11 @@ def _get_credentials():
         with open(_TOKEN_PATH) as f:
             token_data = json.load(f)
 
+    # Normalise private_key: Streamlit Cloud TOML can deliver literal \n
+    # instead of real newlines, which makes google-auth reject the key.
+    if "private_key" in token_data and isinstance(token_data["private_key"], str):
+        token_data["private_key"] = token_data["private_key"].replace("\\n", "\n")
+
     creds = Credentials.from_service_account_info(token_data, scopes=_SCOPES)
     return creds
 

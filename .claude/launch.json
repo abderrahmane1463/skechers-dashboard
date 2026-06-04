@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Footland Dashboard",
+      "name": "Skechers Dashboard",
       "runtimeExecutable": "streamlit",
       "runtimeArgs": ["run", "app.py"],
       "port": 8501
