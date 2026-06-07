@@ -162,7 +162,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     # More accurate than summing per-post impressions (deprecated in v22+).
     total_ig_views = ig_profile.get("period_views", 0) or 0
 
-    total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
+    # Account-level likes from insights total_value (real count, not privacy-filtered).
+    # Falls back to summing per-post reactions for periods outside the API lookback window.
+    total_ig_likes    = (
+        ig_profile.get("period_likes")
+        or sum(p.get("reactions", 0) for p in ig_posts)
+    )
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
     total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
     total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
@@ -191,7 +196,10 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── Phase 2: fetch prev_posts so engagement deltas are accurate ───────────
     prev_ig_posts         = get_ig_posts(days, _prev_start, _prev_end)
-    _prev_ig_likes        = sum(p.get("reactions",  0) for p in prev_ig_posts)
+    _prev_ig_likes        = (
+        prev_profile.get("period_likes")
+        or sum(p.get("reactions", 0) for p in prev_ig_posts)
+    )
     _prev_ig_comments     = sum(p.get("comments",   0) for p in prev_ig_posts)
     _prev_ig_shares       = sum(p.get("shares",     0) for p in prev_ig_posts)
     _prev_ig_saves        = sum(p.get("saves",      0) for p in prev_ig_posts)

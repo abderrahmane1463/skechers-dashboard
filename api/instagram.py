@@ -41,6 +41,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "period_reach": 0,
         "period_views": 0,
         "period_total_interactions": 0,
+        "period_likes": 0,
         "story_impressions": 0,
         "username": "skechers"
     }
@@ -158,6 +159,29 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
                 print(f"DEBUG IG views total_value = {val}")
     except Exception as e:
         print(f"DEBUG: IG views total_value error: {e}")
+
+    # 3d. Period Likes — metric_type=total_value (NOT privacy-filtered at account level)
+    try:
+        data_lk = _get(f"{INSTAGRAM_USER_ID}/insights", {
+            "metric": "likes",
+            "period": "day",
+            "metric_type": "total_value",
+            "since": since_ts,
+            "until": until_ts_exact,
+        })
+        for m in data_lk.get("data", []):
+            if m["name"] == "likes":
+                tv = m.get("total_value", {})
+                if isinstance(tv, dict):
+                    val = tv.get("value", 0)
+                elif isinstance(tv, (int, float)):
+                    val = int(tv)
+                else:
+                    val = 0
+                result["period_likes"] = val
+                print(f"DEBUG IG likes total_value = {val}")
+    except Exception as e:
+        print(f"DEBUG: IG likes total_value error: {e}")
 
     # 3c. Period Total Interactions — metric_type=total_value (likes+comments+shares+saves)
     try:
