@@ -4,7 +4,7 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
-from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
+from components.charts import get_chart_layout, series_to_df, safe_sum
 from components.skeleton import skeleton_dashboard_html
 
 
@@ -311,8 +311,8 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     )
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs([
-        "📡Visibility", "💬Engagement", "🏆Top Content"
+    tab1, tab2 = st.tabs([
+        "📡Visibility", "💬Engagement"
     ])
 
     # ── TAB 2: Engagement ─────────────────────────────────────────────────────
@@ -639,38 +639,3 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         if reach_df.empty and views_df.empty:
             st.info("No visibility data available for this period.")
 
-    # ── TAB 3: Top Content ────────────────────────────────────────────────────
-    with tab3:
-        _ig_metrics = [
-            ("👁️", "Vues",             "views"),
-            ("🎯", "Couverture",       "reach"),
-            ("❤️", "Réactions",        "reactions"),
-            ("💬", "Commentaires",     "comments"),
-            ("🔖", "Enregistrements",  "saves"),
-            ("↗️", "Partages",         "shares"),
-            ("👤", "Visites profil",   "profile_visits"),
-        ]
-        if ig_posts:
-            render_top3_podium(
-                ig_posts,
-                sort_key="views",
-                title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
-                metrics=_ig_metrics,
-            )
-            st.divider()
-            render_top3_podium(
-                ig_posts,
-                sort_key="total_interactions",
-                title="TOP #3 PUBLICATIONS PAR ENGAGEMENT",
-                metrics=_ig_metrics,
-            )
-
-            with st.expander("📋 Toutes les publications"):
-                posts_df = pd.DataFrame(ig_posts)
-                _ig_cols = ["created_time", "text", "media_type", "views", "reach", "reactions", "comments", "saves", "shares", "total_interactions", "profile_visits"]
-                st.dataframe(
-                    posts_df[[c for c in _ig_cols if c in posts_df.columns]],
-                    use_container_width=True,
-                )
-        else:
-            st.info("No post data available.")
