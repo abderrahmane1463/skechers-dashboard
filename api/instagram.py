@@ -405,48 +405,21 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
             #               have a view-count equivalent. The only universal visibility
             #               metric remaining is `reach` (unique accounts that saw post).
             # ─────────────────────────────────────────────────────────────────────
-            likes    = p.get("like_count", 0)
-            comments = p.get("comments_count", 0)
-
-            # ── Insights from /{post_id}/insights ────────────────────────────────
-            # Waterfall: try the richest metric set first; on 400 try the next one.
-            # Reels are returned as media_type=VIDEO with /reel/ in the permalink.
-            impressions, reach, saves, shares, total_int_val = 0, 0, 0, 0, 0
-
             is_reel = (
                 media_type in ("REEL", "IG_REEL")
                 or "/reel/" in p.get("permalink", "")
             )
-            # Metric sets follow the documented endpoint:
-            #   /{media_id}?fields=insights.metric(impressions,views,plays)
-            # `views` is the v22+ metric for image/carousel total affichages.
-            # `impressions` is tried first (works for VIDEO); on 400 the waterfall
-            # progresses to `views` alone, then reach-only as last resort.
-            if is_reel:
-                metric_sets = [
-                    "plays,views,reach,saved,shares,total_interactions",
-                    "views,reach,saved,shares,total_interactions",
-                    "reach,saved,shares,total_interactions",
-                    "reach,saved",
-                ]
-            elif media_type == "VIDEO":
-                metric_sets = [
-                    "impressions,views,video_views,reach,saved,shares,total_interactions",
-                    "views,video_views,reach,saved,shares,total_interactions",
-                    "reach,saved,shares,total_interactions",
-                    "reach,saved",
-                ]
-            else:
-                # IMAGE / CAROUSEL_ALBUM
-                # `impressions` deprecated in v22+; `views` is the replacement metric.
-                metric_sets = [
-                    "impressions,views,reach,saved,shares,total_interactions",
-                    "views,reach,saved,shares,total_interactions",
-                    "reach,saved,shares,total_interactions",
-                    "reach,saved",
-                ]
 
-            for m_list in metric_sets:
+            # ── Per-post insights — single request with all supported metrics ──
+            # `views`  = v22+ unified view count (replaces deprecated impressions)
+            # `likes`  = per-post insight (privacy-filtered but best available)
+            # `profile_visits` / `follows` not supported on REELs — fetched separately below
+            views, reach, saves, shares, likes, comments, total_int_val = 0, 0, 0, 0, 0, 0, 0
+
+            core_metrics = "views,reach,saved,shares,likes,comments,total_interactions"
+            fallback_metrics = "reach,saved,shares,likes,comments,total_interactions"
+
+            for m_list in (core_metrics, fallback_metrics):
                 try:
                     d = _get(f"{post_id}/insights", {"metric": m_list})
                     if not d.get("data"):
@@ -455,15 +428,18 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                         name = item.get("name", "")
                         val  = (item["values"][0].get("value", 0)
                                 if item.get("values") else item.get("value", 0))
-                        # `views` = v22+ unified view count (replaces impressions for images)
-                        if name in ("impressions", "plays", "video_views", "views"):
-                            impressions = max(impressions, val)
+                        if name == "views":
+                            views = val
                         elif name == "reach":
                             reach = val
                         elif name == "saved":
                             saves = val
                         elif name == "shares":
                             shares = val
+                        elif name == "likes":
+                            likes = val
+                        elif name == "comments":
+                            comments = val
                         elif name == "total_interactions":
                             total_int_val = val
                     break
@@ -473,15 +449,21 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                         continue
                     break
 
-            # ── Like count correction via total_interactions ───────────────────
-            # total_interactions (from Meta's analytics backend) = likes + comments
-            # + saves + shares. It is NOT subject to the same privacy filtering as
-            # like_count, so we can infer a more accurate likes figure from it.
-            # We only override like_count when the inferred value is higher.
-            if total_int_val > 0:
-                inferred = max(0, total_int_val - comments - saves - shares)
-                if inferred > likes:
-                    likes = inferred
+            # ── profile_visits & follows — not supported on REELs ─────────────
+            profile_visits, follows = 0, 0
+            if not is_reel:
+                try:
+                    d = _get(f"{post_id}/insights", {"metric": "profile_visits,follows"})
+                    for item in d.get("data", []):
+                        name = item.get("name", "")
+                        val  = (item["values"][0].get("value", 0)
+                                if item.get("values") else item.get("value", 0))
+                        if name == "profile_visits":
+                            profile_visits = val
+                        elif name == "follows":
+                            follows = val
+                except Exception:
+                    pass
 
             # Extract hour + weekday from full timestamp for heatmap
             _ts = p.get("timestamp", "")
@@ -494,21 +476,25 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 _post_hour, _post_weekday = -1, -1
 
             return {
-                "id":               p.get("id", ""),
-                "text":             p.get("caption", "")[:120] if p.get("caption") else "",
-                "created_time":     _ts[:10],
-                "media_type":       p.get("media_type", ""),
-                "thumbnail":        p.get("thumbnail_url") or p.get("media_url", ""),
-                "permalink":        p.get("permalink", ""),
-                "reach":            reach,
-                "impressions":      impressions,
-                "reactions":        likes,
-                "comments":         comments,
-                "saves":            saves,
-                "shares":           shares,
-                "total_interactions": likes + comments + saves + shares,
-                "post_hour":        _post_hour,
-                "post_weekday":     _post_weekday,
+                "id":                p.get("id", ""),
+                "text":              p.get("caption", "")[:120] if p.get("caption") else "",
+                "created_time":      _ts[:10],
+                "media_type":        p.get("media_type", ""),
+                "is_reel":           is_reel,
+                "thumbnail":         p.get("thumbnail_url") or p.get("media_url", ""),
+                "permalink":         p.get("permalink", ""),
+                "views":             views,
+                "impressions":       views,   # alias kept for backward compat
+                "reach":             reach,
+                "reactions":         likes,
+                "comments":          comments,
+                "saves":             saves,
+                "shares":            shares,
+                "total_interactions": total_int_val or (likes + comments + saves + shares),
+                "profile_visits":    profile_visits,
+                "follows":           follows,
+                "post_hour":         _post_hour,
+                "post_weekday":      _post_weekday,
             }
 
         # Parallelize the insight fetching (Restored for speed)

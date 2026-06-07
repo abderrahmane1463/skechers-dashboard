@@ -30,17 +30,21 @@ def get_ig_post_totals(days, start=None, end=None):
 def _render_ig_post_card(post: dict):
     _dark = st.session_state.get("theme", "dark") == "dark"
 
-    thumbnail = post.get("thumbnail", "")
-    text      = post.get("text", "")[:100] or "*(No caption)*"
-    date      = post.get("created_time", "")
-    reacs     = post.get("reactions", 0)
-    comms     = post.get("comments", 0)
-    saves     = post.get("saves", 0)
-    shares    = post.get("shares", 0)
-    total     = post.get("total_interactions", 0)
-    imp_val   = post.get("impressions", 0)
-    reach_val = post.get("reach", 0)
-    permalink = post.get("permalink", "#")
+    thumbnail      = post.get("thumbnail", "")
+    text           = post.get("text", "")[:100] or "*(No caption)*"
+    date           = post.get("created_time", "")
+    media_type     = post.get("media_type", "")
+    is_reel        = post.get("is_reel", False)
+    views_val      = post.get("views", 0)
+    reach_val      = post.get("reach", 0)
+    likes_val      = post.get("reactions", 0)
+    comms          = post.get("comments", 0)
+    saves          = post.get("saves", 0)
+    shares         = post.get("shares", 0)
+    total          = post.get("total_interactions", 0)
+    profile_visits = post.get("profile_visits", 0)
+    follows        = post.get("follows", 0)
+    permalink      = post.get("permalink", "#")
 
     # ── Theme tokens ──
     _cell_bg   = "rgba(255,255,255,0.05)" if _dark else "#f8fafc"
@@ -52,8 +56,9 @@ def _render_ig_post_card(post: dict):
     _no_img_bg = "rgba(255,255,255,0.05)" if _dark else "#f3f4f6"
     _no_img_tc = "rgba(255,255,255,0.3)"  if _dark else "#d1d5db"
     _total_lc  = "rgba(255,255,255,0.45)" if _dark else "#6b7280"
-    _total_bg  = "rgba(0,53,148,0.15)"   if _dark else "rgba(0,53,148,0.08)"
+    _total_bg  = "rgba(0,53,148,0.15)"    if _dark else "rgba(0,53,148,0.08)"
 
+    # ── Thumbnail ──
     if thumbnail:
         st.image(thumbnail, use_container_width=True)
     else:
@@ -64,8 +69,13 @@ def _render_ig_post_card(post: dict):
             unsafe_allow_html=True
         )
 
+    # ── Media type badge + date + caption ──
+    _type_label = {"IMAGE": "📷 Photo", "VIDEO": "🎬 Vidéo", "CAROUSEL_ALBUM": "🎠 Carrousel"}.get(media_type, "")
+    if is_reel:
+        _type_label = "🎬 Reel"
     st.markdown(
-        f'<p style="font-size:0.75rem;color:{_date_c};margin:0.3rem 0 0.1rem;">{date}</p>'
+        f'<p style="font-size:0.7rem;color:{_date_c};margin:0.3rem 0 0.1rem;">'
+        f'{_type_label} &nbsp;·&nbsp; {date}</p>'
         f'<p style="font-size:0.82rem;color:{_text_c};line-height:1.4;margin-bottom:0.5rem;">{text}</p>',
         unsafe_allow_html=True
     )
@@ -79,16 +89,30 @@ def _render_ig_post_card(post: dict):
             f'</div>'
         )
 
-    st.markdown(
+    # ── Metrics grid ──
+    # Row 1: Vues + Couverture (visibility)
+    # Row 2: Réactions + Commentaires (engagement)
+    # Row 3: Enregistrements + Partages
+    # Row 4: Visites profil + Nouveaux abonnés (IMAGE/CAROUSEL only)
+    grid = (
         f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;">'
-        f'{_cell("📢", "Impressions", imp_val)}'
-        f'{_cell("👁️", "Couverture",  reach_val)}'
-        f'{_cell("❤️", "Réactions",   reacs, "#f87171")}'
-        f'{_cell("💬", "Commentaires",comms, "#a78bfa")}'
-        f'{_cell("🔖", "Enregistrements", saves, "#60a5fa")}'
-        f'{_cell("↗️", "Partages",    shares, "#34d399")}'
-        f'</div>'
-        f'<div style="background:{_total_bg};border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.5rem;">'
+        f'{_cell("👁️", "Vues",            views_val)}'
+        f'{_cell("🎯", "Couverture",       reach_val)}'
+        f'{_cell("❤️", "Réactions",        likes_val,  "#f87171")}'
+        f'{_cell("💬", "Commentaires",     comms,      "#a78bfa")}'
+        f'{_cell("🔖", "Enregistrements",  saves,      "#60a5fa")}'
+        f'{_cell("↗️", "Partages",         shares,     "#34d399")}'
+    )
+    if not is_reel:
+        grid += (
+            f'{_cell("👤", "Visites profil",  profile_visits, "#fb923c")}'
+            f'{_cell("➕", "Nouveaux abonnés", follows,        "#a3e635")}'
+        )
+    grid += f'</div>'
+
+    st.markdown(
+        grid
+        + f'<div style="background:{_total_bg};border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.5rem;">'
         f'<div style="font-size:0.7rem;color:{_total_lc};">⚡ Total interactions</div>'
         f'<div style="font-size:1.1rem;font-weight:800;color:#0050D0;">{total:,}</div>'
         f'</div>'
@@ -644,11 +668,13 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     # ── TAB 3: Top Content ────────────────────────────────────────────────────
     with tab3:
         _ig_metrics = [
-            ("👁️", "Vues",             "impressions"),
+            ("👁️", "Vues",             "views"),
+            ("🎯", "Couverture",       "reach"),
             ("❤️", "Réactions",        "reactions"),
             ("💬", "Commentaires",     "comments"),
             ("🔖", "Enregistrements",  "saves"),
             ("↗️", "Partages",         "shares"),
+            ("👤", "Visites profil",   "profile_visits"),
         ]
         if ig_posts:
             render_top3_podium(
@@ -768,7 +794,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
             with st.expander("📋 Toutes les publications"):
                 posts_df = pd.DataFrame(ig_posts)
-                _ig_cols = ["created_time", "text", "media_type", "impressions", "reactions", "comments", "shares", "total_interactions"]
+                _ig_cols = ["created_time", "text", "media_type", "views", "reach", "reactions", "comments", "saves", "shares", "total_interactions", "profile_visits"]
                 st.dataframe(
                     posts_df[[c for c in _ig_cols if c in posts_df.columns]],
                     use_container_width=True,
