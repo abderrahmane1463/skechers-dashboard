@@ -104,10 +104,7 @@ def _render_ig_post_card(post: dict):
         f'{_cell("↗️", "Partages",         shares,     "#34d399")}'
     )
     if not is_reel:
-        grid += (
-            f'{_cell("👤", "Visites profil",  profile_visits, "#fb923c")}'
-            f'{_cell("➕", "Nouveaux abonnés", follows,        "#a3e635")}'
-        )
+        grid += f'{_cell("➕", "Nouveaux abonnés", follows, "#a3e635")}'
     grid += f'</div>'
 
     st.markdown(
