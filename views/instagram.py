@@ -166,7 +166,12 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
     total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
     total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
-    total_ig_interactions = total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves
+    # Account-level total_interactions from insights total_value (likes+comments+shares+saves).
+    # Falls back to summing per-post values for periods outside the API's lookback window.
+    total_ig_interactions = (
+        ig_profile.get("period_total_interactions")
+        or (total_ig_likes + total_ig_comments + total_ig_shares + total_ig_saves)
+    )
 
     ig_eng_rate = (
         round(total_ig_interactions / total_ig_reach * 100, 2)
@@ -190,7 +195,10 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     _prev_ig_comments     = sum(p.get("comments",   0) for p in prev_ig_posts)
     _prev_ig_shares       = sum(p.get("shares",     0) for p in prev_ig_posts)
     _prev_ig_saves        = sum(p.get("saves",      0) for p in prev_ig_posts)
-    _prev_ig_interactions = _prev_ig_likes + _prev_ig_comments + _prev_ig_shares + _prev_ig_saves
+    _prev_ig_interactions = (
+        prev_profile.get("period_total_interactions")
+        or (_prev_ig_likes + _prev_ig_comments + _prev_ig_shares + _prev_ig_saves)
+    )
     _prev_ig_views        = prev_profile.get("period_views", 0) or 0
 
     # ── KPI Grid ──────────────────────────────────────────────────────────────
