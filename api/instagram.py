@@ -484,7 +484,6 @@ def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: 
                 "thumbnail":         p.get("thumbnail_url") or p.get("media_url", ""),
                 "permalink":         p.get("permalink", ""),
                 "views":             views,
-                "impressions":       views,   # alias kept for backward compat
                 "reach":             reach,
                 "reactions":         likes,
                 "comments":          comments,

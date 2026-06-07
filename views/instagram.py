@@ -679,7 +679,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         if ig_posts:
             render_top3_podium(
                 ig_posts,
-                sort_key="impressions",
+                sort_key="views",
                 title="TOP #3 PUBLICATIONS PAR VISIBILITÉ",
                 metrics=_ig_metrics,
             )
