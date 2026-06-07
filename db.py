@@ -146,20 +146,18 @@ def load_fetched_at(metric_key: str, period_start: str, period_end: str):
 # ── Delete ─────────────────────────────────────────────────────────────────────
 def delete_period(period_start: str, period_end: str) -> bool:
     """
-    Invalidate all cached rows for a given (period_start, period_end) by setting
-    data=null — avoids needing DELETE permission on Supabase RLS.
-    The next db._get() call will treat null as a cache miss and re-fetch from API.
+    Delete all cached rows for a given (period_start, period_end).
+    The next db._get() call will treat the missing rows as a cache miss
+    and re-fetch fresh data from the API.
     """
     try:
         params = {
             "period_start": f"eq.{period_start}",
             "period_end":   f"eq.{period_end}",
         }
-        patch_headers = {**_get_headers(), "Prefer": "return=minimal"}
-        resp = requests.patch(ENDPOINT, headers=patch_headers, params=params,
-                              json={"data": None}, timeout=15)
+        resp = requests.delete(ENDPOINT, headers=_get_headers(), params=params, timeout=15)
         resp.raise_for_status()
-        print(f"DEBUG db.delete_period: invalidated [{period_start} → {period_end}]")
+        print(f"DEBUG db.delete_period: deleted [{period_start} → {period_end}]")
         return True
     except Exception as e:
         print(f"DEBUG db.delete_period error: {e}")

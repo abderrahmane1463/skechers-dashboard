@@ -135,7 +135,8 @@ def render_sidebar(log_refresh_fn):
         if st.button("🔄 Refresh Data", width="stretch"):
             from api.base import _cache_key_range as _ckr
             ck_start, ck_end = _ckr(days, start_date, end_date)
-            db.invalidate(platform, ck_start, ck_end)
+            # Hard-delete Supabase rows so next load re-fetches from Meta API
+            db.delete_period(ck_start, ck_end)
             st.cache_data.clear()
             log_refresh_fn(platform, period_label, "🔄 Manual Refresh Triggered")
             st.rerun()
