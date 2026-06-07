@@ -42,6 +42,9 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "period_views": 0,
         "period_total_interactions": 0,
         "period_likes": 0,
+        "period_comments": 0,
+        "period_shares": 0,
+        "period_saves": 0,
         "story_impressions": 0,
         "username": "skechers"
     }
@@ -160,7 +163,26 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
     except Exception as e:
         print(f"DEBUG: IG views total_value error: {e}")
 
-    # 3d. Period Likes — metric_type=total_value (NOT privacy-filtered at account level)
+    # 3d. Period Comments, Shares, Saves + Likes — all metric_type=total_value
+    for _metric, _key in [("comments", "period_comments"), ("shares", "period_shares"), ("saves", "period_saves")]:
+        try:
+            _data = _get(f"{INSTAGRAM_USER_ID}/insights", {
+                "metric": _metric,
+                "period": "day",
+                "metric_type": "total_value",
+                "since": since_ts,
+                "until": until_ts_exact,
+            })
+            for m in _data.get("data", []):
+                if m["name"] == _metric:
+                    tv = m.get("total_value", {})
+                    val = tv.get("value", 0) if isinstance(tv, dict) else (int(tv) if isinstance(tv, (int, float)) else 0)
+                    result[_key] = val
+                    print(f"DEBUG IG {_metric} total_value = {val}")
+        except Exception as e:
+            print(f"DEBUG: IG {_metric} total_value error: {e}")
+
+    # 3e. Period Likes — metric_type=total_value (NOT privacy-filtered at account level) — metric_type=total_value (NOT privacy-filtered at account level)
     try:
         data_lk = _get(f"{INSTAGRAM_USER_ID}/insights", {
             "metric": "likes",

@@ -168,9 +168,18 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         ig_profile.get("period_likes")
         or sum(p.get("reactions", 0) for p in ig_posts)
     )
-    total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
-    total_ig_shares   = sum(p.get("shares", 0) for p in ig_posts)
-    total_ig_saves    = sum(p.get("saves", 0) for p in ig_posts)
+    total_ig_comments = (
+        ig_profile.get("period_comments")
+        or sum(p.get("comments", 0) for p in ig_posts)
+    )
+    total_ig_shares   = (
+        ig_profile.get("period_shares")
+        or sum(p.get("shares", 0) for p in ig_posts)
+    )
+    total_ig_saves    = (
+        ig_profile.get("period_saves")
+        or sum(p.get("saves", 0) for p in ig_posts)
+    )
     # Account-level total_interactions from insights total_value (likes+comments+shares+saves).
     # Falls back to summing per-post values for periods outside the API's lookback window.
     total_ig_interactions = (
@@ -200,9 +209,18 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         prev_profile.get("period_likes")
         or sum(p.get("reactions", 0) for p in prev_ig_posts)
     )
-    _prev_ig_comments     = sum(p.get("comments",   0) for p in prev_ig_posts)
-    _prev_ig_shares       = sum(p.get("shares",     0) for p in prev_ig_posts)
-    _prev_ig_saves        = sum(p.get("saves",      0) for p in prev_ig_posts)
+    _prev_ig_comments     = (
+        prev_profile.get("period_comments")
+        or sum(p.get("comments", 0) for p in prev_ig_posts)
+    )
+    _prev_ig_shares       = (
+        prev_profile.get("period_shares")
+        or sum(p.get("shares", 0) for p in prev_ig_posts)
+    )
+    _prev_ig_saves        = (
+        prev_profile.get("period_saves")
+        or sum(p.get("saves", 0) for p in prev_ig_posts)
+    )
     _prev_ig_interactions = (
         prev_profile.get("period_total_interactions")
         or (_prev_ig_likes + _prev_ig_comments + _prev_ig_shares + _prev_ig_saves)
