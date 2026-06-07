@@ -369,138 +369,103 @@ def fetch_ig_engagement(days: int, start: str = None, end: str = None) -> dict:
 def fetch_ig_posts(days: int = None, start: str = None, end: str = None, limit: int = 20) -> list[dict]:
     """
     Returns Instagram media within the selected date range.
+    Uses field expansion to fetch all metrics in a single API call
+    instead of N+1 calls (one per post).
     """
-    params = {"fields": IG_MEDIA_FIELDS, "limit": limit}
+    # Field expansion: fetch media fields + all insights metrics in one call.
+    # `insights.metric(...)` is evaluated server-side — no per-post round trips.
+    EXPANDED_FIELDS = (
+        "id,caption,media_type,thumbnail_url,media_url,permalink,timestamp,"
+        "insights.metric(views,reach,saved,shares,likes,comments,total_interactions)"
+    )
+
+    params = {"fields": EXPANDED_FIELDS, "limit": limit}
     if days or (start and end):
         since, until = _date_range(days or 30, start, end)
         params["since"] = since
-        # Make end date inclusive for media list
         try:
             params["until"] = str((dateparser.parse(until) + timedelta(days=1)).date())
-        except:
+        except Exception:
             params["until"] = until
 
     try:
-        data = _get(f"{INSTAGRAM_USER_ID}/media", params)
+        data  = _get(f"{INSTAGRAM_USER_ID}/media", params)
         posts = data.get("data", [])
+        parsed = []
 
-        def _process_ig_post(p):
-            post_id    = p["id"]
+        for p in posts:
             media_type = p.get("media_type", "")
-
-            # ── Known API limitations (Meta Graph API for Business accounts) ──────
-            #
-            # like_count  : The API returns a privacy-filtered subset — NOT the same
-            #               number shown publicly on Instagram (e.g. API returns 28,
-            #               Instagram shows 1.4K). This is a Meta API restriction and
-            #               cannot be bypassed. We mitigate it using total_interactions
-            #               from insights (see below).
-            #
-            # comments_count: Same privacy filtering as like_count. Minor difference
-            #               (e.g. 0 vs 2) — no reliable workaround available.
-            #
-            # impressions : Deprecated by Meta from v22+ for IMAGE and CAROUSEL posts.
-            #               Returns a 400 error for those types — the metric no longer
-            #               exists. Only VIDEO (video_views) and Reels (plays) still
-            #               have a view-count equivalent. The only universal visibility
-            #               metric remaining is `reach` (unique accounts that saw post).
-            # ─────────────────────────────────────────────────────────────────────
-            is_reel = (
+            is_reel    = (
                 media_type in ("REEL", "IG_REEL")
                 or "/reel/" in p.get("permalink", "")
             )
 
-            # ── Per-post insights — single request with all supported metrics ──
-            # `views`  = v22+ unified view count (replaces deprecated impressions)
-            # `likes`  = per-post insight (privacy-filtered but best available)
-            # `profile_visits` / `follows` not supported on REELs — fetched separately below
+            # ── Parse insights from field expansion ───────────────────────────
             views, reach, saves, shares, likes, comments, total_int_val = 0, 0, 0, 0, 0, 0, 0
+            for item in p.get("insights", {}).get("data", []):
+                name = item.get("name", "")
+                val  = (item["values"][0].get("value", 0)
+                        if item.get("values") else item.get("value", 0))
+                if name == "views":
+                    views = val
+                elif name == "reach":
+                    reach = val
+                elif name == "saved":
+                    saves = val
+                elif name == "shares":
+                    shares = val
+                elif name == "likes":
+                    likes = val
+                elif name == "comments":
+                    comments = val
+                elif name == "total_interactions":
+                    total_int_val = val
 
-            core_metrics = "views,reach,saved,shares,likes,comments,total_interactions"
-            fallback_metrics = "reach,saved,shares,likes,comments,total_interactions"
-
-            for m_list in (core_metrics, fallback_metrics):
-                try:
-                    d = _get(f"{post_id}/insights", {"metric": m_list})
-                    if not d.get("data"):
-                        continue
-                    for item in d["data"]:
-                        name = item.get("name", "")
-                        val  = (item["values"][0].get("value", 0)
-                                if item.get("values") else item.get("value", 0))
-                        if name == "views":
-                            views = val
-                        elif name == "reach":
-                            reach = val
-                        elif name == "saved":
-                            saves = val
-                        elif name == "shares":
-                            shares = val
-                        elif name == "likes":
-                            likes = val
-                        elif name == "comments":
-                            comments = val
-                        elif name == "total_interactions":
-                            total_int_val = val
-                    break
-                except Exception as e:
-                    err_txt = str(e)
-                    if "400" in err_txt or "Unsupported" in err_txt or "invalid" in err_txt.lower():
-                        continue
-                    break
-
-            # ── profile_visits & follows — not supported on REELs ─────────────
-            profile_visits, follows = 0, 0
+            # ── follows — lightweight extra call, only for non-Reels ──────────
+            follows = 0
             if not is_reel:
                 try:
-                    d = _get(f"{post_id}/insights", {"metric": "profile_visits,follows"})
+                    d = _get(f"{p['id']}/insights", {"metric": "follows"})
                     for item in d.get("data", []):
-                        name = item.get("name", "")
-                        val  = (item["values"][0].get("value", 0)
-                                if item.get("values") else item.get("value", 0))
-                        if name == "profile_visits":
-                            profile_visits = val
-                        elif name == "follows":
-                            follows = val
+                        if item.get("name") == "follows":
+                            follows = (item["values"][0].get("value", 0)
+                                       if item.get("values") else item.get("value", 0))
                 except Exception:
                     pass
 
-            # Extract hour + weekday from full timestamp for heatmap
+            # ── Hour + weekday for heatmap ────────────────────────────────────
             _ts = p.get("timestamp", "")
             try:
                 from datetime import datetime as _dt
-                _parsed = _dt.strptime(_ts[:19], "%Y-%m-%dT%H:%M:%S")
-                _post_hour    = _parsed.hour
-                _post_weekday = _parsed.weekday()   # 0=Mon … 6=Sun
+                _parsed      = _dt.strptime(_ts[:19], "%Y-%m-%dT%H:%M:%S")
+                _post_hour   = _parsed.hour
+                _post_weekday = _parsed.weekday()
             except Exception:
                 _post_hour, _post_weekday = -1, -1
 
-            return {
-                "id":                p.get("id", ""),
-                "text":              p.get("caption", "")[:120] if p.get("caption") else "",
-                "created_time":      _ts[:10],
-                "media_type":        p.get("media_type", ""),
-                "is_reel":           is_reel,
-                "thumbnail":         p.get("thumbnail_url") or p.get("media_url", ""),
-                "permalink":         p.get("permalink", ""),
-                "views":             views,
-                "reach":             reach,
-                "reactions":         likes,
-                "comments":          comments,
-                "saves":             saves,
-                "shares":            shares,
+            parsed.append({
+                "id":                 p.get("id", ""),
+                "text":               p.get("caption", "")[:120] if p.get("caption") else "",
+                "created_time":       _ts[:10],
+                "media_type":         media_type,
+                "is_reel":            is_reel,
+                "thumbnail":          p.get("thumbnail_url") or p.get("media_url", ""),
+                "permalink":          p.get("permalink", ""),
+                "views":              views,
+                "reach":              reach,
+                "reactions":          likes,
+                "comments":           comments,
+                "saves":              saves,
+                "shares":             shares,
                 "total_interactions": total_int_val or (likes + comments + saves + shares),
-                "profile_visits":    profile_visits,
-                "follows":           follows,
-                "post_hour":         _post_hour,
-                "post_weekday":      _post_weekday,
-            }
+                "follows":            follows,
+                "post_hour":          _post_hour,
+                "post_weekday":       _post_weekday,
+            })
 
-        # Parallelize the insight fetching (Restored for speed)
-        with ThreadPoolExecutor(max_workers=20) as executor:
-            parsed = list(executor.map(_process_ig_post, posts))
-
+        print(f"DEBUG fetch_ig_posts: {len(parsed)} posts fetched (1 API call via field expansion)")
         return parsed
+
     except Exception as e:
         print(f"DEBUG: IG posts error: {e}")
         return []
