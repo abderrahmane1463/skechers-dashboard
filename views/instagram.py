@@ -601,41 +601,6 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             r2.metric("Pic", _peak_r["date"].strftime("%b %d"), delta=f"{int(_peak_r['value']):,}")
             r3.metric("Moy. journalière",  f"{int(reach_df['value'].mean()):,}")
 
-        # ── Vues chart (per-post views aggregated by publication date) ──
-        if not views_df.empty:
-            _imp_hdr_c   = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
-            _imp_hdr_brd = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
-            st.markdown(
-                f'<div style="font-size:0.68rem;color:{_imp_hdr_c};'
-                f'text-transform:uppercase;letter-spacing:0.08em;'
-                f'margin:1.4rem 0 0.6rem;border-bottom:1px solid {_imp_hdr_brd};'
-                f'padding-bottom:0.4rem;">📢 VUES</div>',
-                unsafe_allow_html=True
-            )
-            fig_views = go.Figure()
-            fig_views.add_trace(go.Scatter(
-                x=views_df["date"], y=views_df["value"],
-                name="Vues", fill="tozeroy",
-                line=dict(color="#ec4899", width=2),
-                fillcolor="rgba(236,72,153,0.12)",
-                mode="lines+markers",
-                marker=dict(size=4, color="#ec4899"),
-            ))
-            fig_views.update_layout(**{
-                **get_chart_layout(),
-                "showlegend": False,
-                "margin": dict(l=0, r=0, t=10, b=30),
-                "height": 220,
-            })
-            st.plotly_chart(fig_views, use_container_width=True)
-
-            _total_views_v = int(views_df["value"].sum())
-            _peak_views    = views_df.loc[views_df["value"].idxmax()]
-            i1, i2, i3    = st.columns(3)
-            i1.metric("Total Vues",       f"{_total_views_v:,}")
-            i2.metric("Pic", _peak_views["date"].strftime("%b %d"), delta=f"{int(_peak_views['value']):,}")
-            i3.metric("Moy. journalière", f"{int(views_df['value'].mean()):,}")
-
-        if reach_df.empty and views_df.empty:
+        if reach_df.empty:
             st.info("No visibility data available for this period.")
 
