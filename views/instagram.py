@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import db
 from components.charts import get_chart_layout, series_to_df, safe_sum, render_top3_podium
-from components.skeleton import skeleton_dashboard_html, skeleton_charts_html
+from components.skeleton import skeleton_dashboard_html
 
 
 # ─── Cached fetchers ──────────────────────────────────────────────────────────
@@ -186,13 +186,15 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     _prev_followers  = prev_profile.get("followers_count") or 0
     _prev_ig_reach   = prev_profile.get("period_reach", 0) or safe_sum(prev_profile.get("reach", []))
-    # prev_posts loads in phase 2 — engagement deltas computed after charts render
-    _prev_ig_impr         = 0
-    _prev_ig_likes        = 0
-    _prev_ig_comments     = 0
-    _prev_ig_shares       = 0
-    _prev_ig_saves        = 0
-    _prev_ig_interactions = 0
+
+    # ── Phase 2: fetch prev_posts so engagement deltas are accurate ───────────
+    prev_ig_posts         = get_ig_posts(days, _prev_start, _prev_end)
+    _prev_ig_likes        = sum(p.get("reactions",  0) for p in prev_ig_posts)
+    _prev_ig_comments     = sum(p.get("comments",   0) for p in prev_ig_posts)
+    _prev_ig_shares       = sum(p.get("shares",     0) for p in prev_ig_posts)
+    _prev_ig_saves        = sum(p.get("saves",      0) for p in prev_ig_posts)
+    _prev_ig_interactions = _prev_ig_likes + _prev_ig_comments + _prev_ig_shares + _prev_ig_saves
+    _prev_ig_impr         = sum(p.get("impressions", 0) for p in prev_ig_posts)
 
     # ── KPI Grid ──────────────────────────────────────────────────────────────
     _dark = st.session_state.get("theme", "dark") == "dark"
@@ -251,14 +253,6 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     st.divider()
 
-    # ── Phase 2: chart skeleton → prev_posts (for engagement deltas) ─────────
-    _chart_skel = st.empty()
-    _chart_skel.markdown(skeleton_charts_html(n_charts=2, n_cards=3), unsafe_allow_html=True)
-
-    prev_ig_posts = get_ig_posts(days, _prev_start, _prev_end)
-
-    _chart_skel.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
-
     log_refresh_fn(
         "Instagram", period_label, "✅ Data Loaded",
         f"Followers: {followers}, Posts: {len(ig_posts)}, Reach: {total_ig_reach}"
@@ -269,7 +263,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
         "📡Visibility", "💬Engagement", "🏆Top Content"
     ])
 
-    # ── TAB 1: Engagement ─────────────────────────────────────────────────────
+    # ── TAB 2: Engagement ─────────────────────────────────────────────────────
     with tab2:
         # Build daily series from posts
         _ci_d, _likes_d, _comms_d, _saves_d = {}, {}, {}, {}
@@ -376,7 +370,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 "margin": dict(l=0, r=40, t=10, b=70),
                 "height": 320,
             })
-            st.plotly_chart(fig_eng, width="stretch")
+            st.plotly_chart(fig_eng, use_container_width=True)
 
             ei1, ei2, ei3, ei4 = st.columns(4)
             ei1.metric("Total interactions", f"{total_ig_interactions:,}")
@@ -491,7 +485,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     unsafe_allow_html=True,
                 )
 
-    # ── TAB 2: Visibility ─────────────────────────────────────────────────────
+    # ── TAB 1: Visibility ─────────────────────────────────────────────────────
     with tab1:
         reach_df       = series_to_df(ig_profile.get("reach", []))
         impressions_df = series_to_df(ig_profile.get("impressions", []))
@@ -553,7 +547,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,
             })
-            st.plotly_chart(fig_reach, width="stretch")
+            st.plotly_chart(fig_reach, use_container_width=True)
 
             r1, r2, r3 = st.columns(3)
             r1.metric("Total Reach",       f"{total_ig_reach:,}")
@@ -604,7 +598,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,
             })
-            st.plotly_chart(fig_imp, width="stretch")
+            st.plotly_chart(fig_imp, use_container_width=True)
 
             _total_imp_v = int(impressions_df["value"].sum())
             _peak_imp    = impressions_df.loc[impressions_df["value"].idxmax()]
@@ -718,7 +712,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                     ),
                     "xaxis": dict(showline=False),
                 })
-                st.plotly_chart(fig_type, width="stretch")
+                st.plotly_chart(fig_type, use_container_width=True)
 
                 # Summary mini-cards
                 _cols_list = st.columns(len(_types)) if len(_types) <= 4 else st.columns(4)
