@@ -158,12 +158,9 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     _ig_reach_display = "—" if _ig_reach_unavailable else f"{total_ig_reach:,}"
     _ig_reach_note    = "ℹ️ Indisponible pour cette période" if _ig_reach_unavailable else None
 
-    # Prefer the full paginated total (all posts in period) from post_totals,
-    # fall back to summing the 20 displayed posts if post_totals is unavailable.
-    total_ig_impressions = (
-        ig_post_totals.get("total_impressions")
-        or sum(p.get("impressions", 0) for p in ig_posts)
-    )
+    # Account-level views (posts + stories + reels) from insights total_value.
+    # More accurate than summing per-post impressions (deprecated in v22+).
+    total_ig_views = ig_profile.get("period_views", 0) or 0
 
     total_ig_likes    = sum(p.get("reactions", 0) for p in ig_posts)
     total_ig_comments = sum(p.get("comments", 0) for p in ig_posts)
@@ -194,7 +191,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     _prev_ig_shares       = sum(p.get("shares",     0) for p in prev_ig_posts)
     _prev_ig_saves        = sum(p.get("saves",      0) for p in prev_ig_posts)
     _prev_ig_interactions = _prev_ig_likes + _prev_ig_comments + _prev_ig_shares + _prev_ig_saves
-    _prev_ig_impr         = sum(p.get("impressions", 0) for p in prev_ig_posts)
+    _prev_ig_views        = prev_profile.get("period_views", 0) or 0
 
     # ── KPI Grid ──────────────────────────────────────────────────────────────
     _dark = st.session_state.get("theme", "dark") == "dark"
@@ -240,7 +237,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
   {_ig_kpi("👁️", "Couvertures",        _ig_reach_display, note=_ig_reach_note,
            delta=None if _ig_reach_unavailable else _d(total_ig_reach, _prev_ig_reach))}
-  {_ig_kpi("📢", "Impressions (Posts)", f"{total_ig_impressions:,}", delta=_d(total_ig_impressions, _prev_ig_impr))}
+  {_ig_kpi("📢", "Vues", f"{total_ig_views:,}", delta=_d(total_ig_views, _prev_ig_views))}
   {_ig_kpi("🔖", "Enregistrements",    f"{total_ig_saves:,}", "#60a5fa", delta=_d(total_ig_saves,  _prev_ig_saves))}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1rem;">

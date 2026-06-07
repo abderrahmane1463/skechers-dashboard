@@ -39,6 +39,7 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
         "follower_series": [],
         "follower_additions": [],
         "period_reach": 0,
+        "period_views": 0,
         "story_impressions": 0,
         "username": "skechers"
     }
@@ -133,6 +134,29 @@ def fetch_ig_profile(days: int, start: str = None, end: str = None) -> dict:
                 print(f"DEBUG IG reach total_value = {val}")
     except Exception as e:
         print(f"DEBUG: IG reach total_value error: {e}")
+
+    # 3b. Period Views — metric_type=total_value for all content (posts+stories+reels)
+    try:
+        data_v = _get(f"{INSTAGRAM_USER_ID}/insights", {
+            "metric": "views",
+            "period": "day",
+            "metric_type": "total_value",
+            "since": since_ts,
+            "until": until_ts_exact,
+        })
+        for m in data_v.get("data", []):
+            if m["name"] == "views":
+                tv = m.get("total_value", {})
+                if isinstance(tv, dict):
+                    val = tv.get("value", 0)
+                elif isinstance(tv, (int, float)):
+                    val = int(tv)
+                else:
+                    val = 0
+                result["period_views"] = val
+                print(f"DEBUG IG views total_value = {val}")
+    except Exception as e:
+        print(f"DEBUG: IG views total_value error: {e}")
 
     # 4. Daily Follower Series — try multiple metric names across API versions
     for m_name in ["follower_count", "profile_follows", "total_followers_count"]:
