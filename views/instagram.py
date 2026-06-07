@@ -539,13 +539,10 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
 
     # ── TAB 1: Visibility ─────────────────────────────────────────────────────
     with tab1:
-        reach_df       = series_to_df(ig_profile.get("reach", []))
-        impressions_df = series_to_df(ig_profile.get("impressions", []))
+        reach_df = series_to_df(ig_profile.get("reach", []))
 
-        # ── Fallbacks: build daily series from per-post data when account-level
-        #    API series are blocked/empty. Posts are grouped by publication date.
+        # ── Build daily series from per-post data (grouped by publication date) ──
         def _posts_daily(metric: str) -> pd.DataFrame:
-            """Aggregate per-post metric by date → DataFrame with date/value columns."""
             _d: dict = {}
             for p in ig_posts:
                 _date = p.get("created_time", "")[:10]
@@ -557,16 +554,13 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
                 [{"date": pd.Timestamp(k), "value": v} for k, v in sorted(_d.items())]
             )
 
-        _reach_from_posts       = False
-        _impressions_from_posts = False
-
+        _reach_from_posts = False
         if reach_df.empty and ig_posts:
             reach_df = _posts_daily("reach")
             _reach_from_posts = not reach_df.empty
 
-        if impressions_df.empty and ig_posts:
-            impressions_df = _posts_daily("impressions")
-            _impressions_from_posts = not impressions_df.empty
+        # Views: always built from per-post views aggregated by date
+        views_df = _posts_daily("views")
 
         # ── Reach chart ──
         if not reach_df.empty:
@@ -607,59 +601,42 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
             r2.metric("Pic", _peak_r["date"].strftime("%b %d"), delta=f"{int(_peak_r['value']):,}")
             r3.metric("Moy. journalière",  f"{int(reach_df['value'].mean()):,}")
 
-        # ── Impressions chart ──
-        if not impressions_df.empty:
-            _imp_src = (
-                ' <span style="font-size:0.62rem;color:rgba(255,165,0,0.7);'
-                'font-weight:400;letter-spacing:0;">(estimé — agrégé depuis les publications)</span>'
-                if _impressions_from_posts else ""
-            )
+        # ── Vues chart (per-post views aggregated by publication date) ──
+        if not views_df.empty:
             _imp_hdr_c   = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
-            _imp_hdr_brd = "rgba(255,255,255,0.08)"  if _dark else "#e5e7eb"
-            _note_tc     = "rgba(255,255,255,0.45)"  if _dark else "#6b7280"
-            _note_bc     = "rgba(255,255,255,0.6)"   if _dark else "#374151"
+            _imp_hdr_brd = "rgba(255,255,255,0.08)" if _dark else "#e5e7eb"
             st.markdown(
                 f'<div style="font-size:0.68rem;color:{_imp_hdr_c};'
                 f'text-transform:uppercase;letter-spacing:0.08em;'
                 f'margin:1.4rem 0 0.6rem;border-bottom:1px solid {_imp_hdr_brd};'
-                f'padding-bottom:0.4rem;">📢 IMPRESSIONS *{_imp_src}</div>',
+                f'padding-bottom:0.4rem;">📢 VUES</div>',
                 unsafe_allow_html=True
             )
-            st.markdown(
-                f'<div style="background:rgba(99,102,241,0.07);border-left:3px solid rgba(99,102,241,0.5);'
-                f'border-radius:0 8px 8px 0;padding:0.45rem 0.85rem;margin-bottom:0.7rem;'
-                f'font-size:0.76rem;color:{_note_tc};line-height:1.5;">'
-                f'* Les impressions des <b style="color:{_note_bc};">Stories passées</b> '
-                f'ne sont pas disponibles via l\'API Meta après 24h — ce graphique couvre '
-                f'uniquement le feed &amp; les Reels.'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            fig_imp = go.Figure()
-            fig_imp.add_trace(go.Scatter(
-                x=impressions_df["date"], y=impressions_df["value"],
-                name="Impressions", fill="tozeroy",
+            fig_views = go.Figure()
+            fig_views.add_trace(go.Scatter(
+                x=views_df["date"], y=views_df["value"],
+                name="Vues", fill="tozeroy",
                 line=dict(color="#ec4899", width=2),
                 fillcolor="rgba(236,72,153,0.12)",
                 mode="lines+markers",
                 marker=dict(size=4, color="#ec4899"),
             ))
-            fig_imp.update_layout(**{
+            fig_views.update_layout(**{
                 **get_chart_layout(),
                 "showlegend": False,
                 "margin": dict(l=0, r=0, t=10, b=30),
                 "height": 220,
             })
-            st.plotly_chart(fig_imp, use_container_width=True)
+            st.plotly_chart(fig_views, use_container_width=True)
 
-            _total_imp_v = int(impressions_df["value"].sum())
-            _peak_imp    = impressions_df.loc[impressions_df["value"].idxmax()]
-            i1, i2, i3  = st.columns(3)
-            i1.metric("Total Impressions", f"{_total_imp_v:,}")
-            i2.metric("Pic", _peak_imp["date"].strftime("%b %d"), delta=f"{int(_peak_imp['value']):,}")
-            i3.metric("Moy. journalière",  f"{int(impressions_df['value'].mean()):,}")
+            _total_views_v = int(views_df["value"].sum())
+            _peak_views    = views_df.loc[views_df["value"].idxmax()]
+            i1, i2, i3    = st.columns(3)
+            i1.metric("Total Vues",       f"{_total_views_v:,}")
+            i2.metric("Pic", _peak_views["date"].strftime("%b %d"), delta=f"{int(_peak_views['value']):,}")
+            i3.metric("Moy. journalière", f"{int(views_df['value'].mean()):,}")
 
-        if reach_df.empty and impressions_df.empty:
+        if reach_df.empty and views_df.empty:
             st.info("No visibility data available for this period.")
 
     # ── TAB 3: Top Content ────────────────────────────────────────────────────
