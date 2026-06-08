@@ -247,6 +247,38 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     )
     _prev_ig_views        = prev_profile.get("period_views", 0) or 0
 
+    # ── Store data in session state for chatbot context ──────────────────────
+    _top3_views = sorted(ig_posts, key=lambda p: p.get("views", 0), reverse=True)[:3]
+    _top3_eng   = sorted(ig_posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:3]
+    _reach_series = ig_profile.get("reach", [])
+
+    st.session_state["dashboard_context"] = {
+        "platform":            "Instagram",
+        "period":              period_label,
+        "followers":           followers,
+        "prev_followers":      _prev_followers,
+        "total_views":         total_ig_views,
+        "prev_views":          _prev_ig_views,
+        "total_reach":         total_ig_reach,
+        "prev_reach":          _prev_ig_reach,
+        "total_interactions":  total_ig_interactions,
+        "prev_interactions":   _prev_ig_interactions,
+        "total_likes":         total_ig_likes,
+        "prev_likes":          _prev_ig_likes,
+        "total_comments":      total_ig_comments,
+        "prev_comments":       _prev_ig_comments,
+        "total_shares":        total_ig_shares,
+        "prev_shares":         _prev_ig_shares,
+        "total_saves":         total_ig_saves,
+        "prev_saves":          _prev_ig_saves,
+        "engagement_rate":     ig_eng_rate,
+        "total_posts":         len(ig_posts),
+        "reach_series":        _reach_series,
+        "top3_by_views":       [{"text": p.get("text","")[:60], "date": p.get("created_time",""), "views": p.get("views",0), "reach": p.get("reach",0), "likes": p.get("reactions",0), "comments": p.get("comments",0), "shares": p.get("shares",0), "saves": p.get("saves",0), "total_interactions": p.get("total_interactions",0)} for p in _top3_views],
+        "top3_by_engagement":  [{"text": p.get("text","")[:60], "date": p.get("created_time",""), "views": p.get("views",0), "reach": p.get("reach",0), "likes": p.get("reactions",0), "comments": p.get("comments",0), "shares": p.get("shares",0), "saves": p.get("saves",0), "total_interactions": p.get("total_interactions",0)} for p in _top3_eng],
+        "all_posts":           [{"text": p.get("text","")[:60], "date": p.get("created_time",""), "media_type": p.get("media_type",""), "views": p.get("views",0), "reach": p.get("reach",0), "likes": p.get("reactions",0), "comments": p.get("comments",0), "shares": p.get("shares",0), "saves": p.get("saves",0), "total_interactions": p.get("total_interactions",0)} for p in ig_posts],
+    }
+
     # ── KPI Grid ──────────────────────────────────────────────────────────────
     _dark = st.session_state.get("theme", "dark") == "dark"
     def _ig_kpi(icon, label, value, color=None, delta=None, note=None):

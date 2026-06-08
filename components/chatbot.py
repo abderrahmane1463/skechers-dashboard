@@ -102,6 +102,75 @@ def _get_api_key() -> str:
     return _clean(os.environ.get("GEMINI_API_KEY", ""))
 
 
+def _build_data_context() -> str:
+    """Build a dynamic context string from current dashboard data in session state."""
+    ctx = st.session_state.get("dashboard_context")
+    if not ctx:
+        return "\n--- CURRENT DATA ---\nNo data loaded yet. User has not viewed any platform tab.\n"
+
+    lines = [
+        f"\n--- CURRENT DASHBOARD DATA ---",
+        f"Platform: {ctx.get('platform', '?')}",
+        f"Period: {ctx.get('period', '?')}",
+        f"",
+    ]
+
+    platform = ctx.get("platform", "")
+
+    if platform == "Instagram":
+        prev_f = ctx.get('prev_followers', 0)
+        f_delta = ctx['followers'] - prev_f if prev_f else 0
+        lines += [
+            f"👥 Followers: {ctx['followers']:,} ({'+' if f_delta >= 0 else ''}{f_delta:,} vs previous period)",
+            f"📢 Vues: {ctx['total_views']:,} (prev: {ctx['prev_views']:,})",
+            f"🎯 Couverture (Reach): {ctx['total_reach']:,} (prev: {ctx['prev_reach']:,})",
+            f"🔥 Total Interactions: {ctx['total_interactions']:,} (prev: {ctx['prev_interactions']:,})",
+            f"❤️ Réactions (Likes): {ctx['total_likes']:,} (prev: {ctx['prev_likes']:,})",
+            f"💬 Commentaires: {ctx['total_comments']:,} (prev: {ctx['prev_comments']:,})",
+            f"↗️ Partages: {ctx['total_shares']:,} (prev: {ctx['prev_shares']:,})",
+            f"🔖 Enregistrements: {ctx['total_saves']:,} (prev: {ctx['prev_saves']:,})",
+            f"📊 Taux d'engagement: {ctx['engagement_rate']}%",
+            f"📝 Publications: {ctx['total_posts']}",
+            f"",
+        ]
+
+        # Daily reach series
+        reach_series = ctx.get("reach_series", [])
+        if reach_series:
+            lines.append("📈 Daily Reach series (date: value):")
+            for pt in reach_series:
+                lines.append(f"  {pt.get('date','?')}: {pt.get('value',0):,}")
+            lines.append("")
+
+        # Top 3 posts by views
+        top_views = ctx.get("top3_by_views", [])
+        if top_views:
+            lines.append("🏆 Top 3 posts by Views:")
+            for i, p in enumerate(top_views, 1):
+                lines.append(f"  #{i} [{p['date']}] {p['text'][:50]}...")
+                lines.append(f"     Views:{p['views']:,} | Reach:{p['reach']:,} | Likes:{p['likes']:,} | Comments:{p['comments']:,} | Shares:{p['shares']:,} | Saves:{p['saves']:,} | Total:{p['total_interactions']:,}")
+            lines.append("")
+
+        # Top 3 by engagement
+        top_eng = ctx.get("top3_by_engagement", [])
+        if top_eng:
+            lines.append("🏆 Top 3 posts by Engagement:")
+            for i, p in enumerate(top_eng, 1):
+                lines.append(f"  #{i} [{p['date']}] {p['text'][:50]}...")
+                lines.append(f"     Views:{p['views']:,} | Reach:{p['reach']:,} | Likes:{p['likes']:,} | Comments:{p['comments']:,} | Shares:{p['shares']:,} | Saves:{p['saves']:,} | Total:{p['total_interactions']:,}")
+            lines.append("")
+
+        # All posts summary
+        all_posts = ctx.get("all_posts", [])
+        if all_posts:
+            lines.append(f"📋 All {len(all_posts)} posts this period:")
+            for p in all_posts:
+                lines.append(f"  [{p['date']}] {p['media_type']} | {p['text'][:40]}... | Views:{p['views']:,} | Reach:{p['reach']:,} | Likes:{p['likes']:,} | Total:{p['total_interactions']:,}")
+
+    lines.append("\n--- END CURRENT DATA ---\n")
+    return "\n".join(lines)
+
+
 def _get_gemini_response(history: list) -> str:
     """Call Gemini API with conversation history using google-genai SDK."""
     try:
@@ -123,11 +192,14 @@ def _get_gemini_response(history: list) -> str:
                 parts=[types.Part(text=msg["content"])]
             ))
 
+        # Inject live dashboard data into system prompt
+        dynamic_prompt = SYSTEM_PROMPT + _build_data_context()
+
         response = client.models.generate_content(
             model="gemini-2.5-flash-lite",
             contents=contents,
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=dynamic_prompt,
                 temperature=0.7,
                 max_output_tokens=1024,
             ),
