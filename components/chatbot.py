@@ -107,7 +107,12 @@ def _get_gemini_response(history: list) -> str:
 
         api_key = _get_api_key()
         if not api_key:
-            return "⚠️ Clé API Gemini manquante. Veuillez configurer GEMINI_API_KEY dans les secrets."
+            # Debug: show available secret keys
+            try:
+                keys = list(st.secrets.keys())
+            except Exception:
+                keys = []
+            return f"⚠️ Clé API manquante. Clés disponibles dans secrets: {keys}"
 
         client = genai.Client(api_key=api_key)
 
