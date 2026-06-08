@@ -284,99 +284,95 @@ def log_refresh(platform: str, period: str, status: str, notes: str = ""):
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
 platform, period_label, days, start_date, end_date = render_sidebar(log_refresh)
 
-# ─── Page Title ───────────────────────────────────────────────────────────────
-col_t1, col_t2 = st.columns([3, 1])
-with col_t1:
-    _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost", "Google Analytics": "📊 Google Analytics", "Documentation": "📖 Documentation"}[platform]
-    st.markdown(f"## {_icon} — {period_label}")
-with col_t2:
-    st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
+# ─── Layout: main content + right chat sidebar ───────────────────────────────
+_chat_open = st.session_state.get("chat_open", False)
+_main_col, _chat_col = st.columns([3, 1] if _chat_open else [1, 0.001], gap="small")
 
-# ─── Dashboard routing ────────────────────────────────────────────────────────
-if platform == "Documentation":
-    render_documentation()
-elif platform == "Facebook":
-    render_facebook_dashboard(period_label, days, start_date, end_date, log_refresh)
-    _start_prefetch("Facebook", days, start_date, end_date)
-elif platform == "Instagram":
-    render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
-    _start_prefetch("Instagram", days, start_date, end_date)
-elif platform == "Google Analytics":
-    # ── Google Analytics 4 ───────────────────────────────────────────────────
-    from datetime import datetime as _gdt, timezone as _gtz, timedelta as _gtd
-    if start_date and end_date:
-        _ga4_start, _ga4_end = str(start_date), str(end_date)
+with _main_col:
+    # ── Page Title ────────────────────────────────────────────────────────────
+    col_t1, col_t2 = st.columns([3, 1])
+    with col_t1:
+        _icon = {"Facebook": "🔵 Facebook", "Instagram": "📸 Instagram", "Boost": "🚀 Boost", "Google Analytics": "📊 Google Analytics", "Documentation": "📖 Documentation"}[platform]
+        st.markdown(f"## {_icon} — {period_label}")
+    with col_t2:
+        st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
+
+    # ── Dashboard routing ─────────────────────────────────────────────────────
+    if platform == "Documentation":
+        render_documentation()
+    elif platform == "Facebook":
+        render_facebook_dashboard(period_label, days, start_date, end_date, log_refresh)
+        _start_prefetch("Facebook", days, start_date, end_date)
+    elif platform == "Instagram":
+        render_instagram_dashboard(period_label, days, start_date, end_date, log_refresh)
+        _start_prefetch("Instagram", days, start_date, end_date)
+    elif platform == "Google Analytics":
+        from datetime import datetime as _gdt, timezone as _gtz, timedelta as _gtd
+        if start_date and end_date:
+            _ga4_start, _ga4_end = str(start_date), str(end_date)
+        else:
+            _ga4_today = _gdt.now(_gtz.utc).date()
+            _ga4_end   = str(_ga4_today)
+            _ga4_start = str(_ga4_today - _gtd(days=days - 1))
+        try:
+            from api.ga4 import fetch_all_ga4_data
+            ga4_data = fetch_all_ga4_data(_ga4_start, _ga4_end)
+        except Exception as _ga4_err:
+            st.warning(f"⚠️ GA4: {_ga4_err}")
+            ga4_data = {}
+        from views.analytics import render_analytics_tab
+        render_analytics_tab(ga4_data, since=str(start_date) if start_date else "",
+                             until=str(end_date) if end_date else "")
     else:
-        _ga4_today = _gdt.now(_gtz.utc).date()
-        _ga4_end   = str(_ga4_today)
-        _ga4_start = str(_ga4_today - _gtd(days=days - 1))
-    try:
-        from api.ga4 import fetch_all_ga4_data
-        ga4_data = fetch_all_ga4_data(_ga4_start, _ga4_end)
-    except Exception as _ga4_err:
-        st.warning(f"⚠️ GA4: {_ga4_err}")
-        ga4_data = {}
-    
-    from views.analytics import render_analytics_tab
-    render_analytics_tab(ga4_data, since=str(start_date) if start_date else "",
-                         until=str(end_date) if end_date else "")
-else:
-    # ── Boost (paid campaigns) ────────────────────────────────────────────────
-    from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
+        from datetime import datetime as _bdt, timedelta as _btd, timezone as _btz
+        if start_date and end_date:
+            _bs = _bdt.strptime(start_date, "%Y-%m-%d").date()
+            _be = _bdt.strptime(end_date,   "%Y-%m-%d").date()
+            _bspan = (_be - _bs).days + 1
+            _prev_be = _bs - _btd(days=1)
+            _prev_bs = _prev_be - _btd(days=_bspan - 1)
+        else:
+            _prev_be = _bdt.now(_btz.utc).date() - _btd(days=days)
+            _prev_bs = _prev_be - _btd(days=days - 1)
+        _b_prev_start, _b_prev_end = str(_prev_bs), str(_prev_be)
 
-    # Compute previous equivalent period
-    if start_date and end_date:
-        _bs = _bdt.strptime(start_date, "%Y-%m-%d").date()
-        _be = _bdt.strptime(end_date,   "%Y-%m-%d").date()
-        _bspan = (_be - _bs).days + 1
-        _prev_be = _bs - _btd(days=1)
-        _prev_bs = _prev_be - _btd(days=_bspan - 1)
-    else:
-        _prev_be = _bdt.now(_btz.utc).date() - _btd(days=days)
-        _prev_bs = _prev_be - _btd(days=days - 1)
-    _b_prev_start, _b_prev_end = str(_prev_bs), str(_prev_be)
+        @st.cache_data(ttl=None, show_spinner=False)
+        def _cached_boost(days, start, end):
+            try:
+                return db.get_boost_insights(days, start, end)
+            except Exception as e:
+                print(f"DEBUG boost: fetch failed: {e}")
+                return empty_boost_data()
 
-    @st.cache_data(ttl=None, show_spinner=False)
-    def _cached_boost(days, start, end):
-        try:
-            return db.get_boost_insights(days, start, end)
-        except Exception as e:
-            print(f"DEBUG boost: fetch failed: {e}")
-            return empty_boost_data()
+        @st.cache_data(ttl=None, show_spinner=False)
+        def _cached_boost_demo(days, start, end):
+            try:
+                return db.get_fb_demographics(days, start, end)
+            except Exception as e:
+                print(f"DEBUG boost demographics: fetch failed: {e}")
+                return {}
 
-    @st.cache_data(ttl=None, show_spinner=False)
-    def _cached_boost_demo(days, start, end):
-        try:
-            return db.get_fb_demographics(days, start, end)
-        except Exception as e:
-            print(f"DEBUG boost demographics: fetch failed: {e}")
-            return {}
+        @st.cache_data(ttl=None, show_spinner=False)
+        def _cached_adset_ad(days, start, end):
+            try:
+                return db.get_adset_ad_insights(days, start, end)
+            except Exception as e:
+                print(f"DEBUG adset/ad fetch failed: {e}")
+                return {"adsets": [], "ads": []}
 
-    @st.cache_data(ttl=None, show_spinner=False)
-    def _cached_adset_ad(days, start, end):
-        try:
-            return db.get_adset_ad_insights(days, start, end)
-        except Exception as e:
-            print(f"DEBUG adset/ad fetch failed: {e}")
-            return {"adsets": [], "ads": []}
+        _skel_b = st.empty()
+        _skel_b.markdown(skeleton_boost_html(), unsafe_allow_html=True)
+        boost_data      = _cached_boost(days, start_date, end_date)
+        prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
+        demo_data       = _cached_boost_demo(days, start_date, end_date)
+        adset_ad_data   = _cached_adset_ad(days, start_date, end_date)
+        _skel_b.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
+        render_boost_tab(boost_data, demo_data, prev_boost_data,
+                         since=str(start_date) if start_date else "",
+                         until=str(end_date)   if end_date   else "",
+                         adset_ad_data=adset_ad_data)
+        _start_prefetch("Boost", days, start_date, end_date)
 
-    # ── Skeleton placeholder — shown while data loads ─────────────────────────
-    _skel_b = st.empty()
-    _skel_b.markdown(skeleton_boost_html(), unsafe_allow_html=True)
-
-    boost_data      = _cached_boost(days, start_date, end_date)
-    prev_boost_data = _cached_boost(days, _b_prev_start, _b_prev_end)
-    demo_data       = _cached_boost_demo(days, start_date, end_date)
-    adset_ad_data   = _cached_adset_ad(days, start_date, end_date)
-
-    # Data loaded — overwrite skeleton (more reliable than .empty() on Streamlit Cloud)
-    _skel_b.markdown('<div style="display:none"></div>', unsafe_allow_html=True)
-
-    render_boost_tab(boost_data, demo_data, prev_boost_data,
-                     since=str(start_date) if start_date else "",
-                     until=str(end_date)   if end_date   else "",
-                     adset_ad_data=adset_ad_data)
-    _start_prefetch("Boost", days, start_date, end_date)
-
-# ─── Floating chatbot (all platforms) ────────────────────────────────────────
-render_chatbot()
+# ─── Right chat sidebar ───────────────────────────────────────────────────────
+with _chat_col:
+    render_chatbot()

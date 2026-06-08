@@ -254,120 +254,58 @@ def _get_groq_response(history: list) -> str:
 
 
 def render_chatbot():
-    """Render chatbot using Streamlit native chat components."""
+    """Render chatbot as a right sidebar panel."""
     _dark = st.session_state.get("theme", "dark") == "dark"
 
     if "chat_open"    not in st.session_state: st.session_state.chat_open    = False
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-    _bg  = "#111111" if _dark else "#ffffff"
-    _brd = "#2a2a2a" if _dark else "#e5e7eb"
+    _brd    = "#2a2a2a" if _dark else "#e5e7eb"
+    _sub_c  = "rgba(255,255,255,0.7)"
 
-    # ── FAB CSS ───────────────────────────────────────────────────────────────
-    st.markdown("""
-<style>
-/* Style the open-chat button as a FAB */
-div[data-testid="stButton"]:has(button[kind="primary"]#open_chat_btn) button {
-    position: fixed !important;
-    bottom: 24px !important;
-    right: 24px !important;
-    width: 58px !important;
-    height: 58px !important;
-    border-radius: 50% !important;
-    font-size: 26px !important;
-    padding: 0 !important;
-    z-index: 10000 !important;
-    box-shadow: 0 4px 24px rgba(0,53,148,0.55) !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-    # ── When CLOSED: show FAB open button ────────────────────────────────────
+    # ── Closed: small toggle button ───────────────────────────────────────────
     if not st.session_state.chat_open:
-        _c1, _c2, _c3 = st.columns([8, 1, 1])
-        with _c3:
-            if st.button("💬", key="open_chat_btn", type="primary", help="Ouvrir l'assistant"):
-                st.session_state.chat_open = True
-                st.rerun()
+        if st.button("💬", key="open_chat_btn", type="primary",
+                     help="Ouvrir l'assistant", use_container_width=True):
+            st.session_state.chat_open = True
+            st.rerun()
         return
 
-    # ── When OPEN: full chat panel ────────────────────────────────────────────
+    # ── Open: full right sidebar panel ───────────────────────────────────────
+    # Header
     st.markdown(f"""
-<style>
-/* Chat container */
-.chat-container {{
-    border: 1px solid {_brd};
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    margin-bottom: 8px;
-}}
-/* Header */
-.chat-header {{
-    background: linear-gradient(90deg, #003594, #0050D0);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: white;
-}}
-.chat-header-title {{
-    font-weight: 700;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}}
-.chat-header-sub {{
-    font-size: 0.68rem;
-    opacity: 0.75;
-    margin-top: 2px;
-}}
-/* Override Streamlit chat message styles */
-[data-testid="stChatMessage"] {{
-    background: transparent !important;
-    padding: 4px 8px !important;
-}}
-/* Hide st.container border if any */
-[data-testid="stVerticalBlockBorderWrapper"] {{
-    border: none !important;
-}}
-</style>
-<div class="chat-container">
-  <div class="chat-header">
-    <div>
-      <div class="chat-header-title">🤖 Assistant Dashboard</div>
-      <div class="chat-header-sub">Powered by Groq · LLaMA 3.3</div>
-    </div>
-  </div>
+<div style="background:linear-gradient(90deg,#003594,#0050D0);
+            border-radius:12px 12px 0 0;padding:12px 14px;margin-bottom:0;">
+  <div style="color:white;font-weight:700;font-size:0.92rem;">🤖 Assistant Dashboard</div>
+  <div style="color:{_sub_c};font-size:0.68rem;">Powered by Groq · LLaMA 3.3</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Messages area ─────────────────────────────────────────────────────────
-    with st.container(height=380, border=True):
+    # Messages
+    with st.container(height=480, border=True):
         if not st.session_state.chat_history:
             with st.chat_message("assistant", avatar="🤖"):
                 st.markdown("👋 **Bonjour !** Je suis l'assistant du dashboard Skechers.\n\nPosez-moi vos questions sur les KPIs, les données ou comment interpréter les chiffres.")
         else:
             for msg in st.session_state.chat_history:
-                avatar = "🤖" if msg["role"] == "assistant" else "👤"
-                with st.chat_message(msg["role"], avatar=avatar):
+                with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
                     st.markdown(msg["content"])
 
-    # ── Input + action buttons ────────────────────────────────────────────────
+    # Input
     prompt = st.chat_input("Posez votre question...", key="chat_input")
 
-    _b1, _b2, _b3 = st.columns([4, 1, 1])
-    with _b2:
-        if st.button("🗑️", key="clear_chat", help="Effacer", use_container_width=True):
+    # Action buttons
+    _b1, _b2 = st.columns(2)
+    with _b1:
+        if st.button("🗑️ Effacer", key="clear_chat", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()
-    with _b3:
-        if st.button("✕", key="close_chat", help="Fermer", use_container_width=True):
+    with _b2:
+        if st.button("✕ Fermer", key="close_chat", use_container_width=True):
             st.session_state.chat_open = False
             st.rerun()
 
-    # ── Handle new message ────────────────────────────────────────────────────
+    # Handle message
     if prompt and prompt.strip():
         st.session_state.chat_history.append({"role": "user", "content": prompt.strip()})
         with st.spinner(""):
