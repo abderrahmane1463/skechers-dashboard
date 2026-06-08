@@ -114,20 +114,15 @@ def _build_data_context() -> str:
         ]
         rs = ig.get("reach_series", [])
         if rs:
-            lines.append("Daily Reach:")
-            for pt in rs:
+            lines.append("Daily Reach (last 7 days):")
+            for pt in rs[-7:]:
                 lines.append(f"  {pt.get('date','?')}: {pt.get('value',0):,}")
         for label, key in [("Top 3 by Views", "top3_by_views"), ("Top 3 by Engagement", "top3_by_engagement")]:
             posts = ig.get(key, [])
             if posts:
                 lines.append(f"{label}:")
                 for i, p in enumerate(posts, 1):
-                    lines.append(f"  #{i} [{p['date']}] {p['text'][:50]} | Views:{p['views']:,} Reach:{p['reach']:,} Likes:{p['likes']:,} Comments:{p['comments']:,} Shares:{p['shares']:,} Saves:{p['saves']:,} Total:{p['total_interactions']:,}")
-        all_p = ig.get("all_posts", [])
-        if all_p:
-            lines.append(f"All {len(all_p)} posts:")
-            for p in all_p:
-                lines.append(f"  [{p['date']}] {p['media_type']} | {p['text'][:40]} | Views:{p['views']:,} Reach:{p['reach']:,} Likes:{p['likes']:,} Total:{p['total_interactions']:,}")
+                    lines.append(f"  #{i} [{p['date']}] {p['text'][:40]} | Views:{p['views']:,} Reach:{p['reach']:,} Likes:{p['likes']:,} Comments:{p['comments']:,} Shares:{p['shares']:,} Total:{p['total_interactions']:,}")
         lines.append("")
 
     # ── Facebook ──────────────────────────────────────────────────────────────
@@ -147,20 +142,15 @@ def _build_data_context() -> str:
         ]
         rs = fb.get("reach_series", [])
         if rs:
-            lines.append("Daily Reach:")
-            for pt in rs:
+            lines.append("Daily Reach (last 7 days):")
+            for pt in rs[-7:]:
                 lines.append(f"  {pt.get('date','?')}: {pt.get('value',0):,}")
         for label, key in [("Top 3 by Reach", "top3_by_reach"), ("Top 3 by Engagement", "top3_by_engagement")]:
             posts = fb.get(key, [])
             if posts:
                 lines.append(f"{label}:")
                 for i, p in enumerate(posts, 1):
-                    lines.append(f"  #{i} [{p['date']}] {p['text'][:50]} | Reach:{p['reach']:,} Reactions:{p['reactions']:,} Comments:{p['comments']:,} Shares:{p['shares']:,} Total:{p['total_interactions']:,}")
-        all_p = fb.get("all_posts", [])
-        if all_p:
-            lines.append(f"All {len(all_p)} posts:")
-            for p in all_p:
-                lines.append(f"  [{p['date']}] {p['text'][:40]} | Reach:{p['reach']:,} Reactions:{p['reactions']:,} Total:{p['total_interactions']:,}")
+                    lines.append(f"  #{i} [{p['date']}] {p['text'][:40]} | Reach:{p['reach']:,} Reactions:{p['reactions']:,} Comments:{p['comments']:,} Shares:{p['shares']:,} Total:{p['total_interactions']:,}")
         lines.append("")
 
     # ── Boost ─────────────────────────────────────────────────────────────────
@@ -180,12 +170,7 @@ def _build_data_context() -> str:
         if top3:
             lines.append("Top 3 campaigns by spend:")
             for i, c in enumerate(top3, 1):
-                lines.append(f"  #{i} {c['name']} | Spend:€{c['spend']:,.2f} Reach:{c['reach']:,} Clicks:{c['clicks']:,} CTR:{c['ctr']}% Conv:{c['conversions']}")
-        all_c = bo.get("all_campaigns", [])
-        if all_c:
-            lines.append(f"All {len(all_c)} campaigns:")
-            for c in all_c:
-                lines.append(f"  [{c['objective']}] {c['name'][:50]} | Spend:€{c['spend']:,.2f} Reach:{c['reach']:,} CTR:{c['ctr']}% Conv:{c['conversions']}")
+                lines.append(f"  #{i} {c['name'][:50]} | Spend:€{c['spend']:,.2f} Reach:{c['reach']:,} Clicks:{c['clicks']:,} CTR:{c['ctr']}% Conv:{c['conversions']}")
         lines.append("")
 
     # ── Google Analytics ──────────────────────────────────────────────────────
@@ -251,7 +236,7 @@ def _get_groq_response(history: list) -> str:
             })
 
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.7,
             max_tokens=1024,
