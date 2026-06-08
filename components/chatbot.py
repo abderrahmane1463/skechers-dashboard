@@ -307,38 +307,41 @@ def render_chatbot():
   </div>
 </div>"""
 
-    # ── Floating panel (fixed position) ───────────────────────────────────────
+    # ── Floating panel + chat input CSS ──────────────────────────────────────
     st.markdown(f"""
 <style>
+/* Main panel — starts from bottom of screen */
 #chat-float-panel {{
     position: fixed;
-    bottom: 80px;
+    bottom: 0;
     right: 24px;
     width: 360px;
-    height: 500px;
+    height: 530px;
     background: {_panel_bg};
     border: 1px solid {_border};
-    border-radius: 20px;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.4);
-    z-index: 9999;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-bottom: none;
+    box-shadow: 0 -4px 40px rgba(0,0,0,0.35);
+    z-index: 9998;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: chatSlideUp 0.25s ease;
+    animation: chatSlideUp 0.3s ease;
 }}
 @keyframes chatSlideUp {{
-    from {{ opacity:0; transform:translateY(16px); }}
+    from {{ opacity:0; transform:translateY(24px); }}
     to   {{ opacity:1; transform:translateY(0); }}
 }}
 #chat-hdr {{
     background: linear-gradient(90deg,#003594,#0050D0);
-    padding: 12px 16px;
+    padding: 13px 16px;
     flex-shrink: 0;
 }}
 #chat-msgs {{
     flex: 1;
     overflow-y: auto;
-    padding: 14px 12px;
+    padding: 14px 12px 10px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -347,38 +350,55 @@ def render_chatbot():
 }}
 #chat-msgs::-webkit-scrollbar {{ width:4px; }}
 #chat-msgs::-webkit-scrollbar-thumb {{ background:#444; border-radius:4px; }}
-#chat-footer-note {{
-    text-align: center;
-    padding: 6px 0 8px;
-    font-size: 0.68rem;
-    color: {_ts_c};
-    flex-shrink: 0;
-    border-top: 1px solid {_border};
+
+/* Reposition st.chat_input to fit inside the panel at the bottom */
+[data-testid="stChatInputContainer"] {{
+    position: fixed !important;
+    bottom: 0 !important;
+    right: 24px !important;
+    left: auto !important;
+    width: 360px !important;
+    border-top: 1px solid {_border} !important;
+    background: {_panel_bg} !important;
+    border-radius: 0 !important;
+    padding: 10px 12px !important;
+    z-index: 9999 !important;
+    box-shadow: none !important;
+}}
+[data-testid="stChatInputContainer"] > div {{
+    background: transparent !important;
+}}
+/* Make the inner input look clean */
+[data-testid="stChatInputContainer"] textarea {{
+    background: {"#1c1c1c" if _dark else "#f3f4f6"} !important;
+    border-radius: 20px !important;
+    border-color: {_border} !important;
+    color: {"#ffffff" if _dark else "#111827"} !important;
+    font-size: 0.85rem !important;
 }}
 </style>
 
 <div id="chat-float-panel">
   <div id="chat-hdr">
-    <div style="color:white;font-weight:700;font-size:0.92rem;display:flex;align-items:center;gap:8px;">
+    <div style="color:white;font-weight:700;font-size:0.92rem;
+                display:flex;align-items:center;gap:8px;">
       🤖 Assistant Dashboard
-      <span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:2px 8px;
-                   font-size:0.65rem;font-weight:400;">Groq · LLaMA 3.3</span>
+      <span style="background:rgba(255,255,255,0.15);border-radius:20px;
+                   padding:2px 8px;font-size:0.62rem;font-weight:400;opacity:0.9;">
+        Groq · LLaMA 3.3
+      </span>
     </div>
-    <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;margin-top:2px;">
-      Posez vos questions sur le dashboard
+    <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;margin-top:3px;">
+      Posez vos questions sur les données du dashboard
     </div>
   </div>
   <div id="chat-msgs">
     {msgs_html}
   </div>
-  <div id="chat-footer-note">
-    Tapez votre question ci-dessous ↓ &nbsp;·&nbsp;
-    Données du dashboard chargées automatiquement
-  </div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Native chat input (anchors to page bottom) ────────────────────────────
+    # ── Chat input — repositioned by CSS into the panel ───────────────────────
     if prompt := st.chat_input("Posez votre question..."):
         if prompt.strip():
             st.session_state.chat_history.append({"role": "user", "content": prompt.strip()})
@@ -387,7 +407,7 @@ def render_chatbot():
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
             st.rerun()
 
-    # ── Clear button (small, unobtrusive) ─────────────────────────────────────
+    # ── Clear button ──────────────────────────────────────────────────────────
     if st.session_state.chat_history:
         _cc1, _cc2, _cc3 = st.columns([3, 1, 3])
         with _cc2:
