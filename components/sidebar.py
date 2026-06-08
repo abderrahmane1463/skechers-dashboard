@@ -166,4 +166,13 @@ def render_sidebar(log_refresh_fn):
             del st.session_state["user"]
             st.rerun()
 
+        st.divider()
+        # ── Chatbot toggle ────────────────────────────────────────────────────
+        if "chat_open" not in st.session_state:
+            st.session_state.chat_open = False
+        _chat_label = "✕ Fermer l'assistant" if st.session_state.chat_open else "💬 Assistant IA"
+        if st.button(_chat_label, width="stretch"):
+            st.session_state.chat_open = not st.session_state.chat_open
+            st.rerun()
+
     return platform, period_label, days, start_date, end_date

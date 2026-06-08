@@ -254,61 +254,143 @@ def _get_groq_response(history: list) -> str:
 
 
 def render_chatbot():
-    """Render chatbot as a right sidebar panel."""
+    """Render floating chat bubble — fixed-position panel, toggle in sidebar."""
     _dark = st.session_state.get("theme", "dark") == "dark"
 
-    if "chat_open"    not in st.session_state: st.session_state.chat_open    = False
-    if "chat_history" not in st.session_state: st.session_state.chat_history = []
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
-    _brd    = "#2a2a2a" if _dark else "#e5e7eb"
-    _sub_c  = "rgba(255,255,255,0.7)"
-
-    # ── Closed: small toggle button ───────────────────────────────────────────
-    if not st.session_state.chat_open:
-        if st.button("💬", key="open_chat_btn", type="primary",
-                     help="Ouvrir l'assistant", use_container_width=True):
-            st.session_state.chat_open = True
-            st.rerun()
+    if not st.session_state.get("chat_open", False):
         return
 
-    # ── Open: full right sidebar panel ───────────────────────────────────────
-    # Header
+    # ── Theme tokens ──────────────────────────────────────────────────────────
+    _panel_bg  = "#111111" if _dark else "#ffffff"
+    _border    = "#2a2a2a" if _dark else "#e5e7eb"
+    _msg_bg    = "#1c1c1c" if _dark else "#f3f4f6"
+    _msg_tc    = "#ffffff" if _dark else "#111827"
+    _ts_c      = "rgba(255,255,255,0.35)" if _dark else "#9ca3af"
+
+    # ── Build messages HTML ───────────────────────────────────────────────────
+    if not st.session_state.chat_history:
+        msgs_html = f"""
+<div style="display:flex;gap:10px;align-items:flex-start;">
+  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003594,#0050D0);
+              display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🤖</div>
+  <div style="background:{_msg_bg};color:{_msg_tc};padding:10px 14px;border-radius:4px 16px 16px 16px;
+              font-size:0.83rem;line-height:1.6;max-width:85%;">
+    👋 <b>Bonjour !</b> Je suis l'assistant du dashboard Skechers.<br><br>
+    Posez-moi vos questions sur les KPIs, les données ou comment interpréter les chiffres.
+  </div>
+</div>"""
+    else:
+        msgs_html = ""
+        for m in st.session_state.chat_history:
+            content = m["content"].replace("\n", "<br>").replace("<br><br>", "<br>")
+            if m["role"] == "user":
+                msgs_html += f"""
+<div style="display:flex;gap:10px;align-items:flex-start;justify-content:flex-end;">
+  <div style="background:linear-gradient(135deg,#003594,#0050D0);color:white;padding:10px 14px;
+              border-radius:16px 4px 16px 16px;font-size:0.83rem;line-height:1.6;max-width:85%;">
+    {content}
+  </div>
+  <div style="width:32px;height:32px;border-radius:50%;background:#333;
+              display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">👤</div>
+</div>"""
+            else:
+                msgs_html += f"""
+<div style="display:flex;gap:10px;align-items:flex-start;">
+  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003594,#0050D0);
+              display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🤖</div>
+  <div style="background:{_msg_bg};color:{_msg_tc};padding:10px 14px;border-radius:4px 16px 16px 16px;
+              font-size:0.83rem;line-height:1.6;max-width:85%;">
+    {content}
+  </div>
+</div>"""
+
+    # ── Floating panel (fixed position) ───────────────────────────────────────
     st.markdown(f"""
-<div style="background:linear-gradient(90deg,#003594,#0050D0);
-            border-radius:12px 12px 0 0;padding:12px 14px;margin-bottom:0;">
-  <div style="color:white;font-weight:700;font-size:0.92rem;">🤖 Assistant Dashboard</div>
-  <div style="color:{_sub_c};font-size:0.68rem;">Powered by Groq · LLaMA 3.3</div>
+<style>
+#chat-float-panel {{
+    position: fixed;
+    bottom: 80px;
+    right: 24px;
+    width: 360px;
+    height: 500px;
+    background: {_panel_bg};
+    border: 1px solid {_border};
+    border-radius: 20px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: chatSlideUp 0.25s ease;
+}}
+@keyframes chatSlideUp {{
+    from {{ opacity:0; transform:translateY(16px); }}
+    to   {{ opacity:1; transform:translateY(0); }}
+}}
+#chat-hdr {{
+    background: linear-gradient(90deg,#003594,#0050D0);
+    padding: 12px 16px;
+    flex-shrink: 0;
+}}
+#chat-msgs {{
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+}}
+#chat-msgs::-webkit-scrollbar {{ width:4px; }}
+#chat-msgs::-webkit-scrollbar-thumb {{ background:#444; border-radius:4px; }}
+#chat-footer-note {{
+    text-align: center;
+    padding: 6px 0 8px;
+    font-size: 0.68rem;
+    color: {_ts_c};
+    flex-shrink: 0;
+    border-top: 1px solid {_border};
+}}
+</style>
+
+<div id="chat-float-panel">
+  <div id="chat-hdr">
+    <div style="color:white;font-weight:700;font-size:0.92rem;display:flex;align-items:center;gap:8px;">
+      🤖 Assistant Dashboard
+      <span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:2px 8px;
+                   font-size:0.65rem;font-weight:400;">Groq · LLaMA 3.3</span>
+    </div>
+    <div style="color:rgba(255,255,255,0.6);font-size:0.68rem;margin-top:2px;">
+      Posez vos questions sur le dashboard
+    </div>
+  </div>
+  <div id="chat-msgs">
+    {msgs_html}
+  </div>
+  <div id="chat-footer-note">
+    Tapez votre question ci-dessous ↓ &nbsp;·&nbsp;
+    Données du dashboard chargées automatiquement
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
-    # Messages
-    with st.container(height=480, border=True):
-        if not st.session_state.chat_history:
-            with st.chat_message("assistant", avatar="🤖"):
-                st.markdown("👋 **Bonjour !** Je suis l'assistant du dashboard Skechers.\n\nPosez-moi vos questions sur les KPIs, les données ou comment interpréter les chiffres.")
-        else:
-            for msg in st.session_state.chat_history:
-                with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
-                    st.markdown(msg["content"])
-
-    # Input
-    prompt = st.chat_input("Posez votre question...", key="chat_input")
-
-    # Action buttons
-    _b1, _b2 = st.columns(2)
-    with _b1:
-        if st.button("🗑️ Effacer", key="clear_chat", use_container_width=True):
-            st.session_state.chat_history = []
-            st.rerun()
-    with _b2:
-        if st.button("✕ Fermer", key="close_chat", use_container_width=True):
-            st.session_state.chat_open = False
+    # ── Native chat input (anchors to page bottom) ────────────────────────────
+    if prompt := st.chat_input("Posez votre question..."):
+        if prompt.strip():
+            st.session_state.chat_history.append({"role": "user", "content": prompt.strip()})
+            with st.spinner(""):
+                reply = _get_groq_response(st.session_state.chat_history)
+            st.session_state.chat_history.append({"role": "assistant", "content": reply})
             st.rerun()
 
-    # Handle message
-    if prompt and prompt.strip():
-        st.session_state.chat_history.append({"role": "user", "content": prompt.strip()})
-        with st.spinner(""):
-            reply = _get_groq_response(st.session_state.chat_history)
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
-        st.rerun()
+    # ── Clear button (small, unobtrusive) ─────────────────────────────────────
+    if st.session_state.chat_history:
+        _cc1, _cc2, _cc3 = st.columns([3, 1, 3])
+        with _cc2:
+            if st.button("🗑️", key="clear_chat", help="Effacer la conversation"):
+                st.session_state.chat_history = []
+                st.rerun()
