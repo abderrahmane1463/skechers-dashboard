@@ -80,22 +80,25 @@ Be concise, helpful, and accurate. If you're not sure about something, say so.
 
 
 def _get_api_key() -> str:
-    """Read API key from st.secrets or environment, stripping any whitespace/newlines."""
+    """Read API key — config fallback > st.secrets > os.environ."""
     def _clean(k: str) -> str:
         return k.strip().replace("\n", "").replace("\r", "").replace(" ", "")
 
+    # 1. config.py hardcoded fallback (always works)
+    try:
+        from config import GEMINI_API_KEY as _cfg_key
+        if _cfg_key:
+            return _clean(_cfg_key)
+    except Exception:
+        pass
+    # 2. st.secrets
     try:
         key = _clean(str(st.secrets["GEMINI_API_KEY"]))
         if key:
             return key
     except Exception:
         pass
-    try:
-        key = _clean(str(st.secrets.get("GEMINI_API_KEY", "")))
-        if key:
-            return key
-    except Exception:
-        pass
+    # 3. env var
     return _clean(os.environ.get("GEMINI_API_KEY", ""))
 
 
@@ -107,12 +110,7 @@ def _get_gemini_response(history: list) -> str:
 
         api_key = _get_api_key()
         if not api_key:
-            # Debug: show available secret keys
-            try:
-                keys = list(st.secrets.keys())
-            except Exception:
-                keys = []
-            return f"⚠️ Clé API manquante. Clés disponibles dans secrets: {keys}"
+            return "⚠️ Clé API Gemini manquante. Veuillez contacter l'administrateur."
 
         client = genai.Client(api_key=api_key)
 

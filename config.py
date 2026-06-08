@@ -23,6 +23,9 @@ ADS_ACCESS_TOKEN = os.environ.get(
     "EAAXdQDmFoT8BRkOmkmrG15MzkurTX3E57EPGjU5BCzOLo8MAZAgyxovCIlpzem5VvZCaZA0Xo7caUvDNt1i8k6LHRJHvZBEZCXZCdCoviXlv00S1m9EzwLp2EcvvWZCJTYC5JrqYmsq7bAs3p8WIJqp1NtazvvXryGN0gi9H9alxbX88nuZCvQcnS5IShgrTZAimgXbvrdpVSL0Vd8f6U"
 )
 
+# Gemini API Key — chatbot
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
 # ─── Asset IDs ─────────────────────────────────────────────────────────────────
 FACEBOOK_PAGE_ID = "707444622669651"
 INSTAGRAM_USER_ID = "17841408456074839"
