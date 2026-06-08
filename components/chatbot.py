@@ -480,12 +480,6 @@ button[data-testid="baseButton-secondary"][aria-label="chat_fab_btn"] {{
         unsafe_allow_html=True
     )
 
-    # ── Streamlit toggle button (hidden, triggered by FAB via columns trick) ──
-    _c1, _c2 = st.columns([0.001, 0.999])
-    with _c1:
-        if st.button("t", key="chat_toggle", label_visibility="hidden"):
-            st.session_state.chat_open = not st.session_state.chat_open
-            st.rerun()
 
     # ── Chat panel ────────────────────────────────────────────────────────────
     if st.session_state.chat_open:
