@@ -355,6 +355,35 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         f"Followers: {total_fans}, Posts: {len(posts)}, Reach: {total_reach}"
     )
 
+    # ── Store data in session state for chatbot context ───────────────────────
+    _fb_top3_reach = sorted(posts, key=lambda p: p.get("reach", 0), reverse=True)[:3]
+    _fb_top3_eng   = sorted(posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:3]
+    _fb_reach_series = vis.get("reach", [])
+
+    st.session_state["dashboard_context"] = {
+        "platform":           "Facebook",
+        "period":             period_label,
+        "followers":          total_fans,
+        "prev_followers":     _prev_fans,
+        "total_reach":        total_reach,
+        "prev_reach":         prev_vis.get("period_reach", 0) or safe_sum(prev_vis.get("reach", [])),
+        "total_impressions":  total_impressions,
+        "prev_impressions":   _prev_impr,
+        "total_interactions": total_engagements,
+        "prev_interactions":  _prev_engs,
+        "total_reactions":    total_reacs,
+        "prev_reactions":     _prev_reacs,
+        "total_comments":     total_comms,
+        "prev_comments":      _prev_comms,
+        "total_shares":       total_shars,
+        "prev_shares":        _prev_shars,
+        "total_posts":        len(posts),
+        "reach_series":       _fb_reach_series,
+        "top3_by_reach":      [{"text": p.get("text","")[:60], "date": p.get("created_time",""), "reach": p.get("reach",0), "reactions": p.get("reactions",0), "comments": p.get("comments",0), "shares": p.get("shares",0), "total_interactions": p.get("total_interactions",0)} for p in _fb_top3_reach],
+        "top3_by_engagement": [{"text": p.get("text","")[:60], "date": p.get("created_time",""), "reach": p.get("reach",0), "reactions": p.get("reactions",0), "comments": p.get("comments",0), "shares": p.get("shares",0), "total_interactions": p.get("total_interactions",0)} for p in _fb_top3_eng],
+        "all_posts":          [{"text": p.get("text","")[:60], "date": p.get("created_time",""), "reach": p.get("reach",0), "reactions": p.get("reactions",0), "comments": p.get("comments",0), "shares": p.get("shares",0), "total_interactions": p.get("total_interactions",0)} for p in posts],
+    }
+
     # ── Tabs ─────────────────────────────────────────────────────────────────
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "👥Audience", "📡Visibility", "💬Engagement", "🏆Top Content", "🤝Community"
