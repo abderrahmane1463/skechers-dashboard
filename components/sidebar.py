@@ -167,12 +167,54 @@ def render_sidebar(log_refresh_fn):
             st.rerun()
 
         st.divider()
-        # ── Chatbot toggle ────────────────────────────────────────────────────
-        if "chat_open" not in st.session_state:
-            st.session_state.chat_open = False
+
+        # ── Chatbot ───────────────────────────────────────────────────────────
+        from components.chatbot import _get_groq_response, _build_data_context
+
+        if "chat_open"    not in st.session_state: st.session_state.chat_open    = False
+        if "chat_history" not in st.session_state: st.session_state.chat_history = []
+
         _chat_label = "✕ Fermer l'assistant" if st.session_state.chat_open else "💬 Assistant IA"
         if st.button(_chat_label, width="stretch"):
             st.session_state.chat_open = not st.session_state.chat_open
             st.rerun()
+
+        if st.session_state.chat_open:
+            # Header
+            st.markdown("""
+<div style="background:linear-gradient(90deg,#003594,#0050D0);
+            border-radius:10px;padding:10px 14px;margin:8px 0 6px;">
+  <div style="color:white;font-weight:700;font-size:0.88rem;">🤖 Assistant Dashboard</div>
+  <div style="color:rgba(255,255,255,0.65);font-size:0.65rem;margin-top:2px;">Groq · LLaMA 3.3</div>
+</div>
+""", unsafe_allow_html=True)
+
+            # Messages area
+            with st.container(height=320, border=False):
+                if not st.session_state.chat_history:
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown("👋 **Bonjour !** Posez-moi vos questions sur les KPIs et les données du dashboard.")
+                else:
+                    for msg in st.session_state.chat_history:
+                        with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
+                            st.markdown(msg["content"])
+
+            # Input form inside sidebar
+            with st.form(key="sidebar_chat_form", clear_on_submit=True, border=False):
+                user_input = st.text_input("msg", placeholder="Posez votre question...",
+                                           label_visibility="collapsed")
+                submitted  = st.form_submit_button("➤ Envoyer", use_container_width=True, type="primary")
+
+            if submitted and user_input.strip():
+                st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
+                with st.spinner(""):
+                    reply = _get_groq_response(st.session_state.chat_history)
+                st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                st.rerun()
+
+            if st.session_state.chat_history:
+                if st.button("🗑️ Effacer", key="clear_chat", use_container_width=True):
+                    st.session_state.chat_history = []
+                    st.rerun()
 
     return platform, period_label, days, start_date, end_date

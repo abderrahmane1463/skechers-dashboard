@@ -254,14 +254,17 @@ def _get_groq_response(history: list) -> str:
 
 
 def render_chatbot():
-    """Render floating chat bubble — fixed-position panel, toggle in sidebar."""
-    _dark = st.session_state.get("theme", "dark") == "dark"
+    """No-op — chat is now rendered inside the sidebar."""
+    pass
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
 
-    if not st.session_state.get("chat_open", False):
-        return
+def _render_chatbot_sidebar():
+    """Legacy stub — chat is now in sidebar.py."""
+    pass
+
+
+# Keep for backward compatibility
+if False:
 
     # ── Theme tokens ──────────────────────────────────────────────────────────
     _panel_bg  = "#111111" if _dark else "#ffffff"
@@ -307,30 +310,32 @@ def render_chatbot():
   </div>
 </div>"""
 
-    # ── Floating panel + chat input CSS ──────────────────────────────────────
+    _input_bg  = "#1c1c1c" if _dark else "#f3f4f6"
+    _input_tc  = "#ffffff" if _dark else "#111827"
+
+    # ── CSS: panel + form repositioned inside panel ───────────────────────────
     st.markdown(f"""
 <style>
-/* Main panel — starts from bottom of screen */
 #chat-float-panel {{
     position: fixed;
     bottom: 0;
     right: 24px;
     width: 360px;
-    height: 530px;
+    height: 540px;
     background: {_panel_bg};
     border: 1px solid {_border};
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
     border-bottom: none;
     box-shadow: 0 -4px 40px rgba(0,0,0,0.35);
-    z-index: 9998;
+    z-index: 9000;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     animation: chatSlideUp 0.3s ease;
 }}
 @keyframes chatSlideUp {{
-    from {{ opacity:0; transform:translateY(24px); }}
+    from {{ opacity:0; transform:translateY(20px); }}
     to   {{ opacity:1; transform:translateY(0); }}
 }}
 #chat-hdr {{
@@ -346,35 +351,47 @@ def render_chatbot():
     flex-direction: column;
     gap: 12px;
     scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
+    scrollbar-color: #444 transparent;
 }}
 #chat-msgs::-webkit-scrollbar {{ width:4px; }}
 #chat-msgs::-webkit-scrollbar-thumb {{ background:#444; border-radius:4px; }}
 
-/* Reposition st.chat_input to fit inside the panel at the bottom */
-[data-testid="stChatInputContainer"] {{
+/* Position the form inside the panel at the bottom */
+[data-testid="stForm"] {{
     position: fixed !important;
-    bottom: 0 !important;
-    right: 24px !important;
-    left: auto !important;
-    width: 360px !important;
-    border-top: 1px solid {_border} !important;
-    background: {_panel_bg} !important;
-    border-radius: 0 !important;
-    padding: 10px 12px !important;
+    bottom: 8px !important;
+    right: 28px !important;
+    width: 304px !important;
     z-index: 9999 !important;
-    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
 }}
-[data-testid="stChatInputContainer"] > div {{
+/* Hide form's default border/background */
+[data-testid="stForm"] > div:first-child {{
+    border: none !important;
+    padding: 0 !important;
     background: transparent !important;
 }}
-/* Make the inner input look clean */
-[data-testid="stChatInputContainer"] textarea {{
-    background: {"#1c1c1c" if _dark else "#f3f4f6"} !important;
+/* Style the text input inside */
+[data-testid="stForm"] [data-testid="stTextInput"] input {{
+    background: {_input_bg} !important;
+    color: {_input_tc} !important;
     border-radius: 20px !important;
     border-color: {_border} !important;
-    color: {"#ffffff" if _dark else "#111827"} !important;
-    font-size: 0.85rem !important;
+    font-size: 0.83rem !important;
+    padding: 8px 16px !important;
+}}
+/* Send button */
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button {{
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    background: linear-gradient(135deg,#003594,#0050D0) !important;
+    color: white !important;
+    border: none !important;
+    font-size: 16px !important;
 }}
 </style>
 
@@ -384,7 +401,7 @@ def render_chatbot():
                 display:flex;align-items:center;gap:8px;">
       🤖 Assistant Dashboard
       <span style="background:rgba(255,255,255,0.15);border-radius:20px;
-                   padding:2px 8px;font-size:0.62rem;font-weight:400;opacity:0.9;">
+                   padding:2px 8px;font-size:0.62rem;font-weight:400;">
         Groq · LLaMA 3.3
       </span>
     </div>
@@ -392,25 +409,28 @@ def render_chatbot():
       Posez vos questions sur les données du dashboard
     </div>
   </div>
-  <div id="chat-msgs">
-    {msgs_html}
-  </div>
+  <div id="chat-msgs">{msgs_html}</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Chat input — repositioned by CSS into the panel ───────────────────────
-    if prompt := st.chat_input("Posez votre question..."):
-        if prompt.strip():
-            st.session_state.chat_history.append({"role": "user", "content": prompt.strip()})
-            with st.spinner(""):
-                reply = _get_groq_response(st.session_state.chat_history)
-            st.session_state.chat_history.append({"role": "assistant", "content": reply})
-            st.rerun()
+    # ── Input form — CSS positions it inside the panel ────────────────────────
+    with st.form(key="chat_form", clear_on_submit=True, border=False):
+        _fi, _fb = st.columns([5, 1])
+        user_input = _fi.text_input("msg", placeholder="Posez votre question...",
+                                    label_visibility="collapsed")
+        submitted  = _fb.form_submit_button("➤")
 
-    # ── Clear button ──────────────────────────────────────────────────────────
+    if submitted and user_input.strip():
+        st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
+        with st.spinner(""):
+            reply = _get_groq_response(st.session_state.chat_history)
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        st.rerun()
+
+    # ── Clear ─────────────────────────────────────────────────────────────────
     if st.session_state.chat_history:
         _cc1, _cc2, _cc3 = st.columns([3, 1, 3])
         with _cc2:
-            if st.button("🗑️", key="clear_chat", help="Effacer la conversation"):
+            if st.button("🗑️", key="clear_chat", help="Effacer"):
                 st.session_state.chat_history = []
                 st.rerun()
