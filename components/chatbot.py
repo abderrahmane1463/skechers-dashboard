@@ -80,26 +80,14 @@ Be concise, helpful, and accurate. If you're not sure about something, say so.
 
 
 def _get_api_key() -> str:
-    """Read API key — config fallback > st.secrets > os.environ."""
-    def _clean(k: str) -> str:
-        return k.strip().replace("\n", "").replace("\r", "").replace(" ", "")
-
-    # 1. config.py hardcoded fallback (always works)
+    """Read Groq API key from st.secrets or environment."""
     try:
-        from config import GEMINI_API_KEY as _cfg_key
-        if _cfg_key:
-            return _clean(_cfg_key)
-    except Exception:
-        pass
-    # 2. st.secrets
-    try:
-        key = _clean(str(st.secrets["GEMINI_API_KEY"]))
+        key = st.secrets["GROQ_API_KEY"]
         if key:
-            return key
+            return key.strip()
     except Exception:
         pass
-    # 3. env var
-    return _clean(os.environ.get("GEMINI_API_KEY", ""))
+    return os.environ.get("GROQ_API_KEY", "").strip()
 
 
 def _build_data_context() -> str:
@@ -214,40 +202,34 @@ def _build_data_context() -> str:
     return "\n".join(lines)
 
 
-def _get_gemini_response(history: list) -> str:
-    """Call Gemini API with conversation history using google-genai SDK."""
+def _get_groq_response(history: list) -> str:
+    """Call Groq API with conversation history using LLaMA 3.3 70B."""
     try:
-        from google import genai
-        from google.genai import types
+        from groq import Groq
 
         api_key = _get_api_key()
         if not api_key:
-            return "⚠️ Clé API Gemini manquante. Veuillez contacter l'administrateur."
+            return "⚠️ Clé API Groq manquante. Veuillez configurer GROQ_API_KEY dans les secrets Streamlit."
 
-        client = genai.Client(api_key=api_key)
+        client = Groq(api_key=api_key)
 
-        # Build conversation history for multi-turn chat
-        contents = []
+        # Build messages with system prompt + dynamic data context
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT + _build_data_context()}
+        ]
         for msg in history:
-            role = "user" if msg["role"] == "user" else "model"
-            contents.append(types.Content(
-                role=role,
-                parts=[types.Part(text=msg["content"])]
-            ))
+            messages.append({
+                "role": "user" if msg["role"] == "user" else "assistant",
+                "content": msg["content"],
+            })
 
-        # Inject live dashboard data into system prompt
-        dynamic_prompt = SYSTEM_PROMPT + _build_data_context()
-
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=dynamic_prompt,
-                temperature=0.7,
-                max_output_tokens=1024,
-            ),
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1024,
         )
-        return response.text
+        return response.choices[0].message.content
     except Exception as e:
         return f"⚠️ Erreur : {str(e)}"
 
@@ -376,7 +358,7 @@ def render_chatbot():
         with st.container():
             st.markdown(f"""
 <div id="chat-panel">
-  <div id="chat-header">🤖 Assistant Dashboard &nbsp;<span style="font-size:0.75rem;opacity:0.8;">Powered by Gemini</span></div>
+  <div id="chat-header">🤖 Assistant Dashboard &nbsp;<span style="font-size:0.75rem;opacity:0.8;">Powered by Groq</span></div>
   <div id="chat-messages">
     {"".join([
         f'<div class="chat-msg-{"user" if m["role"]=="user" else "bot"}">{m["content"]}</div>'
@@ -405,7 +387,7 @@ def render_chatbot():
                 })
                 # Get Gemini response
                 with st.spinner("..."):
-                    reply = _get_gemini_response(st.session_state.chat_history)
+                    reply = _get_groq_response(st.session_state.chat_history)
                 st.session_state.chat_history.append({
                     "role": "assistant",
                     "content": reply,
