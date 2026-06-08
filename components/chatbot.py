@@ -80,23 +80,23 @@ Be concise, helpful, and accurate. If you're not sure about something, say so.
 
 
 def _get_api_key() -> str:
-    """Read API key from st.secrets or environment."""
-    # Try direct key access first
+    """Read API key from st.secrets or environment, stripping any whitespace/newlines."""
+    def _clean(k: str) -> str:
+        return k.strip().replace("\n", "").replace("\r", "").replace(" ", "")
+
     try:
-        key = st.secrets["GEMINI_API_KEY"]
+        key = _clean(str(st.secrets["GEMINI_API_KEY"]))
         if key:
             return key
     except Exception:
         pass
-    # Try .get() method
     try:
-        key = st.secrets.get("GEMINI_API_KEY", "")
+        key = _clean(str(st.secrets.get("GEMINI_API_KEY", "")))
         if key:
             return key
     except Exception:
         pass
-    # Fallback to environment variable
-    return os.environ.get("GEMINI_API_KEY", "")
+    return _clean(os.environ.get("GEMINI_API_KEY", ""))
 
 
 def _get_gemini_response(history: list) -> str:
