@@ -16,6 +16,7 @@ from views.analytics import render_analytics_tab
 from views.login import render_login
 from views.documentation import render_documentation
 from components.skeleton import skeleton_boost_html
+from components.chatbot import render_chatbot
 import db
 
 
@@ -376,3 +377,6 @@ else:
                      until=str(end_date)   if end_date   else "",
                      adset_ad_data=adset_ad_data)
     _start_prefetch("Boost", days, start_date, end_date)
+
+# ─── Floating chatbot (all platforms) ────────────────────────────────────────
+render_chatbot()
