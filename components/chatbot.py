@@ -81,23 +81,31 @@ Be concise, helpful, and accurate. If you're not sure about something, say so.
 
 
 def _get_gemini_response(history: list) -> str:
-    """Call Gemini API with conversation history."""
+    """Call Gemini API with conversation history using google-genai SDK."""
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=SYSTEM_PROMPT,
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=GEMINI_API_KEY)
+
+        # Build conversation history for multi-turn chat
+        contents = []
+        for msg in history:
+            role = "user" if msg["role"] == "user" else "model"
+            contents.append(types.Content(
+                role=role,
+                parts=[types.Part(text=msg["content"])]
+            ))
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                temperature=0.7,
+                max_output_tokens=1024,
+            ),
         )
-        # Convert history to Gemini format
-        gemini_history = []
-        for msg in history[:-1]:  # all except last (current user message)
-            gemini_history.append({
-                "role": "user" if msg["role"] == "user" else "model",
-                "parts": [msg["content"]],
-            })
-        chat = model.start_chat(history=gemini_history)
-        response = chat.send_message(history[-1]["content"])
         return response.text
     except Exception as e:
         return f"⚠️ Erreur : {str(e)}"
