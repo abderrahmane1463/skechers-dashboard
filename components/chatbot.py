@@ -235,13 +235,20 @@ def _get_groq_response(history: list) -> str:
                 "content": msg["content"],
             })
 
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1024,
-        )
-        return response.choices[0].message.content
+        for model in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=1024,
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                if "429" in str(e) or "rate_limit" in str(e).lower():
+                    continue  # try next model
+                return f"⚠️ Erreur : {str(e)}"
+        return "⚠️ Les deux modèles ont atteint leur limite quotidienne. Réessayez dans quelques heures."
     except Exception as e:
         return f"⚠️ Erreur : {str(e)}"
 
