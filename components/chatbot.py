@@ -239,7 +239,7 @@ def _get_gemini_response(history: list) -> str:
         dynamic_prompt = SYSTEM_PROMPT + _build_data_context()
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-1.5-flash",
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=dynamic_prompt,
