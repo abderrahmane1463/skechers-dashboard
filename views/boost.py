@@ -1092,6 +1092,29 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
         unsafe_allow_html=True,
     )
 
+    # ── Store data in session state for chatbot context ───────────────────────
+    _top3_campaigns = sorted(campaigns, key=lambda c: c.get("spend", 0), reverse=True)[:3]
+    st.session_state["dashboard_context"] = {
+        "platform":          "Boost",
+        "period":            f"{_period_since} → {_period_until}",
+        "total_spend":       totals.get("spend", 0),
+        "prev_spend":        prev_totals.get("spend", 0),
+        "total_reach":       totals.get("reach", 0),
+        "prev_reach":        prev_totals.get("reach", 0),
+        "total_impressions": totals.get("impressions", 0),
+        "prev_impressions":  prev_totals.get("impressions", 0),
+        "total_clicks":      totals.get("link_clicks", 0),
+        "prev_clicks":       prev_totals.get("link_clicks", 0),
+        "ctr":               totals.get("ctr", 0),
+        "cpc":               totals.get("cpc", 0),
+        "cpm":               totals.get("cpm", 0),
+        "frequency":         totals.get("frequency", 0),
+        "total_conversions": conv.get("total_conversions", 0),
+        "total_campaigns":   len(campaigns),
+        "top3_campaigns":    [{"name": c.get("name","")[:60], "spend": c.get("spend",0), "reach": c.get("reach",0), "impressions": c.get("impressions",0), "clicks": c.get("link_clicks",0), "ctr": c.get("ctr",0), "conversions": c.get("conversions",0)} for c in _top3_campaigns],
+        "all_campaigns":     [{"name": c.get("name","")[:60], "objective": c.get("objective",""), "spend": c.get("spend",0), "reach": c.get("reach",0), "clicks": c.get("link_clicks",0), "ctr": c.get("ctr",0), "conversions": c.get("conversions",0)} for c in campaigns],
+    }
+
     t1, t2, t3, t4, t5, t6 = st.tabs([
         "📊 Global",
         "🎯 Conversion",

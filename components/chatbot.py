@@ -198,6 +198,34 @@ def _build_data_context() -> str:
             for p in all_posts:
                 lines.append(f"  [{p['date']}] {p['text'][:40]}... | Reach:{p['reach']:,} | Reactions:{p['reactions']:,} | Total:{p['total_interactions']:,}")
 
+    elif platform == "Boost":
+        lines += [
+            f"💰 Montant dépensé: €{ctx['total_spend']:,.2f} (prev: €{ctx['prev_spend']:,.2f})",
+            f"👁️ Reach: {ctx['total_reach']:,} (prev: {ctx['prev_reach']:,})",
+            f"📢 Impressions: {ctx['total_impressions']:,} (prev: {ctx['prev_impressions']:,})",
+            f"🖱️ Clics: {ctx['total_clicks']:,} (prev: {ctx['prev_clicks']:,})",
+            f"📈 CTR: {ctx['ctr']}%",
+            f"💸 CPC: €{ctx['cpc']:,.2f}",
+            f"🔁 Fréquence: {ctx['frequency']}",
+            f"✅ Conversions: {ctx['total_conversions']}",
+            f"📁 Campagnes: {ctx['total_campaigns']}",
+            f"",
+        ]
+
+        top3 = ctx.get("top3_campaigns", [])
+        if top3:
+            lines.append("🏆 Top 3 campagnes par dépenses:")
+            for i, c in enumerate(top3, 1):
+                lines.append(f"  #{i} {c['name']}")
+                lines.append(f"     Spend:€{c['spend']:,.2f} | Reach:{c['reach']:,} | Clicks:{c['clicks']:,} | CTR:{c['ctr']}% | Conv:{c['conversions']}")
+            lines.append("")
+
+        all_c = ctx.get("all_campaigns", [])
+        if all_c:
+            lines.append(f"📋 Toutes les campagnes ({len(all_c)}):")
+            for c in all_c:
+                lines.append(f"  [{c['objective']}] {c['name'][:50]} | Spend:€{c['spend']:,.2f} | Reach:{c['reach']:,} | CTR:{c['ctr']}% | Conv:{c['conversions']}")
+
     lines.append("\n--- END CURRENT DATA ---\n")
     return "\n".join(lines)
 
