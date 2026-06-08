@@ -9,10 +9,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GEMINI_API_KEY = (
-    st.secrets.get("GEMINI_API_KEY", "")
-    if hasattr(st, "secrets") else ""
-) or os.environ.get("GEMINI_API_KEY", "")
 
 SYSTEM_PROMPT = """
 You are a helpful assistant for the Skechers Algeria social media analytics dashboard.
@@ -83,13 +79,28 @@ Be concise, helpful, and accurate. If you're not sure about something, say so.
 """
 
 
+def _get_api_key() -> str:
+    """Read API key from st.secrets or environment."""
+    try:
+        key = st.secrets.get("GEMINI_API_KEY", "")
+        if key:
+            return key
+    except Exception:
+        pass
+    return os.environ.get("GEMINI_API_KEY", "")
+
+
 def _get_gemini_response(history: list) -> str:
     """Call Gemini API with conversation history using google-genai SDK."""
     try:
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        api_key = _get_api_key()
+        if not api_key:
+            return "⚠️ Clé API Gemini manquante. Veuillez configurer GEMINI_API_KEY dans les secrets."
+
+        client = genai.Client(api_key=api_key)
 
         # Build conversation history for multi-turn chat
         contents = []
