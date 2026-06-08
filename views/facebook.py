@@ -360,7 +360,7 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
     _fb_top3_eng   = sorted(posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:3]
     _fb_reach_series = vis.get("reach", [])
 
-    st.session_state["dashboard_context"] = {
+    st.session_state["ctx_facebook"] = {
         "platform":           "Facebook",
         "period":             period_label,
         "followers":          total_fans,

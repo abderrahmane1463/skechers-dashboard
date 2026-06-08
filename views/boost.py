@@ -1094,7 +1094,7 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
 
     # ── Store data in session state for chatbot context ───────────────────────
     _top3_campaigns = sorted(campaigns, key=lambda c: c.get("spend", 0), reverse=True)[:3]
-    st.session_state["dashboard_context"] = {
+    st.session_state["ctx_boost"] = {
         "platform":          "Boost",
         "period":            f"{_period_since} → {_period_until}",
         "total_spend":       totals.get("spend", 0),

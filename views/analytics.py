@@ -529,6 +529,31 @@ def render_analytics_tab(ga4_data: dict, since: str = "", until: str = ""):
         _no_data("Données Google Analytics non disponibles. Vérifiez que le token GA4 est configuré.")
         return
 
+    # ── Store data in session state for chatbot context ───────────────────────
+    ov  = ga4_data.get("overview", {})
+    pj  = ga4_data.get("purchase_journey", {})
+    geo = ga4_data.get("geography", {})
+    st.session_state["ctx_ga4"] = {
+        "platform":           "Google Analytics",
+        "period":             f"{since} → {until}",
+        "active_users":       ov.get("active_users", 0),
+        "new_users":          ov.get("new_users", 0),
+        "sessions":           ov.get("sessions", 0),
+        "engaged_sessions":   ov.get("engaged_sessions", 0),
+        "engagement_rate":    ov.get("engagement_rate", 0),
+        "bounce_rate":        ov.get("bounce_rate", 0),
+        "avg_session_duration": ov.get("avg_session_duration", 0),
+        "page_views":         ov.get("page_views", 0),
+        "pages_per_session":  ov.get("pages_per_session", 0),
+        "traffic_sources":    ga4_data.get("traffic_sources", [])[:10],
+        "top_events":         ga4_data.get("events", [])[:10],
+        "top_items":          ga4_data.get("ecommerce_items", [])[:10],
+        "funnel":             pj.get("funnel", []),
+        "top_countries":      geo.get("countries", [])[:5],
+        "top_cities":         geo.get("cities", [])[:5],
+        "devices":            ga4_data.get("devices", []),
+    }
+
     t1, t2, t3, t4 = st.tabs([
         "📊 Vue d'ensemble",
         "🛒 E-commerce",

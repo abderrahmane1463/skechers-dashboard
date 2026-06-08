@@ -252,7 +252,7 @@ def render_instagram_dashboard(period_label: str, days: int, start_date, end_dat
     _top3_eng   = sorted(ig_posts, key=lambda p: p.get("total_interactions", 0), reverse=True)[:3]
     _reach_series = ig_profile.get("reach", [])
 
-    st.session_state["dashboard_context"] = {
+    st.session_state["ctx_instagram"] = {
         "platform":            "Instagram",
         "period":              period_label,
         "followers":           followers,

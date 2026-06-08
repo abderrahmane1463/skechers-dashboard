@@ -91,142 +91,141 @@ def _get_api_key() -> str:
 
 
 def _build_data_context() -> str:
-    """Build a dynamic context string from current dashboard data in session state."""
-    ctx = st.session_state.get("dashboard_context")
-    if not ctx:
-        return "\n--- CURRENT DATA ---\nNo data loaded yet. User has not viewed any platform tab.\n"
+    """Build context from ALL platforms loaded so far in this session."""
+    lines = ["\n--- DASHBOARD DATA (ALL PLATFORMS) ---\n"]
+    any_data = False
 
-    lines = [
-        f"\n--- CURRENT DASHBOARD DATA ---",
-        f"Platform: {ctx.get('platform', '?')}",
-        f"Period: {ctx.get('period', '?')}",
-        f"",
-    ]
-
-    platform = ctx.get("platform", "")
-
-    if platform == "Instagram":
-        prev_f = ctx.get('prev_followers', 0)
-        f_delta = ctx['followers'] - prev_f if prev_f else 0
+    # ── Instagram ─────────────────────────────────────────────────────────────
+    ig = st.session_state.get("ctx_instagram")
+    if ig:
+        any_data = True
+        lines.append(f"=== 📸 INSTAGRAM — {ig.get('period','?')} ===")
         lines += [
-            f"👥 Followers: {ctx['followers']:,} ({'+' if f_delta >= 0 else ''}{f_delta:,} vs previous period)",
-            f"📢 Vues: {ctx['total_views']:,} (prev: {ctx['prev_views']:,})",
-            f"🎯 Couverture (Reach): {ctx['total_reach']:,} (prev: {ctx['prev_reach']:,})",
-            f"🔥 Total Interactions: {ctx['total_interactions']:,} (prev: {ctx['prev_interactions']:,})",
-            f"❤️ Réactions (Likes): {ctx['total_likes']:,} (prev: {ctx['prev_likes']:,})",
-            f"💬 Commentaires: {ctx['total_comments']:,} (prev: {ctx['prev_comments']:,})",
-            f"↗️ Partages: {ctx['total_shares']:,} (prev: {ctx['prev_shares']:,})",
-            f"🔖 Enregistrements: {ctx['total_saves']:,} (prev: {ctx['prev_saves']:,})",
-            f"📊 Taux d'engagement: {ctx['engagement_rate']}%",
-            f"📝 Publications: {ctx['total_posts']}",
-            f"",
+            f"Followers: {ig['followers']:,} (prev: {ig.get('prev_followers',0):,})",
+            f"Vues: {ig['total_views']:,} (prev: {ig.get('prev_views',0):,})",
+            f"Reach: {ig['total_reach']:,} (prev: {ig.get('prev_reach',0):,})",
+            f"Total Interactions: {ig['total_interactions']:,} (prev: {ig.get('prev_interactions',0):,})",
+            f"Likes: {ig['total_likes']:,} (prev: {ig.get('prev_likes',0):,})",
+            f"Commentaires: {ig['total_comments']:,} (prev: {ig.get('prev_comments',0):,})",
+            f"Partages: {ig['total_shares']:,} (prev: {ig.get('prev_shares',0):,})",
+            f"Enregistrements: {ig['total_saves']:,} (prev: {ig.get('prev_saves',0):,})",
+            f"Taux engagement: {ig['engagement_rate']}%",
+            f"Publications: {ig['total_posts']}",
         ]
-
-        # Daily reach series
-        reach_series = ctx.get("reach_series", [])
-        if reach_series:
-            lines.append("📈 Daily Reach series (date: value):")
-            for pt in reach_series:
+        rs = ig.get("reach_series", [])
+        if rs:
+            lines.append("Daily Reach:")
+            for pt in rs:
                 lines.append(f"  {pt.get('date','?')}: {pt.get('value',0):,}")
-            lines.append("")
+        for label, key in [("Top 3 by Views", "top3_by_views"), ("Top 3 by Engagement", "top3_by_engagement")]:
+            posts = ig.get(key, [])
+            if posts:
+                lines.append(f"{label}:")
+                for i, p in enumerate(posts, 1):
+                    lines.append(f"  #{i} [{p['date']}] {p['text'][:50]} | Views:{p['views']:,} Reach:{p['reach']:,} Likes:{p['likes']:,} Comments:{p['comments']:,} Shares:{p['shares']:,} Saves:{p['saves']:,} Total:{p['total_interactions']:,}")
+        all_p = ig.get("all_posts", [])
+        if all_p:
+            lines.append(f"All {len(all_p)} posts:")
+            for p in all_p:
+                lines.append(f"  [{p['date']}] {p['media_type']} | {p['text'][:40]} | Views:{p['views']:,} Reach:{p['reach']:,} Likes:{p['likes']:,} Total:{p['total_interactions']:,}")
+        lines.append("")
 
-        # Top 3 posts by views
-        top_views = ctx.get("top3_by_views", [])
-        if top_views:
-            lines.append("🏆 Top 3 posts by Views:")
-            for i, p in enumerate(top_views, 1):
-                lines.append(f"  #{i} [{p['date']}] {p['text'][:50]}...")
-                lines.append(f"     Views:{p['views']:,} | Reach:{p['reach']:,} | Likes:{p['likes']:,} | Comments:{p['comments']:,} | Shares:{p['shares']:,} | Saves:{p['saves']:,} | Total:{p['total_interactions']:,}")
-            lines.append("")
-
-        # Top 3 by engagement
-        top_eng = ctx.get("top3_by_engagement", [])
-        if top_eng:
-            lines.append("🏆 Top 3 posts by Engagement:")
-            for i, p in enumerate(top_eng, 1):
-                lines.append(f"  #{i} [{p['date']}] {p['text'][:50]}...")
-                lines.append(f"     Views:{p['views']:,} | Reach:{p['reach']:,} | Likes:{p['likes']:,} | Comments:{p['comments']:,} | Shares:{p['shares']:,} | Saves:{p['saves']:,} | Total:{p['total_interactions']:,}")
-            lines.append("")
-
-        # All posts summary
-        all_posts = ctx.get("all_posts", [])
-        if all_posts:
-            lines.append(f"📋 All {len(all_posts)} posts this period:")
-            for p in all_posts:
-                lines.append(f"  [{p['date']}] {p['media_type']} | {p['text'][:40]}... | Views:{p['views']:,} | Reach:{p['reach']:,} | Likes:{p['likes']:,} | Total:{p['total_interactions']:,}")
-
-    elif platform == "Facebook":
-        f_delta = ctx['followers'] - ctx.get('prev_followers', 0)
+    # ── Facebook ──────────────────────────────────────────────────────────────
+    fb = st.session_state.get("ctx_facebook")
+    if fb:
+        any_data = True
+        lines.append(f"=== 🔵 FACEBOOK — {fb.get('period','?')} ===")
         lines += [
-            f"👥 Followers: {ctx['followers']:,} ({'+' if f_delta >= 0 else ''}{f_delta:,} vs previous period)",
-            f"👁️ Reach: {ctx['total_reach']:,} (prev: {ctx['prev_reach']:,})",
-            f"📢 Impressions: {ctx['total_impressions']:,} (prev: {ctx['prev_impressions']:,})",
-            f"🔥 Total Interactions: {ctx['total_interactions']:,} (prev: {ctx['prev_interactions']:,})",
-            f"❤️ Réactions: {ctx['total_reactions']:,} (prev: {ctx['prev_reactions']:,})",
-            f"💬 Commentaires: {ctx['total_comments']:,} (prev: {ctx['prev_comments']:,})",
-            f"🔁 Partages: {ctx['total_shares']:,} (prev: {ctx['prev_shares']:,})",
-            f"📝 Publications: {ctx['total_posts']}",
-            f"",
+            f"Followers: {fb['followers']:,} (prev: {fb.get('prev_followers',0):,})",
+            f"Reach: {fb['total_reach']:,} (prev: {fb.get('prev_reach',0):,})",
+            f"Impressions: {fb['total_impressions']:,} (prev: {fb.get('prev_impressions',0):,})",
+            f"Total Interactions: {fb['total_interactions']:,} (prev: {fb.get('prev_interactions',0):,})",
+            f"Reactions: {fb['total_reactions']:,} (prev: {fb.get('prev_reactions',0):,})",
+            f"Commentaires: {fb['total_comments']:,} (prev: {fb.get('prev_comments',0):,})",
+            f"Partages: {fb['total_shares']:,} (prev: {fb.get('prev_shares',0):,})",
+            f"Publications: {fb['total_posts']}",
         ]
-
-        reach_series = ctx.get("reach_series", [])
-        if reach_series:
-            lines.append("📈 Daily Reach series (date: value):")
-            for pt in reach_series:
+        rs = fb.get("reach_series", [])
+        if rs:
+            lines.append("Daily Reach:")
+            for pt in rs:
                 lines.append(f"  {pt.get('date','?')}: {pt.get('value',0):,}")
-            lines.append("")
+        for label, key in [("Top 3 by Reach", "top3_by_reach"), ("Top 3 by Engagement", "top3_by_engagement")]:
+            posts = fb.get(key, [])
+            if posts:
+                lines.append(f"{label}:")
+                for i, p in enumerate(posts, 1):
+                    lines.append(f"  #{i} [{p['date']}] {p['text'][:50]} | Reach:{p['reach']:,} Reactions:{p['reactions']:,} Comments:{p['comments']:,} Shares:{p['shares']:,} Total:{p['total_interactions']:,}")
+        all_p = fb.get("all_posts", [])
+        if all_p:
+            lines.append(f"All {len(all_p)} posts:")
+            for p in all_p:
+                lines.append(f"  [{p['date']}] {p['text'][:40]} | Reach:{p['reach']:,} Reactions:{p['reactions']:,} Total:{p['total_interactions']:,}")
+        lines.append("")
 
-        top_reach = ctx.get("top3_by_reach", [])
-        if top_reach:
-            lines.append("🏆 Top 3 posts by Reach:")
-            for i, p in enumerate(top_reach, 1):
-                lines.append(f"  #{i} [{p['date']}] {p['text'][:50]}...")
-                lines.append(f"     Reach:{p['reach']:,} | Reactions:{p['reactions']:,} | Comments:{p['comments']:,} | Shares:{p['shares']:,} | Total:{p['total_interactions']:,}")
-            lines.append("")
-
-        top_eng = ctx.get("top3_by_engagement", [])
-        if top_eng:
-            lines.append("🏆 Top 3 posts by Engagement:")
-            for i, p in enumerate(top_eng, 1):
-                lines.append(f"  #{i} [{p['date']}] {p['text'][:50]}...")
-                lines.append(f"     Reach:{p['reach']:,} | Reactions:{p['reactions']:,} | Comments:{p['comments']:,} | Shares:{p['shares']:,} | Total:{p['total_interactions']:,}")
-            lines.append("")
-
-        all_posts = ctx.get("all_posts", [])
-        if all_posts:
-            lines.append(f"📋 All {len(all_posts)} posts this period:")
-            for p in all_posts:
-                lines.append(f"  [{p['date']}] {p['text'][:40]}... | Reach:{p['reach']:,} | Reactions:{p['reactions']:,} | Total:{p['total_interactions']:,}")
-
-    elif platform == "Boost":
+    # ── Boost ─────────────────────────────────────────────────────────────────
+    bo = st.session_state.get("ctx_boost")
+    if bo:
+        any_data = True
+        lines.append(f"=== 🚀 BOOST — {bo.get('period','?')} ===")
         lines += [
-            f"💰 Montant dépensé: €{ctx['total_spend']:,.2f} (prev: €{ctx['prev_spend']:,.2f})",
-            f"👁️ Reach: {ctx['total_reach']:,} (prev: {ctx['prev_reach']:,})",
-            f"📢 Impressions: {ctx['total_impressions']:,} (prev: {ctx['prev_impressions']:,})",
-            f"🖱️ Clics: {ctx['total_clicks']:,} (prev: {ctx['prev_clicks']:,})",
-            f"📈 CTR: {ctx['ctr']}%",
-            f"💸 CPC: €{ctx['cpc']:,.2f}",
-            f"🔁 Fréquence: {ctx['frequency']}",
-            f"✅ Conversions: {ctx['total_conversions']}",
-            f"📁 Campagnes: {ctx['total_campaigns']}",
-            f"",
+            f"Spend: €{bo['total_spend']:,.2f} (prev: €{bo.get('prev_spend',0):,.2f})",
+            f"Reach: {bo['total_reach']:,} (prev: {bo.get('prev_reach',0):,})",
+            f"Impressions: {bo['total_impressions']:,} (prev: {bo.get('prev_impressions',0):,})",
+            f"Clicks: {bo['total_clicks']:,} (prev: {bo.get('prev_clicks',0):,})",
+            f"CTR: {bo['ctr']}%  CPC: €{bo['cpc']:,.2f}  Freq: {bo['frequency']}",
+            f"Conversions: {bo['total_conversions']}  Campaigns: {bo['total_campaigns']}",
         ]
-
-        top3 = ctx.get("top3_campaigns", [])
+        top3 = bo.get("top3_campaigns", [])
         if top3:
-            lines.append("🏆 Top 3 campagnes par dépenses:")
+            lines.append("Top 3 campaigns by spend:")
             for i, c in enumerate(top3, 1):
-                lines.append(f"  #{i} {c['name']}")
-                lines.append(f"     Spend:€{c['spend']:,.2f} | Reach:{c['reach']:,} | Clicks:{c['clicks']:,} | CTR:{c['ctr']}% | Conv:{c['conversions']}")
-            lines.append("")
-
-        all_c = ctx.get("all_campaigns", [])
+                lines.append(f"  #{i} {c['name']} | Spend:€{c['spend']:,.2f} Reach:{c['reach']:,} Clicks:{c['clicks']:,} CTR:{c['ctr']}% Conv:{c['conversions']}")
+        all_c = bo.get("all_campaigns", [])
         if all_c:
-            lines.append(f"📋 Toutes les campagnes ({len(all_c)}):")
+            lines.append(f"All {len(all_c)} campaigns:")
             for c in all_c:
-                lines.append(f"  [{c['objective']}] {c['name'][:50]} | Spend:€{c['spend']:,.2f} | Reach:{c['reach']:,} | CTR:{c['ctr']}% | Conv:{c['conversions']}")
+                lines.append(f"  [{c['objective']}] {c['name'][:50]} | Spend:€{c['spend']:,.2f} Reach:{c['reach']:,} CTR:{c['ctr']}% Conv:{c['conversions']}")
+        lines.append("")
 
-    lines.append("\n--- END CURRENT DATA ---\n")
+    # ── Google Analytics ──────────────────────────────────────────────────────
+    ga = st.session_state.get("ctx_ga4")
+    if ga:
+        any_data = True
+        lines.append(f"=== 📊 GOOGLE ANALYTICS 4 — {ga.get('period','?')} ===")
+        lines += [
+            f"Active Users: {ga['active_users']:,}  New Users: {ga['new_users']:,}",
+            f"Sessions: {ga['sessions']:,}  Engaged: {ga['engaged_sessions']:,}",
+            f"Engagement Rate: {ga['engagement_rate']}%  Bounce Rate: {ga['bounce_rate']}%",
+            f"Avg Session Duration: {ga['avg_session_duration']:.0f}s",
+            f"Page Views: {ga['page_views']:,}  Pages/Session: {ga['pages_per_session']:.2f}",
+        ]
+        src = ga.get("traffic_sources", [])
+        if src:
+            lines.append("Traffic Sources:")
+            for s in src[:5]:
+                lines.append(f"  {s.get('channel','?')}: {s.get('sessions',0):,} sessions ({s.get('pct',0):.1f}%)")
+        funnel = ga.get("funnel", [])
+        if funnel:
+            lines.append("Purchase Funnel:")
+            for step in funnel:
+                lines.append(f"  {step.get('step','?')}: {step.get('users',0):,} users")
+        items = ga.get("top_items", [])
+        if items:
+            lines.append("Top Products:")
+            for item in items[:5]:
+                lines.append(f"  {item.get('name','?')} | Viewed:{item.get('viewed',0):,} Cart:{item.get('added_to_cart',0):,} Purchased:{item.get('purchased',0):,}")
+        countries = ga.get("top_countries", [])
+        if countries:
+            lines.append("Top Countries:")
+            for c in countries:
+                lines.append(f"  {c.get('country','?')}: {c.get('users',0):,} users")
+        lines.append("")
+
+    if not any_data:
+        lines.append("No data loaded yet. User has not visited any platform tab.")
+
+    lines.append("--- END DASHBOARD DATA ---\n")
     return "\n".join(lines)
 
 
