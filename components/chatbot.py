@@ -254,167 +254,290 @@ def _get_groq_response(history: list) -> str:
 
 
 def render_chatbot():
-    """Render a floating chatbot button and panel."""
+    """Render a floating chatbot with FAB toggle button."""
     _dark = st.session_state.get("theme", "dark") == "dark"
 
-    # ── Initialize session state ──────────────────────────────────────────────
-    if "chat_open" not in st.session_state:
-        st.session_state.chat_open = False
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    if "chat_open"    not in st.session_state: st.session_state.chat_open    = False
+    if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-    # ── CSS for floating button + panel ──────────────────────────────────────
-    _bg       = "#1a1a1a"   if _dark else "#ffffff"
-    _border   = "#333333"   if _dark else "#e5e7eb"
-    _msg_user = "#003594"
-    _msg_bot  = "#262626"   if _dark else "#f3f4f6"
-    _text     = "#ffffff"   if _dark else "#111827"
-    _subtext  = "#a1a1aa"   if _dark else "#6b7280"
+    _panel_bg  = "#111111" if _dark else "#ffffff"
+    _border    = "#2a2a2a" if _dark else "#e5e7eb"
+    _msg_bg    = "#1e1e1e" if _dark else "#f3f4f6"
+    _msg_tc    = "#ffffff" if _dark else "#111827"
+    _input_bg  = "#1a1a1a" if _dark else "#f9fafb"
+    _input_brd = "#333333" if _dark else "#d1d5db"
+    _input_tc  = "#ffffff" if _dark else "#111827"
+    _ph_c      = "#666666" if _dark else "#9ca3af"
 
+    # ── Global CSS ────────────────────────────────────────────────────────────
     st.markdown(f"""
 <style>
-/* Floating button */
-#chat-fab {{
+/* Hide default Streamlit button styling for FAB */
+[data-testid="stButton"] > button[kind="secondary"]#chat_fab_btn_btn,
+button[data-testid="baseButton-secondary"][aria-label="chat_fab_btn"] {{
+    display: none;
+}}
+
+/* FAB */
+#chat-fab-btn {{
     position: fixed;
-    bottom: 28px;
-    right: 28px;
-    width: 56px;
-    height: 56px;
+    bottom: 24px;
+    right: 24px;
+    width: 58px;
+    height: 58px;
     border-radius: 50%;
     background: linear-gradient(135deg, #003594, #0050D0);
     color: white;
-    font-size: 24px;
+    font-size: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 9999;
-    box-shadow: 0 4px 20px rgba(0,53,148,0.5);
+    z-index: 10000;
+    box-shadow: 0 4px 24px rgba(0,53,148,0.55);
     border: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s, box-shadow 0.2s;
+    user-select: none;
 }}
-#chat-fab:hover {{
-    transform: scale(1.1);
-    box-shadow: 0 6px 28px rgba(0,53,148,0.7);
-}}
+#chat-fab-btn:hover {{ transform: scale(1.1); box-shadow: 0 6px 32px rgba(0,53,148,0.7); }}
 
-/* Chat panel */
-#chat-panel {{
+/* Panel */
+#chat-wrap {{
     position: fixed;
     bottom: 96px;
-    right: 28px;
-    width: 360px;
-    max-height: 520px;
-    background: {_bg};
+    right: 24px;
+    width: 370px;
+    height: 540px;
+    background: {_panel_bg};
     border: 1px solid {_border};
     border-radius: 20px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.35);
-    z-index: 9998;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.45);
+    z-index: 9999;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: slideUp 0.25s ease;
 }}
-#chat-header {{
-    background: linear-gradient(90deg, #003594, #0050D0);
-    padding: 14px 18px;
+@keyframes slideUp {{
+    from {{ opacity:0; transform:translateY(20px); }}
+    to   {{ opacity:1; transform:translateY(0);    }}
+}}
+
+/* Header */
+#chat-hdr {{
+    background: linear-gradient(90deg, #003594 0%, #0050D0 100%);
+    padding: 13px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}}
+#chat-hdr-left {{ display:flex; align-items:center; gap:10px; }}
+#chat-hdr-avatar {{
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+}}
+#chat-hdr-title {{ color:white; font-weight:700; font-size:0.92rem; line-height:1.2; }}
+#chat-hdr-sub   {{ color:rgba(255,255,255,0.7); font-size:0.68rem; }}
+#chat-hdr-close {{
+    width:28px; height:28px; border-radius:50%;
+    background:rgba(255,255,255,0.15);
+    color:white; font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    border:none; transition:background 0.15s;
+}}
+#chat-hdr-close:hover {{ background:rgba(255,255,255,0.3); }}
+
+/* Messages */
+#chat-msgs {{
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+}}
+#chat-msgs::-webkit-scrollbar {{ width: 4px; }}
+#chat-msgs::-webkit-scrollbar-thumb {{ background: #333; border-radius: 4px; }}
+
+.cmsg-row-bot  {{ display:flex; align-items:flex-end; gap:8px; }}
+.cmsg-row-user {{ display:flex; align-items:flex-end; gap:8px; justify-content:flex-end; }}
+
+.cmsg-avatar {{
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg,#003594,#0050D0);
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; color:white;
+}}
+
+.cmsg-bot {{
+    background: {_msg_bg};
+    color: {_msg_tc};
+    padding: 9px 13px;
+    border-radius: 4px 16px 16px 16px;
+    font-size: 0.83rem;
+    line-height: 1.55;
+    max-width: 82%;
+    word-break: break-word;
+}}
+.cmsg-user {{
+    background: linear-gradient(135deg, #003594, #0050D0);
     color: white;
-    font-weight: 700;
-    font-size: 0.95rem;
+    padding: 9px 13px;
+    border-radius: 16px 16px 4px 16px;
+    font-size: 0.83rem;
+    line-height: 1.55;
+    max-width: 82%;
+    word-break: break-word;
+}}
+
+/* Typing indicator */
+.cmsg-typing {{ display:flex; gap:4px; padding:4px 2px; }}
+.cmsg-typing span {{
+    width:7px; height:7px; border-radius:50%;
+    background:#555; animation:blink 1.2s infinite;
+}}
+.cmsg-typing span:nth-child(2) {{ animation-delay:0.2s; }}
+.cmsg-typing span:nth-child(3) {{ animation-delay:0.4s; }}
+@keyframes blink {{ 0%,80%,100%{{opacity:0.2}} 40%{{opacity:1}} }}
+
+/* Input area */
+#chat-input-area {{
+    padding: 10px 12px;
+    border-top: 1px solid {_border};
+    background: {_panel_bg};
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }}
-#chat-messages {{
+#chat-input {{
     flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-height: 340px;
+    background: {_input_bg};
+    border: 1px solid {_input_brd};
+    border-radius: 20px;
+    padding: 9px 14px;
+    font-size: 0.83rem;
+    color: {_input_tc};
+    outline: none;
+    transition: border-color 0.2s;
 }}
-.chat-msg-user {{
-    background: {_msg_user};
-    color: white;
-    padding: 10px 14px;
-    border-radius: 16px 16px 4px 16px;
-    font-size: 0.85rem;
-    align-self: flex-end;
-    max-width: 85%;
-    line-height: 1.5;
+#chat-input::placeholder {{ color: {_ph_c}; }}
+#chat-input:focus {{ border-color: #0050D0; }}
+#chat-send {{
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #003594, #0050D0);
+    border: none; color: white; font-size: 16px;
+    cursor: pointer; display:flex; align-items:center; justify-content:center;
+    transition: transform 0.15s;
+    flex-shrink: 0;
 }}
-.chat-msg-bot {{
-    background: {_msg_bot};
-    color: {_text};
-    padding: 10px 14px;
-    border-radius: 16px 16px 16px 4px;
-    font-size: 0.85rem;
-    align-self: flex-start;
-    max-width: 85%;
-    line-height: 1.5;
-}}
-.chat-msg-sub {{
+#chat-send:hover {{ transform: scale(1.1); }}
+
+/* Footer clear link */
+#chat-footer {{
+    text-align: center;
+    padding: 4px 0 8px;
     font-size: 0.7rem;
-    color: {_subtext};
-    margin-top: 2px;
+    color: #555;
+    flex-shrink: 0;
 }}
+#chat-footer a {{ color:#555; text-decoration:none; cursor:pointer; }}
+#chat-footer a:hover {{ color:#888; }}
+
 @media (max-width: 480px) {{
-    #chat-panel {{ width: calc(100vw - 32px); right: 16px; }}
+    #chat-wrap {{ width: calc(100vw - 20px); right: 10px; }}
 }}
 </style>
 """, unsafe_allow_html=True)
 
-    # ── Toggle button ─────────────────────────────────────────────────────────
-    col_spacer, col_btn = st.columns([10, 1])
-    with col_btn:
-        btn_icon = "✕" if st.session_state.chat_open else "💬"
-        if st.button(btn_icon, key="chat_fab_btn", help="Assistant Dashboard"):
+    # ── Build messages HTML ────────────────────────────────────────────────────
+    history = st.session_state.chat_history
+    if not history:
+        msgs_html = """
+<div class="cmsg-row-bot">
+  <div class="cmsg-avatar">🤖</div>
+  <div class="cmsg-bot">👋 Bonjour ! Je suis l'assistant du dashboard Skechers.<br>Posez-moi vos questions sur les KPIs, les données ou comment interpréter les chiffres.</div>
+</div>"""
+    else:
+        msgs_html = ""
+        for m in history:
+            if m["role"] == "user":
+                msgs_html += f'<div class="cmsg-row-user"><div class="cmsg-user">{m["content"]}</div></div>\n'
+            else:
+                content = m["content"].replace("\n", "<br>")
+                msgs_html += f'<div class="cmsg-row-bot"><div class="cmsg-avatar">🤖</div><div class="cmsg-bot">{content}</div></div>\n'
+
+    # ── FAB button (always visible) ────────────────────────────────────────────
+    fab_icon = "✕" if st.session_state.chat_open else "💬"
+    st.markdown(
+        f'<div id="chat-fab-btn" onclick="document.getElementById(\'chat-fab-btn\').style.display=\'none\'">'
+        f'{fab_icon}</div>',
+        unsafe_allow_html=True
+    )
+
+    # ── Streamlit toggle button (hidden, triggered by FAB via columns trick) ──
+    _c1, _c2 = st.columns([0.001, 0.999])
+    with _c1:
+        if st.button("t", key="chat_toggle", label_visibility="hidden"):
             st.session_state.chat_open = not st.session_state.chat_open
             st.rerun()
 
     # ── Chat panel ────────────────────────────────────────────────────────────
     if st.session_state.chat_open:
-        with st.container():
-            st.markdown(f"""
-<div id="chat-panel">
-  <div id="chat-header">🤖 Assistant Dashboard &nbsp;<span style="font-size:0.75rem;opacity:0.8;">Powered by Groq</span></div>
-  <div id="chat-messages">
-    {"".join([
-        f'<div class="chat-msg-{"user" if m["role"]=="user" else "bot"}">{m["content"]}</div>'
-        for m in (st.session_state.chat_history if st.session_state.chat_history
-                  else [{"role": "bot", "content": "👋 Bonjour ! Je suis l'assistant du dashboard Skechers. Posez-moi vos questions sur les KPIs, les données ou comment interpréter les chiffres."}])
-    ])}
+        st.markdown(f"""
+<div id="chat-wrap">
+  <div id="chat-hdr">
+    <div id="chat-hdr-left">
+      <div id="chat-hdr-avatar">🤖</div>
+      <div>
+        <div id="chat-hdr-title">Assistant Dashboard</div>
+        <div id="chat-hdr-sub">Powered by Groq · LLaMA 3.3</div>
+      </div>
+    </div>
+  </div>
+  <div id="chat-msgs" id="chat-scroll">
+    {msgs_html}
+  </div>
+  <div id="chat-footer">
+    {'<a onclick="void(0)" id="clear-link">🗑️ Effacer la conversation</a>' if history else ''}
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-            # Input form
-            with st.form(key="chat_form", clear_on_submit=True):
-                cols = st.columns([8, 1])
-                user_input = cols[0].text_input(
-                    "Message",
-                    placeholder="Posez votre question...",
-                    label_visibility="collapsed",
-                )
-                submitted = cols[1].form_submit_button("➤")
+        # ── Input form ────────────────────────────────────────────────────────
+        with st.form(key="chat_form", clear_on_submit=True, border=False):
+            _fi, _fb = st.columns([9, 1])
+            user_input = _fi.text_input(
+                "msg", placeholder="Posez votre question...",
+                label_visibility="collapsed"
+            )
+            submitted = _fb.form_submit_button("➤")
 
-            if submitted and user_input.strip():
-                # Add user message
-                st.session_state.chat_history.append({
-                    "role": "user",
-                    "content": user_input.strip(),
-                })
-                # Get Gemini response
-                with st.spinner("..."):
-                    reply = _get_groq_response(st.session_state.chat_history)
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": reply,
-                })
-                st.rerun()
+        if submitted and user_input.strip():
+            st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
+            with st.spinner(""):
+                reply = _get_groq_response(st.session_state.chat_history)
+            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+            st.rerun()
 
-            # Clear chat button
-            if st.session_state.chat_history:
-                if st.button("🗑️ Effacer la conversation", key="clear_chat"):
+        col_a, col_b, col_c = st.columns([1, 2, 1])
+        with col_b:
+            if history:
+                if st.button("🗑️ Effacer", key="clear_chat", use_container_width=True):
                     st.session_state.chat_history = []
                     st.rerun()
+            if st.button("✕ Fermer", key="close_chat", use_container_width=True):
+                st.session_state.chat_open = False
+                st.rerun()
+    else:
+        # FAB open button
+        _ca, _cb, _cc = st.columns([1, 1, 1])
+        with _cc:
+            if st.button("💬 Assistant", key="open_chat"):
+                st.session_state.chat_open = True
+                st.rerun()
