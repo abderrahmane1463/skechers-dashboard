@@ -387,12 +387,12 @@ def render_chatbot():
         }});
     }};
 
-    // 2. Hide the ⚡ Streamlit trigger button
+    // 2. Move the ⚡ trigger off-screen (NOT display:none — .click() fails on hidden elements)
     function hideBtn(){{
         D.querySelectorAll('button').forEach(function(b){{
-            if((b.innerText||'').trim()==='⚡'){{
+            if((b.textContent||'').trim()==='⚡'){{
                 var c=b.closest('[data-testid="element-container"]');
-                if(c)c.setAttribute('style','display:none!important;height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;');
+                if(c)c.setAttribute('style','position:fixed!important;left:-9999px!important;top:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important;');
             }}
         }});
     }}
