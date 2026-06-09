@@ -405,17 +405,17 @@ function skxChatToggle() {{
         if ((b.innerText || '').trim() === '⚡') {{ b.click(); }}
     }});
 }}
-/* Force-hide the ⚡ button after every Streamlit rerender */
+/* Hide ⚡ button — runs on every render, not just first load */
+function _skxHideBtn() {{
+    document.querySelectorAll('button').forEach(function(b) {{
+        if ((b.innerText || '').trim() === '⚡') {{
+            var c = b.closest('[data-testid="element-container"]');
+            if (c) c.style.cssText = 'display:none!important;height:0!important;overflow:hidden!important;';
+        }}
+    }});
+}}
+_skxHideBtn();
 if (!window._skxBtnObs) {{
-    function _skxHideBtn() {{
-        document.querySelectorAll('button').forEach(function(b) {{
-            if ((b.innerText || '').trim() === '⚡') {{
-                var c = b.closest('[data-testid="element-container"]');
-                if (c) c.style.cssText = 'display:none!important';
-            }}
-        }});
-    }}
-    _skxHideBtn();
     window._skxBtnObs = new MutationObserver(_skxHideBtn);
     window._skxBtnObs.observe(document.body, {{childList:true, subtree:true}});
 }}
