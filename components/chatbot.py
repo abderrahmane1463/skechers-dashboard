@@ -418,6 +418,10 @@ def render_chatbot():
         D.body.appendChild(b);
     }}
     D.getElementById('skx-bubble').style.display='{_disp}';
+
+    // 5. Wire up panel close button (onclick stripped by Streamlit sanitizer)
+    var cb=D.getElementById('skx-close-btn');
+    if(cb) cb.onclick=function(){{ P.skxChatToggle(); }};
 }})();
 </script></body></html>""", height=0, scrolling=False)
 
