@@ -255,6 +255,7 @@ def _get_groq_response(history: list) -> str:
 
 import re
 import html as _html_mod
+import streamlit.components.v1 as _components
 
 
 def _md_to_html(text: str, dark: bool = True) -> str:
@@ -352,77 +353,75 @@ def render_chatbot():
     open_state = st.session_state.get("chat_open", False)
     dark       = st.session_state.get("theme", "dark") == "dark"
 
-    # ── Bubble CSS + hidden-button pre-hide + JS toggle ──────────────────────
-    bubble_display = "none" if open_state else "flex"
-    st.markdown(f"""
-<style>
-/* Pre-hide the ⚡ trigger button that follows this element */
-[data-testid="element-container"]:has(#skx-btn-anchor)
-    + [data-testid="element-container"] {{
-    display: none !important;
-}}
-#skx-bubble {{
-    position: fixed;
-    bottom: 28px;
-    right: 28px;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg,#003594,#0050D0);
-    display: {bubble_display};
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    cursor: pointer;
-    z-index: 9002;
-    box-shadow: 0 6px 24px rgba(0,53,148,.55);
-    user-select: none;
-    animation: skxFloat 2.8s ease-in-out infinite;
-    transition: transform .15s ease;
-}}
-#skx-bubble:hover {{
-    animation-play-state: paused;
-    transform: scale(1.12) !important;
-}}
-@keyframes skxFloat {{
-    0%,100% {{
-        transform: translateY(0) rotate(-4deg);
-        box-shadow: 0 6px 24px rgba(0,53,148,.55);
+    # ── Floating bubble via components.html (JS actually executes here) ─────
+    # Build bubble CSS as a plain string so its { } don't confuse the f-string
+    _bubble_css = (
+        "#skx-bubble{"
+        "position:fixed;bottom:28px;right:28px;"
+        "width:60px;height:60px;border-radius:50%;"
+        "background:linear-gradient(135deg,#003594,#0050D0);"
+        "display:flex;align-items:center;justify-content:center;"
+        "font-size:28px;cursor:pointer;z-index:9002;"
+        "box-shadow:0 6px 24px rgba(0,53,148,.55);"
+        "user-select:none;"
+        "animation:skxFloat 2.8s ease-in-out infinite;"
+        "transition:transform .15s ease;"
+        "}"
+        "#skx-bubble:hover{animation-play-state:paused;transform:scale(1.12)!important;}"
+        "@keyframes skxFloat{"
+        "0%,100%{transform:translateY(0) rotate(-4deg);box-shadow:0 6px 24px rgba(0,53,148,.55);}"
+        "50%{transform:translateY(-13px) rotate(4deg);box-shadow:0 20px 40px rgba(0,53,148,.35);}"
+        "}"
+    )
+    _disp = "none" if open_state else "flex"
+
+    _components.html(f"""<!DOCTYPE html><html><body><script>
+(function(){{
+    var P = window.parent, D = P.document;
+
+    // 1. Define toggle function on parent window (used by panel close button too)
+    P.skxChatToggle = function(){{
+        D.querySelectorAll('button').forEach(function(b){{
+            if((b.innerText||'').trim()==='⚡'){{ b.click(); }}
+        }});
+    }};
+
+    // 2. Hide the ⚡ Streamlit trigger button
+    function hideBtn(){{
+        D.querySelectorAll('button').forEach(function(b){{
+            if((b.innerText||'').trim()==='⚡'){{
+                var c=b.closest('[data-testid="element-container"]');
+                if(c)c.setAttribute('style','display:none!important;height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;');
+            }}
+        }});
     }}
-    50% {{
-        transform: translateY(-13px) rotate(4deg);
-        box-shadow: 0 20px 40px rgba(0,53,148,.35);
+    hideBtn();
+    if(!P._skxHObs){{
+        P._skxHObs=new MutationObserver(hideBtn);
+        P._skxHObs.observe(D.body,{{childList:true,subtree:true}});
     }}
-}}
-</style>
 
-<span id="skx-btn-anchor"></span>
-<div id="skx-bubble" onclick="skxChatToggle()">💬</div>
+    // 3. Inject bubble CSS once
+    if(!D.getElementById('skx-bubble-css')){{
+        var s=D.createElement('style');
+        s.id='skx-bubble-css';
+        s.textContent="{_bubble_css}";
+        D.head.appendChild(s);
+    }}
 
-<script>
-function skxChatToggle() {{
-    document.querySelectorAll('button').forEach(function(b) {{
-        if ((b.innerText || '').trim() === '⚡') {{ b.click(); }}
-    }});
-}}
-/* Hide ⚡ button — runs on every render, not just first load */
-function _skxHideBtn() {{
-    document.querySelectorAll('button').forEach(function(b) {{
-        if ((b.innerText || '').trim() === '⚡') {{
-            var c = b.closest('[data-testid="element-container"]');
-            if (c) c.style.cssText = 'display:none!important;height:0!important;overflow:hidden!important;';
-        }}
-    }});
-}}
-_skxHideBtn();
-if (!window._skxBtnObs) {{
-    window._skxBtnObs = new MutationObserver(_skxHideBtn);
-    window._skxBtnObs.observe(document.body, {{childList:true, subtree:true}});
-}}
-</script>
-""", unsafe_allow_html=True)
+    // 4. Create bubble once, then just update its visibility
+    if(!D.getElementById('skx-bubble')){{
+        var b=D.createElement('div');
+        b.id='skx-bubble';
+        b.textContent='💬';
+        b.onclick=function(){{ P.skxChatToggle(); }};
+        D.body.appendChild(b);
+    }}
+    D.getElementById('skx-bubble').style.display='{_disp}';
+}})();
+</script></body></html>""", height=0, scrolling=False)
 
-    # ── Hidden Streamlit toggle (triggered by skxChatToggle JS above) ────────
+    # ── Hidden Streamlit toggle (clicked by skxChatToggle in parent window) ──
     if st.button("⚡", key="skx_toggle_internal"):
         st.session_state.chat_open = not open_state
         st.rerun()
