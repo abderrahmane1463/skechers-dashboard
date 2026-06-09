@@ -133,44 +133,49 @@ def _safe_int(val, default=0) -> int:
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 def _get_skechers_ids() -> list:
     """
-    Fetch all campaign IDs that use the Skechers page, by filtering ads at the
-    ad level (field: page_id). This mirrors exactly how Meta Ads Manager filters
-    campaigns by page — every ad has a page_id regardless of campaign objective,
-    so this catches boosts, traffic, and conversion campaigns alike.
+    Fetch all campaign IDs whose ads run on the Skechers page.
+
+    Meta's filtering API does not support filtering ads by page_id server-side,
+    so we fetch all ads with their creative fields and filter in Python.
+    Every ad — regardless of campaign objective — has a page_id in its creative's
+    object_story_spec (or encoded in object_story_id), so this catches boosts,
+    traffic, and conversion campaigns alike.
     """
     try:
         campaign_ids: set = set()
-        # Seed request through _get_ads (handles retries + auth)
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
-            "fields":    "campaign_id",
-            "filtering": json.dumps([{
-                "field":    "page_id",
-                "operator": "EQUAL",
-                "value":    FACEBOOK_PAGE_ID,
-            }]),
-            "limit": 500,
-        })
+        params = {
+            "fields": "campaign_id,creative{object_story_spec{page_id},object_story_id}",
+            "limit":  500,
+        }
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", params)
+
         while True:
             for ad in resp.get("data", []):
-                if ad.get("campaign_id"):
-                    campaign_ids.add(ad["campaign_id"])
-            # Follow pagination using the cursor (not the full next URL)
+                cid = ad.get("campaign_id")
+                if not cid:
+                    continue
+                creative = ad.get("creative", {})
+
+                # Primary: object_story_spec.page_id (present on all ad types)
+                page_id = creative.get("object_story_spec", {}).get("page_id", "")
+
+                # Fallback: object_story_id is "{page_id}_{post_id}" for boosted posts
+                if not page_id:
+                    story_id = creative.get("object_story_id", "")
+                    if story_id.startswith(FACEBOOK_PAGE_ID + "_"):
+                        page_id = FACEBOOK_PAGE_ID
+
+                if page_id == FACEBOOK_PAGE_ID:
+                    campaign_ids.add(cid)
+
             after = resp.get("paging", {}).get("cursors", {}).get("after")
             if not after:
                 break
-            resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
-                "fields":    "campaign_id",
-                "filtering": json.dumps([{
-                    "field":    "page_id",
-                    "operator": "EQUAL",
-                    "value":    FACEBOOK_PAGE_ID,
-                }]),
-                "limit":  500,
-                "after":  after,
-            })
+            params["after"] = after
+            resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", params)
 
         ids = list(campaign_ids)
-        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found via page_id filter")
+        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found via page_id")
         return ids
     except Exception as e:
         print(f"DEBUG boost: _get_skechers_ids error: {e}")
