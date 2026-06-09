@@ -352,10 +352,15 @@ def render_chatbot():
     open_state = st.session_state.get("chat_open", False)
     dark       = st.session_state.get("theme", "dark") == "dark"
 
-    # ── Floating bubble (always visible, hidden only when panel is open) ──────
+    # ── Bubble CSS + hidden-button pre-hide + JS toggle ──────────────────────
     bubble_display = "none" if open_state else "flex"
     st.markdown(f"""
 <style>
+/* Pre-hide the ⚡ trigger button that follows this element */
+[data-testid="element-container"]:has(#skx-btn-anchor)
+    + [data-testid="element-container"] {{
+    display: none !important;
+}}
 #skx-bubble {{
     position: fixed;
     bottom: 28px;
@@ -391,36 +396,22 @@ def render_chatbot():
 }}
 </style>
 
+<span id="skx-btn-anchor"></span>
 <div id="skx-bubble" onclick="skxChatToggle()">💬</div>
 
 <script>
 function skxChatToggle() {{
-    var btns = document.querySelectorAll('[data-testid="stSidebar"] button');
-    for (var i = 0; i < btns.length; i++) {{
-        if ((btns[i].innerText || '').indexOf('Chat IA') >= 0) {{
-            btns[i].click();
-            return;
-        }}
-    }}
-}}
-/* Keep the sidebar toggle hidden — the bubble replaces it */
-if (!window._skxObs) {{
-    function _skxHide() {{
-        var sb = document.querySelector('[data-testid="stSidebar"]');
-        if (!sb) return;
-        sb.querySelectorAll('button').forEach(function(b) {{
-            if ((b.innerText || '').indexOf('Chat IA') >= 0) {{
-                var c = b.closest('[data-testid="element-container"]');
-                if (c) c.style.display = 'none';
-            }}
-        }});
-    }}
-    _skxHide();
-    window._skxObs = new MutationObserver(_skxHide);
-    window._skxObs.observe(document.body, {{childList: true, subtree: true}});
+    document.querySelectorAll('button').forEach(function(b) {{
+        if ((b.innerText || '').trim() === '⚡') {{ b.click(); }}
+    }});
 }}
 </script>
 """, unsafe_allow_html=True)
+
+    # ── Hidden Streamlit toggle (triggered by skxChatToggle JS above) ────────
+    if st.button("⚡", key="skx_toggle_internal"):
+        st.session_state.chat_open = not open_state
+        st.rerun()
 
     # ── Panel rendered only when open ─────────────────────────────────────────
     if not open_state:
