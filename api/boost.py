@@ -12,8 +12,10 @@ replace it for this endpoint).
 """
 
 import json
+import os
 import time
 import requests
+from datetime import datetime, timezone, timedelta
 
 from config import (
     ADS_ACCESS_TOKEN,
@@ -28,6 +30,75 @@ from api.base import _date_range
 
 # The page's ad account — intentionally queried here (Boost tab only)
 AD_ACCOUNT_ID = BLOCKED_AD_ACCOUNTS[0]   # "act_765947885726761"
+
+# ── Supabase config (read directly — avoids circular import with db.py) ───────
+_SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+_SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+_IDS_CACHE_KEY   = "skechers_campaign_ids"
+_IDS_MAX_AGE_H   = 24   # re-scan at most once every 24 hours
+
+# Module-level memory cache — avoids 3 Supabase round-trips per render
+_MEM_IDS: list | None = None
+_MEM_IDS_AT: float    = 0.0
+
+
+def _supabase_load_ids():
+    """Load cached Skechers campaign IDs from Supabase. Returns (ids, fetched_at_iso) or (None, None)."""
+    if not _SUPABASE_URL or not _SUPABASE_KEY:
+        return None, None
+    try:
+        resp = requests.get(
+            f"{_SUPABASE_URL}/rest/v1/metric_cache",
+            headers={
+                "apikey":        _SUPABASE_KEY,
+                "Authorization": f"Bearer {_SUPABASE_KEY}",
+                "Prefer":        "",
+            },
+            params={
+                "metric_key":   f"eq.{_IDS_CACHE_KEY}",
+                "period_start": "eq.static",
+                "period_end":   "eq.static",
+                "order":        "fetched_at.desc",
+                "limit":        "1",
+                "select":       "data,fetched_at",
+            },
+            timeout=10,
+        )
+        rows = resp.json()
+        if rows and rows[0].get("data"):
+            return rows[0]["data"], rows[0].get("fetched_at", "")
+    except Exception as e:
+        print(f"DEBUG boost: _supabase_load_ids error: {e}")
+    return None, None
+
+
+def _supabase_save_ids(ids: list):
+    """Persist Skechers campaign IDs to Supabase (upsert)."""
+    if not _SUPABASE_URL or not _SUPABASE_KEY:
+        return
+    try:
+        payload = {
+            "metric_key":   _IDS_CACHE_KEY,
+            "period_start": "static",
+            "period_end":   "static",
+            "data":         ids,
+            "fetched_at":   datetime.now(timezone.utc).isoformat(),
+        }
+        headers = {
+            "apikey":        _SUPABASE_KEY,
+            "Authorization": f"Bearer {_SUPABASE_KEY}",
+            "Content-Type":  "application/json",
+            "Prefer":        "resolution=merge-duplicates,return=minimal",
+        }
+        requests.post(
+            f"{_SUPABASE_URL}/rest/v1/metric_cache",
+            headers=headers,
+            json=payload,
+            timeout=10,
+        )
+        print(f"DEBUG boost: saved {len(ids)} Skechers campaign IDs to Supabase")
+    except Exception as e:
+        print(f"DEBUG boost: _supabase_save_ids error: {e}")
 
 # Meta action types that represent a purchase / conversion.
 # Use only "purchase" (the unified de-duplicated count Meta exposes).
@@ -133,14 +204,41 @@ def _safe_int(val, default=0) -> int:
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 def _get_skechers_ids() -> list:
     """
-    Fetch all campaign IDs whose ads run on the Skechers page.
+    Return all campaign IDs whose ads run on the Skechers Facebook page.
 
-    Meta's filtering API does not support filtering ads by page_id server-side,
-    so we fetch all ads with their creative fields and filter in Python.
-    Every ad — regardless of campaign objective — has a page_id in its creative's
-    object_story_spec (or encoded in object_story_id), so this catches boosts,
-    traffic, and conversion campaigns alike.
+    Cache strategy (3 tiers):
+      1. Module-level memory  — valid for the lifetime of the Python process.
+         Prevents 3 redundant calls within a single app render.
+      2. Supabase persistence — valid for 24 h.
+         Survives app restarts; no scan needed on every page load.
+      3. Live API scan        — called only when Supabase entry is missing or stale.
+         Paginates act_.../ads, filters by creative.page_id == FACEBOOK_PAGE_ID.
+         On success → saved back to Supabase for the next 24 h.
+         On failure (rate limit) → returns stale Supabase IDs as fallback if available.
     """
+    global _MEM_IDS, _MEM_IDS_AT
+
+    # Tier 1 — in-memory (valid for this Python process)
+    if _MEM_IDS is not None and (time.time() - _MEM_IDS_AT) < _IDS_MAX_AGE_H * 3600:
+        print(f"DEBUG boost: {len(_MEM_IDS)} Skechers IDs from memory cache")
+        return _MEM_IDS
+
+    # Tier 2 — Supabase
+    supabase_ids, fetched_at = _supabase_load_ids()
+    if supabase_ids and fetched_at:
+        try:
+            age = datetime.now(timezone.utc) - datetime.fromisoformat(
+                fetched_at.replace("Z", "+00:00")
+            )
+            if age < timedelta(hours=_IDS_MAX_AGE_H):
+                print(f"DEBUG boost: {len(supabase_ids)} Skechers IDs from Supabase (age {age})")
+                _MEM_IDS    = supabase_ids
+                _MEM_IDS_AT = time.time()
+                return supabase_ids
+        except Exception:
+            pass
+
+    # Tier 3 — live API scan
     try:
         campaign_ids: set = set()
         params = {
@@ -175,10 +273,23 @@ def _get_skechers_ids() -> list:
             resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", params)
 
         ids = list(campaign_ids)
-        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found via page_id")
+        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found via page_id scan")
+
+        if ids:
+            _supabase_save_ids(ids)
+            _MEM_IDS    = ids
+            _MEM_IDS_AT = time.time()
+
         return ids
+
     except Exception as e:
-        print(f"DEBUG boost: _get_skechers_ids error: {e}")
+        print(f"DEBUG boost: _get_skechers_ids scan error: {e}")
+        # Fallback: return stale Supabase IDs rather than an empty list
+        if supabase_ids:
+            print(f"DEBUG boost: using stale Supabase IDs as fallback ({len(supabase_ids)} IDs)")
+            _MEM_IDS    = supabase_ids
+            _MEM_IDS_AT = time.time()
+            return supabase_ids
         return []
 
 
