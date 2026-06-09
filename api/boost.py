@@ -18,7 +18,6 @@ import requests
 from config import (
     ADS_ACCESS_TOKEN,
     FACEBOOK_PAGE_ID,
-    SKECHERS_CAMPAIGN_KEYWORDS,
     GRAPH_BASE_URL,
     BLOCKED_AD_ACCOUNTS,
     REQUEST_TIMEOUT,
@@ -133,15 +132,45 @@ def _safe_int(val, default=0) -> int:
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 def _get_skechers_ids() -> list:
-    """Fetch all Skechers campaign IDs from the ad account."""
+    """
+    Fetch all campaign IDs that use the Skechers page, by filtering ads at the
+    ad level (field: page_id). This mirrors exactly how Meta Ads Manager filters
+    campaigns by page — every ad has a page_id regardless of campaign objective,
+    so this catches boosts, traffic, and conversion campaigns alike.
+    """
     try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields": "id,name",
-            "limit":  500,
+        campaign_ids: set = set()
+        # Seed request through _get_ads (handles retries + auth)
+        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
+            "fields":    "campaign_id",
+            "filtering": json.dumps([{
+                "field":    "page_id",
+                "operator": "EQUAL",
+                "value":    FACEBOOK_PAGE_ID,
+            }]),
+            "limit": 500,
         })
-        all_camps = resp.get("data", [])
-        ids = [c["id"] for c in all_camps if any(kw in c.get("name", "") for kw in SKECHERS_CAMPAIGN_KEYWORDS)]
-        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found")
+        while True:
+            for ad in resp.get("data", []):
+                if ad.get("campaign_id"):
+                    campaign_ids.add(ad["campaign_id"])
+            # Follow pagination using the cursor (not the full next URL)
+            after = resp.get("paging", {}).get("cursors", {}).get("after")
+            if not after:
+                break
+            resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", {
+                "fields":    "campaign_id",
+                "filtering": json.dumps([{
+                    "field":    "page_id",
+                    "operator": "EQUAL",
+                    "value":    FACEBOOK_PAGE_ID,
+                }]),
+                "limit":  500,
+                "after":  after,
+            })
+
+        ids = list(campaign_ids)
+        print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found via page_id filter")
         return ids
     except Exception as e:
         print(f"DEBUG boost: _get_skechers_ids error: {e}")
