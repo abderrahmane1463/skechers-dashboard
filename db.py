@@ -224,8 +224,34 @@ def get_fb_messaging_stats(days, start=None, end=None):
 
 def get_boost_insights(days, start=None, end=None):
     from api.boost import fetch_boost_insights
-    return _get("boost_insights", fetch_boost_insights, days, start, end, {})
+    from api.base import _cache_key_range
+    ck_start, ck_end = _cache_key_range(days, start, end)
+    # Skip cached entry if it contains no real data (was saved during a rate-limit failure)
+    cached = load("boost_insights", ck_start, ck_end)
+    if cached is not None:
+        totals = cached.get("totals", {})
+        if totals.get("campaigns_count", 0) > 0 or totals.get("spend", 0.0) > 0:
+            return cached
+        # Cached entry is empty — treat as cache miss and re-fetch
+    data = fetch_boost_insights(days, start, end)
+    # Only persist to Supabase if we got real data
+    totals = data.get("totals", {})
+    if totals.get("campaigns_count", 0) > 0 or totals.get("spend", 0.0) > 0:
+        save("boost_insights", ck_start, ck_end, data)
+    return data
 
 def get_adset_ad_insights(days, start=None, end=None):
     from api.boost import fetch_adset_ad_insights
-    return _get("boost_adset_ad", fetch_adset_ad_insights, days, start, end, {"adsets": [], "ads": []})
+    from api.base import _cache_key_range
+    ck_start, ck_end = _cache_key_range(days, start, end)
+    # Skip cached entry if it contains no real data
+    cached = load("boost_adset_ad", ck_start, ck_end)
+    if cached is not None:
+        if cached.get("ads") or cached.get("adsets"):
+            return cached
+        # Cached entry is empty — treat as cache miss and re-fetch
+    data = fetch_adset_ad_insights(days, start, end)
+    # Only persist to Supabase if we got real data
+    if data.get("ads") or data.get("adsets"):
+        save("boost_adset_ad", ck_start, ck_end, data)
+    return data

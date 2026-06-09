@@ -331,7 +331,7 @@ else:
         _prev_bs = _prev_be - _btd(days=days - 1)
     _b_prev_start, _b_prev_end = str(_prev_bs), str(_prev_be)
 
-    @st.cache_data(ttl=None, show_spinner=False)
+    @st.cache_data(ttl=900, show_spinner=False)
     def _cached_boost(days, start, end):
         try:
             return db.get_boost_insights(days, start, end)
@@ -339,7 +339,7 @@ else:
             print(f"DEBUG boost: fetch failed: {e}")
             return empty_boost_data()
 
-    @st.cache_data(ttl=None, show_spinner=False)
+    @st.cache_data(ttl=900, show_spinner=False)
     def _cached_boost_demo(days, start, end):
         try:
             return db.get_fb_demographics(days, start, end)
@@ -347,7 +347,7 @@ else:
             print(f"DEBUG boost demographics: fetch failed: {e}")
             return {}
 
-    @st.cache_data(ttl=None, show_spinner=False)
+    @st.cache_data(ttl=900, show_spinner=False)
     def _cached_adset_ad(days, start, end):
         try:
             return db.get_adset_ad_insights(days, start, end)
