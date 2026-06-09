@@ -253,17 +253,227 @@ def _get_groq_response(history: list) -> str:
         return f"⚠️ Erreur : {str(e)}"
 
 
+import re
+import html as _html_mod
+
+
+def _md_to_html(text: str, dark: bool = True) -> str:
+    """Convert basic markdown to safe HTML for the chat bubble."""
+    text = _html_mod.escape(text)
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
+    code_bg = "rgba(255,255,255,0.12)" if dark else "rgba(0,0,0,0.08)"
+    text = re.sub(
+        r'`(.*?)`',
+        rf'<code style="background:{code_bg};padding:1px 5px;border-radius:4px;font-size:0.8em">\1</code>',
+        text,
+    )
+    lines = text.split('\n')
+    out, in_list = [], False
+    for line in lines:
+        s = line.lstrip()
+        if s.startswith(('* ', '- ')):
+            if not in_list:
+                out.append('<ul style="margin:6px 0 6px 2px;padding-left:16px;">')
+                in_list = True
+            out.append(f'<li style="margin:2px 0">{s[2:]}</li>')
+        else:
+            if in_list:
+                out.append('</ul>')
+                in_list = False
+            out.append(f'<p style="margin:3px 0">{line}</p>' if s else '<br>')
+    if in_list:
+        out.append('</ul>')
+    return ''.join(out)
+
+
+def _build_msgs_html(dark: bool = True) -> str:
+    """Build the messages area HTML for the floating panel."""
+    bot_bg = "#1e1e1e" if dark else "#f0f4f8"
+    bot_tc = "#f0f0f0" if dark else "#111827"
+    history = st.session_state.get("chat_history", [])
+
+    if not history:
+        return f"""
+<div style="display:flex;gap:9px;align-items:flex-start;">
+  <div style="width:30px;height:30px;border-radius:50%;
+              background:linear-gradient(135deg,#003594,#0050D0);
+              display:flex;align-items:center;justify-content:center;
+              flex-shrink:0;font-size:15px;">🤖</div>
+  <div style="background:{bot_bg};color:{bot_tc};padding:10px 13px;
+              border-radius:4px 16px 16px 16px;font-size:0.83rem;
+              line-height:1.6;max-width:86%;">
+    👋 <strong>Bonjour !</strong> Posez-moi vos questions sur les KPIs
+    et les données du dashboard.
+  </div>
+</div>"""
+
+    parts = []
+    for m in history:
+        content = _md_to_html(m["content"], dark)
+        if m["role"] == "user":
+            parts.append(f"""
+<div style="display:flex;gap:9px;align-items:flex-start;justify-content:flex-end;">
+  <div style="background:linear-gradient(135deg,#003594,#0050D0);color:#fff;
+              padding:10px 13px;border-radius:16px 4px 16px 16px;
+              font-size:0.83rem;line-height:1.6;max-width:86%;">{content}</div>
+  <div style="width:30px;height:30px;border-radius:50%;background:#444;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;font-size:15px;">👤</div>
+</div>""")
+        else:
+            parts.append(f"""
+<div style="display:flex;gap:9px;align-items:flex-start;">
+  <div style="width:30px;height:30px;border-radius:50%;
+              background:linear-gradient(135deg,#003594,#0050D0);
+              display:flex;align-items:center;justify-content:center;
+              flex-shrink:0;font-size:15px;">🤖</div>
+  <div style="background:{bot_bg};color:{bot_tc};padding:10px 13px;
+              border-radius:4px 16px 16px 16px;font-size:0.83rem;
+              line-height:1.6;max-width:86%;">{content}</div>
+</div>""")
+
+    # Auto-scroll to bottom after render
+    parts.append("""<script>
+(function(){var m=document.getElementById('skx-msgs');if(m)m.scrollTop=m.scrollHeight;})();
+</script>""")
+    return ''.join(parts)
+
+
 def render_chatbot():
-    """No-op — chat is now rendered inside the sidebar."""
-    pass
+    """
+    Floating fixed-position chat panel anchored to the bottom-right of the page.
+    Called from app.py after all page content. Reads chat_open from session_state.
+    """
+    if not st.session_state.get("chat_open", False):
+        return
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    dark     = st.session_state.get("theme", "dark") == "dark"
+    panel_bg = "#111111" if dark else "#ffffff"
+    border   = "#2a2a2a" if dark else "#e5e7eb"
+    input_bg = "#1c1c1c" if dark else "#f3f4f6"
+    input_tc = "#f0f0f0" if dark else "#111827"
+    ph_color = "rgba(255,255,255,0.35)" if dark else "#9ca3af"
+
+    msgs_html = _build_msgs_html(dark)
+
+    st.markdown(f"""
+<style>
+/* ── Floating panel (messages) ───────────────────────────────── */
+#skx-chat-panel {{
+    position: fixed;
+    bottom: 72px;          /* leaves room for the input bar below */
+    right: 24px;
+    width: 380px;
+    height: 420px;
+    background: {panel_bg};
+    border: 1px solid {border};
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 40px rgba(0,0,0,0.35);
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: skxIn .25s cubic-bezier(.34,1.56,.64,1) both;
+}}
+@keyframes skxIn {{
+    from {{ opacity:0; transform:translateY(18px) scale(.96); }}
+    to   {{ opacity:1; transform:translateY(0)    scale(1);   }}
+}}
+#skx-chat-hdr {{
+    background: linear-gradient(90deg,#003594,#0050D0);
+    padding: 13px 16px 11px;
+    flex-shrink: 0;
+}}
+#skx-msgs {{
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128,128,128,.25) transparent;
+}}
+#skx-msgs::-webkit-scrollbar {{ width: 3px; }}
+#skx-msgs::-webkit-scrollbar-thumb {{ background: rgba(128,128,128,.25); border-radius:3px; }}
+
+/* ── Pin st.chat_input to the bottom edge of the panel ──────── */
+[data-testid="stChatInput"] {{
+    position: fixed !important;
+    bottom: 0 !important;
+    right: 24px !important;
+    width: 380px !important;
+    z-index: 9001 !important;
+    background: {panel_bg} !important;
+    border: 1px solid {border} !important;
+    border-top-color: {border} !important;
+    border-radius: 0 0 18px 18px !important;
+    padding: 9px 10px 11px !important;
+    margin: 0 !important;
+    box-shadow: 0 6px 30px rgba(0,0,0,.35) !important;
+}}
+[data-testid="stChatInput"] > div {{
+    background: transparent !important;
+}}
+[data-testid="stChatInput"] textarea {{
+    background: {input_bg} !important;
+    color: {input_tc} !important;
+    border-radius: 12px !important;
+    border: 1px solid {border} !important;
+    font-size: 0.84rem !important;
+    resize: none !important;
+    padding: 9px 12px !important;
+}}
+[data-testid="stChatInput"] textarea::placeholder {{
+    color: {ph_color} !important;
+}}
+[data-testid="stChatInput"] button {{
+    background: linear-gradient(135deg,#003594,#0050D0) !important;
+    border-radius: 10px !important;
+    border: none !important;
+}}
+</style>
+
+<div id="skx-chat-panel">
+  <div id="skx-chat-hdr">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:33px;height:33px;border-radius:50%;
+                  background:rgba(255,255,255,0.15);
+                  display:flex;align-items:center;justify-content:center;
+                  flex-shrink:0;font-size:17px;">🤖</div>
+      <div style="flex:1;min-width:0;">
+        <div style="color:#fff;font-weight:700;font-size:0.88rem;
+                    display:flex;align-items:center;gap:7px;">
+          Assistant Dashboard
+          <span style="background:rgba(255,255,255,0.15);border-radius:20px;
+                       padding:2px 9px;font-size:0.6rem;font-weight:400;">
+            Groq · LLaMA 3.3
+          </span>
+        </div>
+        <div style="color:rgba(255,255,255,0.6);font-size:0.64rem;margin-top:2px;">
+          Posez vos questions sur les données du dashboard
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="skx-msgs">{msgs_html}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    prompt = st.chat_input("Écrivez votre message...", key="float_chat_input")
+    if prompt:
+        st.session_state.chat_history.append({"role": "user", "content": prompt.strip()})
+        with st.spinner(""):
+            reply = _get_groq_response(st.session_state.chat_history)
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        st.rerun()
 
 
-def _render_chatbot_sidebar():
-    """Legacy stub — chat is now in sidebar.py."""
-    pass
-
-
-# Keep for backward compatibility
+# Dead code preserved for reference only
 if False:
 
     # ── Theme tokens ──────────────────────────────────────────────────────────
