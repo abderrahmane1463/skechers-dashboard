@@ -380,9 +380,10 @@ def render_chatbot():
     var P = window.parent, D = P.document;
 
     // 1. Define toggle function on parent window (used by panel close button too)
+    // Use textContent not innerText — innerText returns '' for display:none elements
     P.skxChatToggle = function(){{
         D.querySelectorAll('button').forEach(function(b){{
-            if((b.innerText||'').trim()==='⚡'){{ b.click(); }}
+            if((b.textContent||'').trim()==='⚡'){{ b.click(); }}
         }});
     }};
 
