@@ -341,16 +341,91 @@ def _build_msgs_html(dark: bool = True) -> str:
 
 def render_chatbot():
     """
-    Floating fixed-position chat panel anchored to the bottom-right of the page.
-    Called from app.py after all page content. Reads chat_open from session_state.
+    Always-visible floating bubble (bottom-right, animated) + panel that opens on click.
+    Called from app.py after all page content.
+    The bubble's onclick triggers the sidebar toggle button via JS.
+    A MutationObserver keeps the sidebar button hidden since the bubble replaces it.
     """
-    if not st.session_state.get("chat_open", False):
-        return
-
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    dark     = st.session_state.get("theme", "dark") == "dark"
+    open_state = st.session_state.get("chat_open", False)
+    dark       = st.session_state.get("theme", "dark") == "dark"
+
+    # ── Floating bubble (always visible, hidden only when panel is open) ──────
+    bubble_display = "none" if open_state else "flex"
+    st.markdown(f"""
+<style>
+#skx-bubble {{
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#003594,#0050D0);
+    display: {bubble_display};
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 9002;
+    box-shadow: 0 6px 24px rgba(0,53,148,.55);
+    user-select: none;
+    animation: skxFloat 2.8s ease-in-out infinite;
+    transition: transform .15s ease;
+}}
+#skx-bubble:hover {{
+    animation-play-state: paused;
+    transform: scale(1.12) !important;
+}}
+@keyframes skxFloat {{
+    0%,100% {{
+        transform: translateY(0) rotate(-4deg);
+        box-shadow: 0 6px 24px rgba(0,53,148,.55);
+    }}
+    50% {{
+        transform: translateY(-13px) rotate(4deg);
+        box-shadow: 0 20px 40px rgba(0,53,148,.35);
+    }}
+}}
+</style>
+
+<div id="skx-bubble" onclick="skxChatToggle()">💬</div>
+
+<script>
+function skxChatToggle() {{
+    var btns = document.querySelectorAll('[data-testid="stSidebar"] button');
+    for (var i = 0; i < btns.length; i++) {{
+        if ((btns[i].innerText || '').indexOf('Chat IA') >= 0) {{
+            btns[i].click();
+            return;
+        }}
+    }}
+}}
+/* Keep the sidebar toggle hidden — the bubble replaces it */
+if (!window._skxObs) {{
+    function _skxHide() {{
+        var sb = document.querySelector('[data-testid="stSidebar"]');
+        if (!sb) return;
+        sb.querySelectorAll('button').forEach(function(b) {{
+            if ((b.innerText || '').indexOf('Chat IA') >= 0) {{
+                var c = b.closest('[data-testid="element-container"]');
+                if (c) c.style.display = 'none';
+            }}
+        }});
+    }}
+    _skxHide();
+    window._skxObs = new MutationObserver(_skxHide);
+    window._skxObs.observe(document.body, {{childList: true, subtree: true}});
+}}
+</script>
+""", unsafe_allow_html=True)
+
+    # ── Panel rendered only when open ─────────────────────────────────────────
+    if not open_state:
+        return
+
     panel_bg = "#111111" if dark else "#ffffff"
     border   = "#2a2a2a" if dark else "#e5e7eb"
     input_bg = "#1c1c1c" if dark else "#f3f4f6"
@@ -364,7 +439,7 @@ def render_chatbot():
 /* ── Floating panel (messages) ───────────────────────────────── */
 #skx-chat-panel {{
     position: fixed;
-    bottom: 72px;          /* leaves room for the input bar below */
+    bottom: 72px;
     right: 24px;
     width: 380px;
     height: 420px;
@@ -385,7 +460,7 @@ def render_chatbot():
 }}
 #skx-chat-hdr {{
     background: linear-gradient(90deg,#003594,#0050D0);
-    padding: 13px 16px 11px;
+    padding: 12px 14px 10px;
     flex-shrink: 0;
 }}
 #skx-msgs {{
@@ -400,6 +475,22 @@ def render_chatbot():
 }}
 #skx-msgs::-webkit-scrollbar {{ width: 3px; }}
 #skx-msgs::-webkit-scrollbar-thumb {{ background: rgba(128,128,128,.25); border-radius:3px; }}
+#skx-close-btn {{
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background .15s;
+}}
+#skx-close-btn:hover {{ background: rgba(255,255,255,0.28); }}
 
 /* ── Pin st.chat_input to the bottom edge of the panel ──────── */
 [data-testid="stChatInput"] {{
@@ -441,12 +532,12 @@ def render_chatbot():
 <div id="skx-chat-panel">
   <div id="skx-chat-hdr">
     <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:33px;height:33px;border-radius:50%;
+      <div style="width:32px;height:32px;border-radius:50%;
                   background:rgba(255,255,255,0.15);
                   display:flex;align-items:center;justify-content:center;
-                  flex-shrink:0;font-size:17px;">🤖</div>
+                  flex-shrink:0;font-size:16px;">🤖</div>
       <div style="flex:1;min-width:0;">
-        <div style="color:#fff;font-weight:700;font-size:0.88rem;
+        <div style="color:#fff;font-weight:700;font-size:0.87rem;
                     display:flex;align-items:center;gap:7px;">
           Assistant Dashboard
           <span style="background:rgba(255,255,255,0.15);border-radius:20px;
@@ -458,6 +549,7 @@ def render_chatbot():
           Posez vos questions sur les données du dashboard
         </div>
       </div>
+      <button id="skx-close-btn" onclick="skxChatToggle()" title="Fermer">✕</button>
     </div>
   </div>
   <div id="skx-msgs">{msgs_html}</div>
