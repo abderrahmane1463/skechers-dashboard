@@ -445,8 +445,6 @@ Per-platform soft invalidation via `db.invalidate(platform, start, end)` marks k
 - The actual floating chat panel is rendered by `components/chatbot.py:render_chatbot()`,
   called unconditionally at the end of `app.py`. It no-ops if `st.session_state.chat_open`
   is `False`.
-- `components/chatbot.py` lines ~494–665 are inside an `if False:` block (an old chat UI
-  implementation that is never executed).
 
 ### Dynamic data injection
 `_build_data_context()` reads from `st.session_state`:
