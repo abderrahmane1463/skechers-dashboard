@@ -141,6 +141,20 @@ def render_sidebar(log_refresh_fn):
             log_refresh_fn(platform, period_label, "🔄 Manual Refresh Triggered")
             st.rerun()
 
+        # ── Chatbot toggle ────────────────────────────────────────────────────
+        if "chat_open"    not in st.session_state: st.session_state.chat_open    = False
+        if "chat_history" not in st.session_state: st.session_state.chat_history = []
+
+        _chat_label = "✕ Fermer l'assistant" if st.session_state.chat_open else "💬 Assistant IA"
+        if st.button(_chat_label, key="skx_chat_toggle", width="stretch"):
+            st.session_state.chat_open = not st.session_state.chat_open
+            st.rerun()
+
+        if st.session_state.chat_open and st.session_state.chat_history:
+            if st.button("🗑️ Effacer la conversation", key="clear_chat", use_container_width=True):
+                st.session_state.chat_history = []
+                st.rerun()
+
         if "theme" not in st.session_state:
             st.session_state.theme = "dark"
 
@@ -165,21 +179,5 @@ def render_sidebar(log_refresh_fn):
         if st.button("🚪 Se déconnecter", width="stretch"):
             del st.session_state["user"]
             st.rerun()
-
-        st.divider()
-
-        # ── Chatbot toggle ────────────────────────────────────────────────────
-        if "chat_open"    not in st.session_state: st.session_state.chat_open    = False
-        if "chat_history" not in st.session_state: st.session_state.chat_history = []
-
-        _chat_label = "✕ Fermer l'assistant" if st.session_state.chat_open else "💬 Assistant IA"
-        if st.button(_chat_label, key="skx_chat_toggle", width="stretch"):
-            st.session_state.chat_open = not st.session_state.chat_open
-            st.rerun()
-
-        if st.session_state.chat_open and st.session_state.chat_history:
-            if st.button("🗑️ Effacer la conversation", key="clear_chat", use_container_width=True):
-                st.session_state.chat_history = []
-                st.rerun()
 
     return platform, period_label, days, start_date, end_date
