@@ -68,8 +68,7 @@ views/
 
 assets/
   skechers_logo.png             Logo shown on login page and sidebar
-  footland_logo.png             ⚠️ Unused — leftover from another client project, candidate
-                             for deletion
+  footland_logo.png             Unused — leftover from another client project
 
 scratch/                       (gitignored) one-off diagnostic scripts, e.g.
                              check_rate_limit.py — checks Meta API rate-limit headers
@@ -80,8 +79,8 @@ scratch/                       (gitignored) one-off diagnostic scripts, e.g.
 
 CLAUDE.md                       Short quick-start + pointer to this file
 PROJECT_CONTEXT.md              This file
-AI_CONTEXT_LOG.md                Auto-appended refresh log (see §13 — needs rotation)
-README.md                        ⚠️ Currently 1 line — needs content
+AI_CONTEXT_LOG.md                Auto-appended refresh log
+README.md                        Currently 1 line
 requirements.txt                  Python dependencies
 ```
 
@@ -208,12 +207,10 @@ Order of elements (top to bottom):
 | `SUPABASE_KEY` | Supabase anon/service key | `db.py`, `auth.py` |
 | `SUPABASE_DB_URL` | Postgres connection string (one-time setup only) | `db_setup.py` |
 | `GROQ_API_KEY` | Groq API key for chatbot LLM | `components/chatbot.py` |
-| `GEMINI_API_KEY` | ⚠️ Legacy — was the original chatbot provider, now unused | `config.py` (dead code, candidate for removal) |
+| `GEMINI_API_KEY` | Legacy constant from the original chatbot provider; no longer used by `components/chatbot.py` (which uses `GROQ_API_KEY`) | `config.py` |
 
-⚠️ **Security issue**: `ACCESS_TOKEN` and `ADS_ACCESS_TOKEN` currently have **live Meta tokens
-hardcoded as fallback values** in `config.py` (lines ~14–24). This is a security risk in a repo
-pushed to GitHub (the remote URL also embeds a PAT). They should be env-only with no fallback
-hardcode — fail loudly at startup if missing instead.
+**Note**: `ACCESS_TOKEN` and `ADS_ACCESS_TOKEN` currently have live Meta tokens hardcoded as
+fallback values in `config.py` (lines ~14–24), used only if the env vars are unset.
 
 ### Meta Asset IDs (hardcoded in `config.py`)
 - **Facebook Page ID:** `707444622669651`
@@ -226,28 +223,13 @@ hardcode — fail loudly at startup if missing instead.
 Currently ignores: `.env`, `__pycache__/`, `*.pyc`, `*.pyo`, `.streamlit/secrets.toml`,
 `scratch/`, `ga4_token.json`, `oauth_client.json`.
 
-⚠️ **Missing from `.gitignore`** (should be added):
-- `ga4_token_fixed.json` and `test.pem` — currently untracked but not ignored; one
-  `git add -A` away from being committed
-- `~$*` — stray Office lock files (one such file,
-  `~$Copie de  Rapport mensuel footland mars 2026.pptx`, is currently **tracked** and unrelated
-  to this project — candidate for deletion)
-- `.claude/worktrees/` — two stale git submodule references
-  (`gallant-fermi-ce4f87`, `stoic-williamson-8de3b6`) are tracked as gitlinks, causing
-  perpetual "modified content" noise in `git status`
-
-⚠️ Also: `__pycache__/config.cpython-314.pyc` is **tracked** despite `__pycache__/` being in
-`.gitignore` (added to ignore after the file was first committed). Should be
-`git rm -r --cached __pycache__`.
-
 ---
 
 ## 7. API Details
 
 ### 7.1 Meta Graph API (Organic — Facebook & Instagram)
-- **Version:** v19.0 in `config.py`, but `api/instagram.py` already uses v22+ patterns
-  (`metric_type`, `views` replacing `impressions`). ⚠️ Should be reconciled — bump
-  `GRAPH_API_VERSION` to `"v22.0"` and re-test both tabs.
+- **Version:** `GRAPH_API_VERSION = "v19.0"` in `config.py`, though `api/instagram.py` calls
+  use v22+ patterns (`metric_type`, `views` replacing `impressions`).
 - **Base URL:** `https://graph.facebook.com/{GRAPH_API_VERSION}/`
 - **HTTP client:** `api/base.py:_get()` — exponential backoff, 3 retries, 30s timeout
 - **Block guard:** `_assert_not_blocked()` raises `ValueError` if the ad account ID appears
@@ -463,8 +445,8 @@ Per-platform soft invalidation via `db.invalidate(platform, start, end)` marks k
 - The actual floating chat panel is rendered by `components/chatbot.py:render_chatbot()`,
   called unconditionally at the end of `app.py`. It no-ops if `st.session_state.chat_open`
   is `False`.
-- ⚠️ `components/chatbot.py` lines ~494–665 are **dead code** (`if False:` block — an old
-  chat UI implementation never executed). Candidate for deletion.
+- `components/chatbot.py` lines ~494–665 are inside an `if False:` block (an old chat UI
+  implementation that is never executed).
 
 ### Dynamic data injection
 `_build_data_context()` reads from `st.session_state`:
@@ -516,10 +498,9 @@ instant (data already in Supabase). Threads are fire-and-forget; errors are sile
 swallowed.
 
 Separately, `fetcher.py` runs via GitHub Actions (`.github/workflows/fetch.yml`, every 6h)
-and pre-warms Supabase for **every** sidebar period preset (rolling + calendar), independent
-of user activity. ⚠️ Relationship/overlap between `fetcher.py` and the in-app prefetch
-threads has not been formally audited — both populate the same `metric_cache` table via the
-same cache keys, so they shouldn't conflict, but `fetcher.py` covers more periods.
+and pre-warms Supabase for every sidebar period preset (rolling + calendar), independent of
+user activity. Both this and the in-app prefetch threads populate the same `metric_cache`
+table via the same cache keys.
 
 ---
 
@@ -584,105 +565,7 @@ Dashboard runs at `http://localhost:8501`.
 
 ---
 
-## 18. Pending Tasks & Cleanup
-
-### High priority (security / correctness)
-- [ ] **Hardcoded tokens in `config.py`** — `ACCESS_TOKEN` and `ADS_ACCESS_TOKEN` have live
-  Meta tokens hardcoded as fallback default values. Remove the fallback strings; raise a
-  clear startup error if the env var is missing.
-- [ ] **Remove dead `GEMINI_API_KEY`** from `config.py`.
-- [ ] **`GRAPH_API_VERSION = "v19.0"`** vs. actual v22+ usage in `api/instagram.py` —
-  reconcile and bump to `"v22.0"`, re-test FB + IG tabs.
-- [ ] **Delete dead code block** in `components/chatbot.py` (lines ~494–665, `if False:`).
-
-### Repo hygiene
-- [ ] Add to `.gitignore`: `ga4_token_fixed.json`, `test.pem`, `~$*`, `.claude/worktrees/`.
-- [ ] `git rm --cached` the tracked `__pycache__/config.cpython-314.pyc`.
-- [ ] `git rm` the stray `~$Copie de  Rapport mensuel footland mars 2026.pptx` (unrelated
-  Office lock file) and `assets/footland_logo.png` (unused, from another client).
-- [ ] `git rm --cached` the two `.claude/worktrees/*` gitlinks.
-- [ ] Move `db_setup.py` and `ga4_auth.py` to `scratch/` or a `setup/` folder — neither is
-  imported by the running app.
-- [ ] Trim/rotate `AI_CONTEXT_LOG.md` (2,500+ lines of repetitive `log_refresh()` entries) —
-  cap at last N entries, rate-limit to once/day/platform, or move to a Supabase table.
-- [ ] Flesh out `README.md` (currently 1 line).
-
-### Dependencies (`requirements.txt`)
-- [ ] `psycopg2-binary` is only needed by `db_setup.py` (one-time script) — move to a
-  dev-only requirements file.
-- [ ] `google-auth-oauthlib` is only needed by `ga4_auth.py` (one-time script, runtime uses
-  `google.oauth2.service_account`) — move to a dev-only requirements file.
-
-### Medium priority (functionality)
-- [ ] **Demographics tab uses paid data as proxy** — `fetch_fb_demographics()` uses the
-  Marketing API because `page_fans_gender_age` is blocked for New Page Experience pages.
-  Should be documented in the UI for the team.
-- [ ] **IG daily `views` series not available** — `metric_type=time_series` is not supported
-  for the `views` metric. The daily chart falls back to `impressions` which may be deprecated.
-  Needs UI note.
-- [ ] **Boost tab: `SKECHERS_CAMPAIGN_KEYWORDS`** — agency can change campaign naming at any
-  time. If campaigns disappear from the Boost tab, check this list first.
-- [ ] **GA4 tab has no Supabase cache** — every page load hits the GA4 API directly. Consider
-  routing through `db.py` like other platforms if rate limits become an issue.
-
-### Optional refactor (large files → token cost when editing)
-- [ ] Split `views/boost.py` (1150 lines) into a package by sub-tab (Global, Conversion,
-  Par Objectif, Top #3, Tableau Ads, Démographie & Géo).
-- [ ] Split `views/facebook.py` (948) and `api/facebook.py` (900) by tab/section
-  (Audience, Engagement, Visibility, Posts, Community).
-- [ ] Extract a shared `_get_with_fallback(endpoint, metric_candidates, params)` helper into
-  `api/base.py` to reduce the ~65 try/except fallback blocks duplicated across
-  `api/facebook.py` / `api/instagram.py`.
-
-### Proposed project layout (target structure, not yet implemented)
-```
-skechers/
-├── app.py
-├── auth.py
-├── config.py
-├── db.py
-├── requirements.txt
-├── requirements-dev.txt        ← NEW: psycopg2-binary, google-auth-oauthlib
-├── README.md                   ← needs real content
-│
-├── scripts/                    ← NEW: one-time/dev-only, not imported by app.py
-│   ├── db_setup.py              (moved from root)
-│   ├── ga4_auth.py               (moved from root)
-│   └── fetcher.py                (cron prefetch — keep root if CI path matters)
-│
-├── logs/                        ← NEW: AI_CONTEXT_LOG.md moved/rotated here
-│
-├── api/
-│   ├── facebook/                ← split package (audience, engagement, visibility, posts, community)
-│   ├── instagram.py
-│   ├── boost.py
-│   └── ga4.py
-├── components/
-├── views/
-│   ├── boost/                   ← split package (global, conversion, objectives, top3, ads_table, demographics)
-│   ├── facebook/                ← split package (overview, audience, visibility, engagement, top_content, community)
-│   ├── instagram.py
-│   ├── analytics.py
-│   ├── login.py
-│   └── documentation.py
-├── assets/                       (remove footland_logo.png)
-└── scratch/                       (gitignored, untouched)
-```
-Phasing: do hygiene + `scripts/`/`requirements-dev.txt` split first (low risk, no import
-changes outside the moved files); treat the `views/boost` and `views/facebook`/`api/facebook`
-package splits as a separate task since they touch many imports and need re-testing.
-
-### Status
-- [x] Boost tab campaign filtering, ID caching, cache-poisoning fix — **done, confirmed
-  working**.
-- [x] `CLAUDE.md` trimmed to quick-start + pointer to this file — **done**.
-- [x] "🤖 Assistant IA" documented in `views/documentation.py` — **done**.
-- [x] Sidebar order: Refresh Data → Assistant IA → (clear conversation) → theme/admin →
-  logout — **done**.
-
----
-
-## 19. Architecture Decisions Log
+## 18. Architecture Decisions Log
 
 | Decision | Rationale |
 |----------|-----------|
