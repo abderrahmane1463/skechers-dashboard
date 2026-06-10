@@ -79,7 +79,8 @@ scratch/                       (gitignored) one-off diagnostic scripts, e.g.
 
 CLAUDE.md                       Short quick-start + pointer to this file
 PROJECT_CONTEXT.md              This file
-AI_CONTEXT_LOG.md                Auto-appended refresh log
+AI_CONTEXT_LOG.md                Auto-appended refresh log (rotated to last 200 entries by
+                             app.py:_rotate_log())
 README.md                        Currently 1 line
 requirements.txt                  Python dependencies
 ```

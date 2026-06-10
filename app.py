@@ -262,8 +262,11 @@ st.markdown("""
 
 
 # ─── Logging Helper ───────────────────────────────────────────────────────────
+_LOG_MAX_ENTRIES = 200
+
+
 def log_refresh(platform: str, period: str, status: str, notes: str = ""):
-    """Appends a refresh entry to AI_CONTEXT_LOG.md."""
+    """Appends a refresh entry to AI_CONTEXT_LOG.md, rotating old entries out."""
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
     entry = (
         f"\n### [{timestamp} UTC] — Data Refresh\n"
@@ -277,6 +280,39 @@ def log_refresh(platform: str, period: str, status: str, notes: str = ""):
     try:
         with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
             f.write(entry)
+        _rotate_log()
+    except Exception:
+        pass
+
+
+def _rotate_log():
+    """Keeps only the most recent _LOG_MAX_ENTRIES auto-appended entries."""
+    try:
+        with open(LOG_FILE_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        marker = "<!-- AUTO-APPENDED ENTRIES BELOW THIS LINE -->"
+        idx = content.find(marker)
+        if idx == -1:
+            return
+
+        header = content[: idx + len(marker)]
+        body = content[idx + len(marker):]
+
+        entries = body.split("\n### [")
+        preamble, entries = entries[0], entries[1:]
+        if len(entries) <= _LOG_MAX_ENTRIES:
+            return
+
+        trimmed_count = len(entries) - _LOG_MAX_ENTRIES
+        entries = entries[-_LOG_MAX_ENTRIES:]
+        new_body = (
+            preamble
+            + f"\n<!-- {trimmed_count} older auto-appended entries trimmed. -->\n"
+            + "\n### [".join([""] + entries)
+        )
+        with open(LOG_FILE_PATH, "w", encoding="utf-8") as f:
+            f.write(header + new_body)
     except Exception:
         pass
 
