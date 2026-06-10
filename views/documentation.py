@@ -98,6 +98,8 @@ def render_documentation():
     col4, col5 = st.columns(2)
     with col4:
         st.info("📊 **Google Analytics** — Vue d'ensemble + Sources de trafic, E-commerce (Parcours d'achat + Top articles), Événements, Audience (Géographie + Appareils)")
+    with col5:
+        st.info("🤖 **Assistant IA** — Chatbot flottant (Groq / LLaMA 3.3) répondant aux questions sur les données affichées dans le dashboard")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -419,6 +421,37 @@ Trié par date de création de campagne (plus récente en premier), groupé par 
   <tr><td class="kpi-name">Taux de rebond</td><td class="kpi-desc">Taux de rebond pour cet appareil.</td><td><span class="endpoint">bounceRate</span></td></tr>
   <tr><td class="kpi-name">% du total</td><td class="kpi-desc">Part de cet appareil sur le total des utilisateurs.</td><td><span class="endpoint">Calculé</span></td></tr>
 </table>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Assistant IA ──────────────────────────────────────────────────────────
+    st.markdown('<div class="doc-section-title">🤖 Assistant IA</div>', unsafe_allow_html=True)
+
+    st.markdown("""
+<p style="color:#a1a1aa;font-size:14px;">
+Un assistant conversationnel flottant, propulsé par <strong>Groq</strong> (modèles LLaMA 3.3 70B / 3.1 8B),
+capable de répondre aux questions sur les statistiques affichées dans le dashboard.
+</p><br>
+<table class="kpi-table">
+  <tr><th>Fonctionnalité</th><th>Description</th></tr>
+  <tr><td class="kpi-name">💬 Ouverture / fermeture</td><td class="kpi-desc">Bouton "💬 Assistant IA" en bas de la barre latérale. Le bouton devient "✕ Fermer l'assistant" quand le panneau est ouvert.</td></tr>
+  <tr><td class="kpi-name">🧠 Modèle IA</td><td class="kpi-desc">LLaMA 3.3 70B Versatile en priorité ; bascule automatiquement sur LLaMA 3.1 8B Instant si la limite quotidienne du premier modèle est atteinte.</td></tr>
+  <tr><td class="kpi-name">📊 Contexte des données</td><td class="kpi-desc">L'assistant connaît les KPIs de la période et de l'onglet actuellement affichés (Facebook, Instagram, Boost, Google Analytics) — uniquement les sections déjà visitées dans la session en cours.</td></tr>
+  <tr><td class="kpi-name">🌐 Langue</td><td class="kpi-desc">Répond en français, anglais ou arabe selon la langue de l'utilisateur, en s'appuyant sur les données réelles du dashboard ; indique clairement si une donnée n'est pas disponible plutôt que d'inventer un chiffre.</td></tr>
+  <tr><td class="kpi-name">🗑️ Effacer la conversation</td><td class="kpi-desc">Bouton visible quand le panneau est ouvert et qu'il y a des messages — réinitialise l'historique de discussion.</td></tr>
+</table>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    with st.expander("⚠️ Limitations de l'assistant", expanded=False):
+        st.markdown("""
+| Situation | Comportement |
+|---|---|
+| **Aucune donnée chargée** | Si aucun onglet n'a encore été visité dans la session, l'assistant répond sans contexte chiffré et le signale. |
+| **Limite quotidienne atteinte** | Si les deux modèles Groq ont atteint leur quota gratuit, un message d'erreur invite à réessayer plus tard. |
+| **Clé API manquante** | Si `GROQ_API_KEY` n'est pas configurée (st.secrets ou .env), l'assistant affiche un message d'erreur explicite. |
+| **Hors-sujet** | L'assistant est conçu pour répondre uniquement sur le contenu du dashboard Skechers (KPIs, sources de données, méthodes de calcul). |
+""")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
