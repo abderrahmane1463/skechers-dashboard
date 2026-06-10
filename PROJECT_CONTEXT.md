@@ -1,6 +1,11 @@
 # PROJECT_CONTEXT.md
 ## Skechers Algeria — Social Analytics Dashboard
-**Last updated:** 2026-06-09 | **Status:** Production
+**Last updated:** 2026-06-10 | **Status:** Production
+
+> This is the **single source of truth** for this project's architecture, data flow, schema,
+> known issues, and pending work. `CLAUDE.md` is intentionally short and points here.
+> **This file must be kept up to date with every change** — architecture, endpoints, schema,
+> env vars, limitations, UI structure, pending tasks — without needing to be asked.
 
 ---
 
@@ -8,29 +13,97 @@
 
 Internal analytics dashboard for the **Skechers Algeria** social media team. Aggregates
 organic Facebook, organic Instagram, paid Meta campaigns (Boost), and Google Analytics 4
-website data into a single Streamlit interface. The team uses it to track KPIs, interpret
-trends, and monitor community management response rates.
+website data into a single Streamlit interface, plus an in-app AI assistant and documentation
+tab. The team uses it to track KPIs, interpret trends, and monitor community management
+response rates.
 
 The project started **2026-04-23** as a scaffold and reached production that same day.
 
 ---
 
-## 2. Architecture
+## 2. File Index
 
 ```
-app.py  (entry point, routing, prefetch threads)
-  ├── components/sidebar.py   (platform nav, date picker, chatbot UI)
-  ├── components/charts.py    (shared Plotly helpers)
+app.py                      Entry point — page config, theme CSS, auth guard, routing,
+                             prefetch orchestration, chatbot mount point
+auth.py                      Supabase Auth helpers (login, profile lookup)
+config.py                     Constants, credentials, metric name lists, blocklist
+db.py                          Supabase REST cache layer (load/save/get_* getters)
+db_setup.py                  ⚠️ One-time Supabase schema creation script (psycopg2). Not
+                             imported by the app — run manually once.
+fetcher.py                    GitHub Actions cron script — pre-warms Supabase cache for
+                             every sidebar period preset (runs every 6h)
+ga4_auth.py                  ⚠️ One-time OAuth bootstrap for local GA4 dev (writes
+                             ga4_token.json). Not imported by the app.
+
+api/
+  __init__.py                 Re-exports fetch_* functions for `import api`
+  base.py                      _get() (retry+backoff), _assert_not_blocked(),
+                             _date_range/_cache_key_range/_prev_date_range,
+                             _get_insights_chunked(), check_api_health()
+  facebook.py                  Facebook Graph API: audience, engagement, visibility,
+                             posts, post totals, conversations, messaging, demographics
+  instagram.py                 Instagram Graph API: profile, engagement, posts, totals
+  boost.py                      Meta Marketing API: campaign/adset/ad insights,
+                             Skechers campaign ID resolution + 3-tier caching
+  ga4.py                        Google Analytics 4 Data API (service account auth)
+
+components/
+  __init__.py
+  sidebar.py                  Platform nav, date range picker, Refresh Data button,
+                             Assistant IA toggle, theme init, admin health panel, logout
+  charts.py                     Shared Plotly CHART_LAYOUT / get_chart_layout(),
+                             series_to_df, safe_sum/safe_last, render_top3_podium()
+  skeleton.py                  Shimmer loading-skeleton HTML builders
+  chatbot.py                    Groq-powered floating chat assistant (see §9)
+
+views/
+  __init__.py
+  login.py                      Login page (Supabase Auth form)
+  facebook.py                  Facebook dashboard (5 tabs)
+  instagram.py                  Instagram dashboard (2 tabs)
+  boost.py                       Boost / paid campaigns dashboard (6 tabs)
+  analytics.py                  Google Analytics 4 dashboard (4 tabs)
+  documentation.py              In-app "Guide du Dashboard" tab
+
+assets/
+  skechers_logo.png             Logo shown on login page and sidebar
+  footland_logo.png             ⚠️ Unused — leftover from another client project, candidate
+                             for deletion
+
+scratch/                       (gitignored) one-off diagnostic scripts, e.g.
+                             check_rate_limit.py — checks Meta API rate-limit headers
+
+.github/workflows/
+  fetch.yml                     Cron (every 6h) — runs fetcher.py to pre-warm Supabase
+  keepalive.yml                 Daily ping to keep Supabase project from pausing
+
+CLAUDE.md                       Short quick-start + pointer to this file
+PROJECT_CONTEXT.md              This file
+AI_CONTEXT_LOG.md                Auto-appended refresh log (see §13 — needs rotation)
+README.md                        ⚠️ Currently 1 line — needs content
+requirements.txt                  Python dependencies
+```
+
+---
+
+## 3. Architecture
+
+```
+app.py  (Streamlit UI, routing, theme, auth guard)
+  ├── components/sidebar.py   (platform nav, date picker, refresh, chatbot toggle)
+  ├── components/charts.py    (shared Plotly helpers, Top-3 podium)
   ├── components/skeleton.py  (loading skeleton HTML)
+  ├── components/chatbot.py   (Groq floating assistant)
+  ├── views/login.py          (Supabase Auth login form)
   ├── views/facebook.py       (Facebook dashboard)
   ├── views/instagram.py      (Instagram dashboard)
   ├── views/boost.py          (Paid campaigns dashboard)
   ├── views/analytics.py      (Google Analytics 4 dashboard)
-  ├── views/login.py          (Supabase Auth login form)
   ├── views/documentation.py  (in-app docs tab)
   ├── db.py                   (Supabase cache layer)
   ├── auth.py                 (Supabase Auth helpers)
-  ├── fetcher.py              (background prefetch coordinator)
+  ├── fetcher.py              (background prefetch coordinator — GitHub Actions cron)
   ├── config.py               (constants, credentials, metric names)
   └── api/
         ├── base.py           (HTTP client, date utils, chunked insights)
@@ -44,24 +117,88 @@ app.py  (entry point, routing, prefetch threads)
 ```
 Browser → Streamlit → db._get(metric_key, api_fn, days, start, end)
                            ↓ cache hit?
-                    Supabase (permanent)  ←→  Meta Graph API v22+
+                    Supabase (permanent)  ←→  Meta Graph API v19.0
                                               Meta Marketing API
                                               GA4 Data API v1beta
 ```
 
 ### Key architectural decision: Supabase as permanent cache
-The original design (see CLAUDE.md) used `@st.cache_data(ttl=900)`. This was replaced with
-**Supabase as a permanent cache** keyed by `(metric_key, period_start, period_end)`.
+The original design (see old `CLAUDE.md`) used `@st.cache_data(ttl=900)`. This was replaced
+with **Supabase as a permanent cache** keyed by `(metric_key, period_start, period_end)`.
 
-- Rolling periods (`Last 7 Days`, `Last 30 Days`, etc.) use **stable keys** `("rolling", "last_Xd")` — the same Supabase row is reused across all users and sessions. The cache never expires; only a manual "Refresh Data" click wipes it.
+- Rolling periods (`Last 7 Days`, `Last 30 Days`, etc.) use **stable keys**
+  `("rolling", "last_Xd")` — the same Supabase row is reused across all users and sessions.
+  The cache never expires; only a manual "Refresh Data" click wipes it.
 - Fixed/calendar ranges use the actual ISO dates as keys.
 - The cache key logic lives in `api/base.py:_cache_key_range()`.
 
-**Why:** Meta API rate limits and slow per-post insight calls (N+1 pattern, up to 100 posts × 2 API calls each) made the app unusable without a persistent cache. Supabase's free tier provides enough storage.
+**Why:** Meta API rate limits and slow per-post insight calls (N+1 pattern, up to 100 posts ×
+2 API calls each) made the app unusable without a persistent cache. Supabase's free tier
+provides enough storage.
 
 ---
 
-## 3. Credentials & Environment Variables
+## 4. UI / Theming
+
+### Authentication gate (`app.py`)
+- `if "user" not in st.session_state: render_login(); st.stop()` — blocks the entire app
+  until login succeeds.
+- `views/login.py` renders a centered card with the Skechers logo (`assets/skechers_logo.png`,
+  base64-embedded) and a Supabase Auth email/password form. On success, stores the session
+  dict (`user_id`, `email`, `access_token`, `role`, `display_name`) in
+  `st.session_state["user"]`.
+
+### Theme system
+- `st.session_state.theme` defaults to `"dark"`. No UI toggle currently exists for switching
+  themes — it's read by `app.py`, `components/charts.py`, `components/chatbot.py`, and
+  `views/documentation.py` to pick CSS variants.
+- `app.py` injects one of two large inline `<style>` blocks (`_DARK_CSS` / `_LIGHT_CSS`)
+  covering: Inter font, app/sidebar backgrounds, metric cards, tab styling, post cards,
+  brand header gradient, buttons, and a mobile `@media (max-width: 768px)` block (2-column
+  KPI grids, horizontal-scroll tabs, smaller section headers).
+- The light theme additionally overrides many hardcoded dark inline styles (`rgba(255,255,255,…)`)
+  used throughout the custom HTML cards in views — this is fragile (string-matching CSS
+  selectors) but functional.
+- A small inline `<script>` block fixes the mobile viewport meta tag.
+
+### Page routing (`app.py`)
+`render_sidebar()` returns `(platform, period_label, days, start_date, end_date)`. Routing:
+- `"Documentation"` → `render_documentation()`
+- `"Facebook"` → `render_facebook_dashboard(...)` + background prefetch of IG/Boost
+- `"Instagram"` → `render_instagram_dashboard(...)` + background prefetch of FB/Boost
+- `"Google Analytics"` → fetches `fetch_all_ga4_data(start, end)` directly (not via `db.py`,
+  no Supabase caching for GA4) → `render_analytics_tab(...)`
+- `"Boost"` (else branch) → computes previous-period dates for delta comparisons, uses
+  `@st.cache_data(ttl=900)` wrappers around `db.get_boost_insights`, `db.get_fb_demographics`,
+  `db.get_adset_ad_insights`, shows `skeleton_boost_html()` while loading, then
+  `render_boost_tab(...)` + background prefetch of FB/IG
+- `render_chatbot()` is called unconditionally at the very end of `app.py` (it no-ops
+  internally if the chat panel isn't open)
+
+---
+
+## 5. Sidebar (`components/sidebar.py`)
+
+Order of elements (top to bottom):
+1. Platform selector (Facebook / Instagram / Boost / Google Analytics / Documentation)
+2. Date range controls — rolling presets (`PERIOD_DAYS`) + calendar presets
+   (`CALENDAR_PERIODS`: Today, Yesterday, This Week, Last Week, This Month, Last Month,
+   This Quarter, Last Quarter)
+3. **🔄 Refresh Data** button — calls `db.delete_period()` for the current cache key,
+   `st.cache_data.clear()`, `log_refresh()`, then `st.rerun()`
+4. **💬 Assistant IA** toggle button (placed immediately after Refresh Data) — flips
+   `st.session_state.chat_open`; label becomes "✕ Fermer l'assistant" when open
+5. **🗑️ Effacer la conversation** — only shown when chat is open and history is non-empty;
+   clears `st.session_state.chat_history`
+6. Theme init (`st.session_state.theme = "dark"` if unset)
+7. Admin-only: Supabase health indicator (`check_api_health()` via `_get_health()`),
+   "Cache permanent • Supabase" caption
+8. Admin-only: "Connecté : {display_name|email}" caption
+9. **🚪 Se déconnecter** — `del st.session_state["user"]` + `st.rerun()`
+
+---
+
+## 6. Credentials & Environment Variables
 
 | Variable | Purpose | Where used |
 |----------|---------|------------|
@@ -69,26 +206,52 @@ The original design (see CLAUDE.md) used `@st.cache_data(ttl=900)`. This was rep
 | `SKECHERS_ADS_TOKEN` | Meta User Access Token with `ads_read` scope (Boost tab) | `config.py` → `ADS_ACCESS_TOKEN` |
 | `SUPABASE_URL` | Supabase project REST endpoint | `db.py`, `auth.py` |
 | `SUPABASE_KEY` | Supabase anon/service key | `db.py`, `auth.py` |
+| `SUPABASE_DB_URL` | Postgres connection string (one-time setup only) | `db_setup.py` |
 | `GROQ_API_KEY` | Groq API key for chatbot LLM | `components/chatbot.py` |
-| `GEMINI_API_KEY` | Legacy — was the original chatbot provider, now unused | `config.py` (dead code) |
+| `GEMINI_API_KEY` | ⚠️ Legacy — was the original chatbot provider, now unused | `config.py` (dead code, candidate for removal) |
 
-The tokens are also **hardcoded as fallbacks** in `config.py` lines 15–23 (Page token) and 21–23 (Ads token). This is a security risk in public repos — they should be moved to env/secrets only.
+⚠️ **Security issue**: `ACCESS_TOKEN` and `ADS_ACCESS_TOKEN` currently have **live Meta tokens
+hardcoded as fallback values** in `config.py` (lines ~14–24). This is a security risk in a repo
+pushed to GitHub (the remote URL also embeds a PAT). They should be env-only with no fallback
+hardcode — fail loudly at startup if missing instead.
 
-### Meta Asset IDs (hardcoded in config.py)
+### Meta Asset IDs (hardcoded in `config.py`)
 - **Facebook Page ID:** `707444622669651`
 - **Instagram User ID:** `17841408456074839`
-- **Ad Account:** `act_765947885726761` (blocklisted for organic endpoints; Boost tab's single authorised source)
+- **Ad Account:** `act_765947885726761` (blocklisted for organic endpoints; Boost tab's single
+  authorised source)
 - **GA4 Property ID:** `313002599`
+
+### `.gitignore` status
+Currently ignores: `.env`, `__pycache__/`, `*.pyc`, `*.pyo`, `.streamlit/secrets.toml`,
+`scratch/`, `ga4_token.json`, `oauth_client.json`.
+
+⚠️ **Missing from `.gitignore`** (should be added):
+- `ga4_token_fixed.json` and `test.pem` — currently untracked but not ignored; one
+  `git add -A` away from being committed
+- `~$*` — stray Office lock files (one such file,
+  `~$Copie de  Rapport mensuel footland mars 2026.pptx`, is currently **tracked** and unrelated
+  to this project — candidate for deletion)
+- `.claude/worktrees/` — two stale git submodule references
+  (`gallant-fermi-ce4f87`, `stoic-williamson-8de3b6`) are tracked as gitlinks, causing
+  perpetual "modified content" noise in `git status`
+
+⚠️ Also: `__pycache__/config.cpython-314.pyc` is **tracked** despite `__pycache__/` being in
+`.gitignore` (added to ignore after the file was first committed). Should be
+`git rm -r --cached __pycache__`.
 
 ---
 
-## 4. API Details
+## 7. API Details
 
-### 4.1 Meta Graph API (Organic — Facebook & Instagram)
-- **Version:** v22+ (config.py still says v19.0 but instagram.py was updated to v22+ patterns)
-- **Base URL:** `https://graph.facebook.com/v19.0/`
+### 7.1 Meta Graph API (Organic — Facebook & Instagram)
+- **Version:** v19.0 in `config.py`, but `api/instagram.py` already uses v22+ patterns
+  (`metric_type`, `views` replacing `impressions`). ⚠️ Should be reconciled — bump
+  `GRAPH_API_VERSION` to `"v22.0"` and re-test both tabs.
+- **Base URL:** `https://graph.facebook.com/{GRAPH_API_VERSION}/`
 - **HTTP client:** `api/base.py:_get()` — exponential backoff, 3 retries, 30s timeout
-- **Block guard:** `_assert_not_blocked()` raises `ValueError` if the ad account ID appears in any endpoint URL, enforcing the organic-only constraint
+- **Block guard:** `_assert_not_blocked()` raises `ValueError` if the ad account ID appears
+  in any endpoint URL, enforcing the organic-only constraint
 
 #### Facebook endpoints used
 | Endpoint | Purpose |
@@ -125,11 +288,25 @@ The tokens are also **hardcoded as fallbacks** in `config.py` lines 15–23 (Pag
 This is required because the Meta Insights API silently returns nothing for windows > ~92 days.
 Used for all Facebook Audience, Engagement, Visibility daily series calls.
 
-### 4.2 Meta Marketing API (Boost tab)
+### 7.2 Meta Marketing API (Boost tab)
 - **Token:** `ADS_ACCESS_TOKEN` (separate User token, requires `ads_read`)
 - **HTTP client:** `api/boost.py:_get_ads()` — bypasses `_assert_not_blocked()` intentionally
 - **Ad Account:** `act_765947885726761`
-- **Campaign identification:** Filters by `SKECHERS_CAMPAIGN_KEYWORDS` = `["707444622669651", "SKX ", "Skechers"]` — must match campaign name. Update if agency changes naming convention.
+- **Campaign identification:** Filters by `SKECHERS_CAMPAIGN_KEYWORDS` =
+  `["707444622669651", "SKX ", "Skechers"]` — must match campaign name. Update if agency
+  changes naming convention.
+
+#### Skechers campaign ID resolution & caching (3-tier)
+`api/boost.py:_get_skechers_ids()`:
+1. **In-memory** (`_MEM_IDS` / `_MEM_IDS_AT`) — valid for 24h, process lifetime
+2. **Supabase** (`metric_cache` row, `metric_key="skechers_campaign_ids"`) — 24h TTL via
+   `_supabase_load_ids()` / `_supabase_save_ids()`
+3. **Live scan** — paginates `/ads` filtering on `creative.object_story_spec.page_id`,
+   saves result to tiers 1+2. On scan failure, falls back to stale Supabase IDs if available
+   (intentional — restored at user request after a brief removal).
+
+This avoids re-scanning all ads on every refresh (previously caused Marketing API CPU-time
+rate limiting — error 80004 / subcode 2446079).
 
 Campaign data is fetched at 3 levels:
 - Account-level: deduplicated reach only (cannot sum per-campaign reach)
@@ -138,11 +315,16 @@ Campaign data is fetched at 3 levels:
 
 **Conversion objectives** tracked: `CONVERSIONS`, `OUTCOME_SALES`
 
-### 4.3 Google Analytics 4
-- **Client:** `google.analytics.data_v1beta.BetaAnalyticsDataClient` (service account)
-- **Auth:** Service account JSON from `ga4_token.json` (local) or `st.secrets["ga4"]["token_json"]` (Streamlit Cloud)
+### 7.3 Google Analytics 4
+- **Client:** `google.analytics.data_v1beta.BetaAnalyticsDataClient` (service account,
+  `google.oauth2.service_account.Credentials` — not OAuth)
+- **Auth:** Service account JSON from `ga4_token.json` (local) or
+  `st.secrets["ga4"]["token_json"]` (Streamlit Cloud)
 - **Property ID:** `313002599`
-- **Note:** Streamlit Cloud TOML may deliver `\n` as literal `\\n` in `private_key` — `api/ga4.py` normalises this.
+- **Note:** Streamlit Cloud TOML may deliver `\n` as literal `\\n` in `private_key` —
+  `api/ga4.py` normalises this.
+- ⚠️ GA4 data is **not** routed through `db.py`/Supabase — `app.py` calls
+  `fetch_all_ga4_data()` directly on every page load for the GA4 tab (no persistent cache).
 
 Data fetched in a single credential refresh via `fetch_all_ga4_data(start, end)`:
 - Overview metrics (users, sessions, engagement rate, bounce rate)
@@ -156,7 +338,7 @@ Data fetched in a single credential refresh via `fetch_all_ga4_data(start, end)`
 
 ---
 
-## 5. Known API Limitations & Workarounds
+## 8. Known API Limitations & Workarounds
 
 ### Instagram
 | Limitation | Workaround applied |
@@ -182,66 +364,107 @@ Data fetched in a single credential refresh via `fetch_all_ga4_data(start, end)`
 | `page_impressions_unique` (deduplicated reach) only has exact API mapping for 1d, 7d, 28-31d windows | For other window sizes (14d, 60d, 90d, quarters), dashboard shows "—" instead of a misleading approximation |
 | `/conversations` endpoint ignores `since`/`until` parameters | Filter threads client-side by `updated_time` date prefix; stop pagination when oldest thread is before `since` |
 
+### Boost (Meta Marketing API)
+| Situation | Explanation |
+|---|---|
+| Delivery status = "—" | Campaign archived/deleted — API doesn't return inactive campaigns by default |
+| End = "—" | Adset has no planned end date (runs until paused manually) |
+| Cost per add-to-cart/checkout = 0 | Meta doesn't always return these at ad level — dashboard falls back to `spend ÷ count` |
+| Objective = "—" on old dates | Archived campaigns aren't in the default API list |
+| Budget = 0 | Adset uses parent campaign's budget |
+| Marketing API CPU-time rate limit (80004 / 2446079) | Caused by repeated full `/ads` pagination scans — fixed via 3-tier ID caching (§7.2). If it recurs, check `scratch/check_rate_limit.py` and wait for `estimated_time_to_regain_access` |
+
 ---
 
-## 6. Supabase Schema
+## 9. Components
+
+### `components/charts.py`
+- `CHART_LAYOUT` — static dark Plotly layout dict (legacy, prefer `get_chart_layout()`)
+- `get_chart_layout()` — theme-aware Plotly layout (reads `st.session_state.theme`)
+- `series_to_df(series, value_col)` — converts `[{"date":..., "value":...}]` → sorted DataFrame
+- `safe_sum(series)` / `safe_last(series)` — null-safe aggregation helpers
+- `render_top3_podium(posts, sort_key, title, view_label, metrics)` — renders the 3-card
+  "🏆 Top Content" podium (gold/silver/bronze styling, thumbnail, caption, metrics grid,
+  link to post). Used by Facebook and Instagram Top Content tabs and Boost Top-3 Campaigns.
+
+### `components/skeleton.py`
+Shimmer loading-skeleton HTML (CSS `@keyframes _skel_shimmer`), builders:
+- `skeleton_dashboard_html(n_kpis=5)` — generic tab skeleton
+- `skeleton_boost_html()` — Boost-specific skeleton (used in `app.py` while Boost data loads)
+- `skeleton_charts_html(n_charts, n_cards)`
+- `render_skeleton_boost()` — convenience wrapper returning an `st.empty()` placeholder
+
+---
+
+## 10. Authentication
+
+`auth.py` wraps Supabase Auth (`/auth/v1/token?grant_type=password`).
+`auth.login(email, password)` returns
+`{user_id, email, access_token, role, display_name}` stored in `st.session_state["user"]`.
+
+- **admin** role: sees Supabase health indicator + "Connecté" label in sidebar
+- **viewer** role: same dashboard, no admin widgets
+- Logout: `del st.session_state["user"]` + `st.rerun()`
+
+### Table: `profiles`
+| Column | Notes |
+|--------|-------|
+| `user_id` | FK to Supabase `auth.users` |
+| `role` | `"admin"` or `"viewer"` |
+| `display_name` | Shown in sidebar |
+
+---
+
+## 11. Supabase Schema
 
 ### Table: `metric_cache`
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | int (PK) | Auto-increment |
-| `metric_key` | text | e.g. `"ig_profile"`, `"fb_audience"` |
-| `period_start` | text | ISO date or `"rolling"` |
-| `period_end` | text | ISO date or `"last_30d"` |
+| `metric_key` | text | e.g. `"ig_profile"`, `"fb_audience"`, `"skechers_campaign_ids"` |
+| `period_start` | text | ISO date, `"rolling"`, or `"static"` (for the campaign-ID cache row) |
+| `period_end` | text | ISO date, `"last_30d"`, or `"static"` |
 | `data` | jsonb | Raw API result as JSON |
 | `fetched_at` | timestamptz | When the row was written |
 
 Unique constraint on `(metric_key, period_start, period_end)`.
-`db.save()` does POST then PATCH on 409.
+`db.save()` does POST then PATCH on 409. Schema created once via `db_setup.py`.
 
 ### Metric keys
 - `ig_profile`, `ig_engagement`, `ig_posts`, `ig_post_totals`
-- `fb_audience`, `fb_engagement`, `fb_visibility`, `fb_demographics`, `fb_posts`, `fb_post_totals`, `fb_conversations`, `fb_messaging`
-- `boost_insights`, `boost_adset_ad`
+- `fb_audience`, `fb_engagement`, `fb_visibility`, `fb_demographics`, `fb_posts`,
+  `fb_post_totals`, `fb_conversations`, `fb_messaging`
+- `boost_insights`, `boost_adset_ad`, `skechers_campaign_ids`
+
+### Cache-poisoning guards (`db.py`)
+`get_boost_insights()` and `get_adset_ad_insights()` treat a cached entry with **zero
+campaigns/spend/ads/adsets** as a cache miss and re-fetch — prevents a rate-limit failure
+from being permanently cached as "all zeros".
 
 ### In-memory invalidation registry (`db._INVALIDATED`)
 Refresh button calls `db.delete_period(start, end)` which does a hard DELETE.
 Per-platform soft invalidation via `db.invalidate(platform, start, end)` marks keys in
 `_INVALIDATED` dict; `db.load()` skips rows fetched before the invalidation timestamp.
 
-### Table: `profiles`
-| Column | Notes |
-|--------|-------|
-| `user_id` | FK to Supabase auth.users |
-| `role` | `"admin"` or `"viewer"` |
-| `display_name` | Shown in sidebar |
-
 ---
 
-## 7. Authentication
-
-`auth.py` wraps Supabase Auth (`/auth/v1/token?grant_type=password`).
-Login returns `{user_id, email, access_token, role, display_name}` stored in `st.session_state["user"]`.
-
-- **admin** role: sees Supabase health indicator in sidebar, sees "Connecté" label
-- **viewer** role: same dashboard, no admin widgets
-- Logout: `del st.session_state["user"]` + `st.rerun()`
-
----
-
-## 8. Chatbot
+## 12. Chatbot (`components/chatbot.py`)
 
 ### LLM Stack
 - **Provider:** Groq (not Gemini — `config.py` still has a dead `GEMINI_API_KEY` constant)
 - **Primary model:** `llama-3.3-70b-versatile`
-- **Fallback model:** `llama-3.1-8b-instant` (on 429 rate limit)
+- **Fallback model:** `llama-3.1-8b-instant` (auto-switches on 429 / rate-limit error)
 - **Temperature:** 0.7 | **Max tokens:** 1024
 
-### Location
-The chat UI is rendered inside `components/sidebar.py` (not `chatbot.py`).
-`chatbot.py:render_chatbot()` is a no-op stub kept for backward compatibility.
-The actual logic functions `_get_groq_response()` and `_build_data_context()` are imported
-from `chatbot.py` into `sidebar.py`.
+### Location & wiring
+- The toggle button ("💬 Assistant IA" / "✕ Fermer l'assistant") and the
+  "🗑️ Effacer la conversation" button live in `components/sidebar.py`, right after
+  "🔄 Refresh Data" (see §5).
+- The actual floating chat panel is rendered by `components/chatbot.py:render_chatbot()`,
+  called unconditionally at the end of `app.py`. It no-ops if `st.session_state.chat_open`
+  is `False`.
+- ⚠️ `components/chatbot.py` lines ~494–665 are **dead code** (`if False:` block — an old
+  chat UI implementation never executed). Candidate for deletion.
 
 ### Dynamic data injection
 `_build_data_context()` reads from `st.session_state`:
@@ -256,22 +479,51 @@ Conversation history is stored in `st.session_state.chat_history`.
 ### System prompt scope
 The bot is constrained to dashboard-related questions only.
 Responds in the user's language (French / English / Arabic).
-Documents known API limitations (privacy-filtered likes, reach window limits, deprecated metrics).
+Documents known API limitations (privacy-filtered likes, reach window limits, deprecated
+metrics).
+
+### Documented in-app
+`views/documentation.py` has a "🤖 Assistant IA" section (feature table + limitations
+expander) describing this to end users in French.
 
 ---
 
-## 9. Background Prefetch
+## 13. Documentation tab (`views/documentation.py`)
 
-`app.py` spawns two daemon threads on load:
-- `_prefetch_facebook(days, start, end)` — calls all 7 Facebook db getters
-- `_prefetch_instagram(days, start, end)` — calls all 4 Instagram db getters
+In-app "📖 Guide du Dashboard" — explains every KPI, its calculation, and its API endpoint,
+organized by platform:
+- **Facebook**: Vue d'ensemble, Audience, Visibilité, Engagement, Top Contenu, Communauté
+- **Instagram**: Vue d'ensemble, Visibilité, Engagement
+- **Boost**: Global, Conversion, Par Objectif, Top #3 Campagnes, Tableau Ads, Démographie & Géo
+- **Google Analytics 4**: Vue d'ensemble, E-commerce, Événements, Audience
+- **🤖 Assistant IA**: feature table + limitations expander
+- Shared expanders: "⚠️ Limitations & Données Indisponibles", "📚 Glossaire", and
+  (admin-only) "🔄 Fréquence de mise à jour"
 
-These pre-populate the Supabase cache so tab switches are instant.
-Threads are fire-and-forget; errors are silently swallowed.
+The Endpoint column in KPI tables is hidden via CSS for non-admin (`viewer`) users.
 
 ---
 
-## 10. Key Calculations
+## 14. Background Prefetch
+
+`app.py` spawns daemon threads on load via `_start_prefetch(platform, days, start, end)`:
+- `_prefetch_facebook` — calls all 7 Facebook db getters
+- `_prefetch_instagram` — calls all 4 Instagram db getters
+- `_prefetch_boost` — calls `db.get_boost_insights` + `db.get_fb_demographics`
+
+Whichever platform tab is **not** currently active gets prefetched, so switching tabs is
+instant (data already in Supabase). Threads are fire-and-forget; errors are silently
+swallowed.
+
+Separately, `fetcher.py` runs via GitHub Actions (`.github/workflows/fetch.yml`, every 6h)
+and pre-warms Supabase for **every** sidebar period preset (rolling + calendar), independent
+of user activity. ⚠️ Relationship/overlap between `fetcher.py` and the in-app prefetch
+threads has not been formally audited — both populate the same `metric_cache` table via the
+same cache keys, so they shouldn't conflict, but `fetcher.py` covers more periods.
+
+---
+
+## 15. Key Calculations
 
 ```python
 # Audience (Facebook)
@@ -297,7 +549,7 @@ avg_response_time = mean(response_times_minutes)
 
 ---
 
-## 11. Error Handling
+## 16. Error Handling
 
 | HTTP error | UI response |
 |-----------|-------------|
@@ -309,7 +561,7 @@ avg_response_time = mean(response_times_minutes)
 
 ---
 
-## 12. Running the App
+## 17. Running the App
 
 ```bash
 pip install -r requirements.txt
@@ -332,32 +584,67 @@ Dashboard runs at `http://localhost:8501`.
 
 ---
 
-## 13. Pending Tasks & Known Issues
+## 18. Pending Tasks & Cleanup
 
-### High priority
-- [ ] **Token hardcoded in config.py** — The Meta Page token and Ads token are hardcoded as fallback values (lines 15–23). This is a security risk. They should be env-only with no fallback hardcode.
-- [ ] **`chatbot.py` dead code** — The large `if False:` block (lines 267–436) and `_render_chatbot_sidebar()` stub should be deleted. The old floating-panel CSS is dead weight.
-- [ ] **`config.py:GEMINI_API_KEY`** — Dead constant from the original chatbot provider. Remove.
-- [ ] **`GRAPH_API_VERSION = "v19.0"`** — Config still says v19.0 but the Instagram API code targets v22+ patterns (metric_type, views replacing impressions). Should be updated to `"v22.0"`.
+### High priority (security / correctness)
+- [ ] **Hardcoded tokens in `config.py`** — `ACCESS_TOKEN` and `ADS_ACCESS_TOKEN` have live
+  Meta tokens hardcoded as fallback default values. Remove the fallback strings; raise a
+  clear startup error if the env var is missing.
+- [ ] **Remove dead `GEMINI_API_KEY`** from `config.py`.
+- [ ] **`GRAPH_API_VERSION = "v19.0"`** vs. actual v22+ usage in `api/instagram.py` —
+  reconcile and bump to `"v22.0"`, re-test FB + IG tabs.
+- [ ] **Delete dead code block** in `components/chatbot.py` (lines ~494–665, `if False:`).
 
-### Medium priority
-- [ ] **README.md is empty** — Only contains `# SKECHERS DASHBOARD`. Should at minimum link to this file.
-- [ ] **AI_CONTEXT_LOG.md is noisy** — 2,500+ lines of repetitive refresh events. The auto-append `log_refresh()` function in `app.py` writes every single refresh. Should be rate-limited (e.g. one entry per day per platform) or the file should be rotated.
-- [ ] **Demographics tab uses paid data as proxy** — `fetch_fb_demographics()` uses the Marketing API because `page_fans_gender_age` is blocked for New Page Experience pages. This should be documented in the UI for the team.
-- [ ] **IG daily `views` series not available** — `metric_type=time_series` is not supported for the `views` metric. The daily chart falls back to `impressions` which may be deprecated. Needs UI note.
-- [ ] **Boost tab: `SKECHERS_CAMPAIGN_KEYWORDS`** — The agency can change campaign naming at any time. If campaigns disappear from the Boost tab, check this list first.
+### Repo hygiene
+- [ ] Add to `.gitignore`: `ga4_token_fixed.json`, `test.pem`, `~$*`, `.claude/worktrees/`.
+- [ ] `git rm --cached` the tracked `__pycache__/config.cpython-314.pyc`.
+- [ ] `git rm` the stray `~$Copie de  Rapport mensuel footland mars 2026.pptx` (unrelated
+  Office lock file) and `assets/footland_logo.png` (unused, from another client).
+- [ ] `git rm --cached` the two `.claude/worktrees/*` gitlinks.
+- [ ] Move `db_setup.py` and `ga4_auth.py` to `scratch/` or a `setup/` folder — neither is
+  imported by the running app.
+- [ ] Trim/rotate `AI_CONTEXT_LOG.md` (2,500+ lines of repetitive `log_refresh()` entries) —
+  cap at last N entries, rate-limit to once/day/platform, or move to a Supabase table.
+- [ ] Flesh out `README.md` (currently 1 line).
 
-### Low priority
-- [ ] **`fetcher.py`** — File exists but its role vs. the inline `_prefetch_*` functions in `app.py` is unclear. Needs audit.
-- [ ] **`db_setup.py`** — File exists but is not imported anywhere. Likely a one-time Supabase schema setup script. Should be moved to `scratch/` or documented.
-- [ ] **`ga4_auth.py`** — File exists at root. Its relationship to `api/ga4.py:_get_credentials()` is unclear. Needs audit.
-- [ ] **`ga4_token_fixed.json`** — Untracked file in git status. Likely a development credential file. Should be confirmed gitignored.
-- [ ] **`test.pem`** — Untracked file in git status. Unknown purpose. Should be confirmed gitignored.
-- [ ] **`scratch/` scripts** — `check_ads.py`, `deep_diag_ig.py`, `diag_post_likes.py`, `test_ig_followers.py` are diagnostic scripts from development. Safe to delete if no longer needed.
+### Dependencies (`requirements.txt`)
+- [ ] `psycopg2-binary` is only needed by `db_setup.py` (one-time script) — move to a
+  dev-only requirements file.
+- [ ] `google-auth-oauthlib` is only needed by `ga4_auth.py` (one-time script, runtime uses
+  `google.oauth2.service_account`) — move to a dev-only requirements file.
+
+### Medium priority (functionality)
+- [ ] **Demographics tab uses paid data as proxy** — `fetch_fb_demographics()` uses the
+  Marketing API because `page_fans_gender_age` is blocked for New Page Experience pages.
+  Should be documented in the UI for the team.
+- [ ] **IG daily `views` series not available** — `metric_type=time_series` is not supported
+  for the `views` metric. The daily chart falls back to `impressions` which may be deprecated.
+  Needs UI note.
+- [ ] **Boost tab: `SKECHERS_CAMPAIGN_KEYWORDS`** — agency can change campaign naming at any
+  time. If campaigns disappear from the Boost tab, check this list first.
+- [ ] **GA4 tab has no Supabase cache** — every page load hits the GA4 API directly. Consider
+  routing through `db.py` like other platforms if rate limits become an issue.
+
+### Optional refactor (large files → token cost when editing)
+- [ ] Split `views/boost.py` (1150 lines) into a package by sub-tab (Global, Conversion,
+  Par Objectif, Top #3, Tableau Ads, Démographie & Géo).
+- [ ] Split `views/facebook.py` (948) and `api/facebook.py` (900) by tab/section
+  (Audience, Engagement, Visibility, Posts, Community).
+- [ ] Extract a shared `_get_with_fallback(endpoint, metric_candidates, params)` helper into
+  `api/base.py` to reduce the ~65 try/except fallback blocks duplicated across
+  `api/facebook.py` / `api/instagram.py`.
+
+### Status
+- [x] Boost tab campaign filtering, ID caching, cache-poisoning fix — **done, confirmed
+  working**.
+- [x] `CLAUDE.md` trimmed to quick-start + pointer to this file — **done**.
+- [x] "🤖 Assistant IA" documented in `views/documentation.py` — **done**.
+- [x] Sidebar order: Refresh Data → Assistant IA → (clear conversation) → theme/admin →
+  logout — **done**.
 
 ---
 
-## 14. Architecture Decisions Log
+## 19. Architecture Decisions Log
 
 | Decision | Rationale |
 |----------|-----------|
@@ -371,3 +658,5 @@ Dashboard runs at `http://localhost:8501`.
 | `_get_insights_chunked()` for wide date ranges | Meta Insights API silently fails for windows > ~92 days; 88-day chunks are safe |
 | Stable cache keys for rolling periods | Prevents unbounded Supabase row growth; same key reused indefinitely, refreshed only on demand |
 | Chatbot context from `st.session_state` | The bot needs the current numbers to answer "what was our reach this month?" — injected per-call so always current |
+| 3-tier campaign ID caching (memory → Supabase 24h → live scan) | Live `/ads` pagination scans on every refresh caused Marketing API CPU-time rate limiting (80004/2446079) |
+| `CLAUDE.md` kept short, `PROJECT_CONTEXT.md` is the single source of truth | Avoids two large docs drifting out of sync and bloating AI context windows |
