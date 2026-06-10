@@ -634,6 +634,44 @@ Dashboard runs at `http://localhost:8501`.
   `api/base.py` to reduce the ~65 try/except fallback blocks duplicated across
   `api/facebook.py` / `api/instagram.py`.
 
+### Proposed project layout (target structure, not yet implemented)
+```
+skechers/
+├── app.py
+├── auth.py
+├── config.py
+├── db.py
+├── requirements.txt
+├── requirements-dev.txt        ← NEW: psycopg2-binary, google-auth-oauthlib
+├── README.md                   ← needs real content
+│
+├── scripts/                    ← NEW: one-time/dev-only, not imported by app.py
+│   ├── db_setup.py              (moved from root)
+│   ├── ga4_auth.py               (moved from root)
+│   └── fetcher.py                (cron prefetch — keep root if CI path matters)
+│
+├── logs/                        ← NEW: AI_CONTEXT_LOG.md moved/rotated here
+│
+├── api/
+│   ├── facebook/                ← split package (audience, engagement, visibility, posts, community)
+│   ├── instagram.py
+│   ├── boost.py
+│   └── ga4.py
+├── components/
+├── views/
+│   ├── boost/                   ← split package (global, conversion, objectives, top3, ads_table, demographics)
+│   ├── facebook/                ← split package (overview, audience, visibility, engagement, top_content, community)
+│   ├── instagram.py
+│   ├── analytics.py
+│   ├── login.py
+│   └── documentation.py
+├── assets/                       (remove footland_logo.png)
+└── scratch/                       (gitignored, untouched)
+```
+Phasing: do hygiene + `scripts/`/`requirements-dev.txt` split first (low risk, no import
+changes outside the moved files); treat the `views/boost` and `views/facebook`/`api/facebook`
+package splits as a separate task since they touch many imports and need re-testing.
+
 ### Status
 - [x] Boost tab campaign filtering, ID caching, cache-poisoning fix — **done, confirmed
   working**.
