@@ -207,7 +207,6 @@ Order of elements (top to bottom):
 | `SUPABASE_KEY` | Supabase anon/service key | `db.py`, `auth.py` |
 | `SUPABASE_DB_URL` | Postgres connection string (one-time setup only) | `db_setup.py` |
 | `GROQ_API_KEY` | Groq API key for chatbot LLM | `components/chatbot.py` |
-| `GEMINI_API_KEY` | Legacy constant from the original chatbot provider; no longer used by `components/chatbot.py` (which uses `GROQ_API_KEY`) | `config.py` |
 
 **Note**: `ACCESS_TOKEN` and `ADS_ACCESS_TOKEN` currently have live Meta tokens hardcoded as
 fallback values in `config.py` (lines ~14–24), used only if the env vars are unset.
@@ -433,7 +432,7 @@ Per-platform soft invalidation via `db.invalidate(platform, start, end)` marks k
 ## 12. Chatbot (`components/chatbot.py`)
 
 ### LLM Stack
-- **Provider:** Groq (not Gemini — `config.py` still has a dead `GEMINI_API_KEY` constant)
+- **Provider:** Groq
 - **Primary model:** `llama-3.3-70b-versatile`
 - **Fallback model:** `llama-3.1-8b-instant` (auto-switches on 429 / rate-limit error)
 - **Temperature:** 0.7 | **Max tokens:** 1024
@@ -571,7 +570,7 @@ Dashboard runs at `http://localhost:8501`.
 |----------|-----------|
 | Streamlit over React/Vue | Speed of development for internal tool; team comfort level; sufficient for the use case |
 | Supabase permanent cache instead of `st.cache_data` TTL | Meta API rate limits + slow N+1 per-post insight calls made the original TTL-based approach unusable |
-| Groq/LLaMA 3.3 instead of OpenAI or Gemini | Groq's free tier is fast; LLaMA 3.3 70B is sufficient for dashboard Q&A; Gemini was the original choice (hence dead `GEMINI_API_KEY`) |
+| Groq/LLaMA 3.3 instead of OpenAI or Gemini | Groq's free tier is fast; LLaMA 3.3 70B is sufficient for dashboard Q&A; Gemini was the original choice |
 | Organic constraint enforced at HTTP layer (`_assert_not_blocked`) | Prevents any accidental ad account queries even if new API functions are added |
 | Separate `ADS_ACCESS_TOKEN` for Boost | The page token does not have `ads_read` scope; a separate User token is required for the Marketing API |
 | Field expansion for IG posts (`insights.metric(...)`) | Eliminates N+1 per-post API calls — all post metrics in 1 call |
