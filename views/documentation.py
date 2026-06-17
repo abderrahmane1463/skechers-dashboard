@@ -93,7 +93,7 @@ def render_documentation():
     with col2:
         st.info("📸 **Instagram** — Visibilité, Engagement")
     with col3:
-        st.info("🚀 **Boost** — Campagnes payantes, Conversions, Par Objectif, Top #3, Tableau Ads (format CSV Meta), Drill-down Adset/Ad, Démographie, Géographie")
+        st.info("🚀 **Boost** — Campagnes payantes, Conversions, Par Objectif, Top #3, Rapport (format CSV Meta), Drill-down Adset/Ad, Démographie, Géographie")
 
     col4, col5 = st.columns(2)
     with col4:
@@ -224,7 +224,7 @@ def render_documentation():
     # ── Boost ─────────────────────────────────────────────────────────────────
     st.markdown('<div class="doc-section-title">🚀 Boost (Campagnes Payantes)</div>', unsafe_allow_html=True)
 
-    b1, b2, b3, b4, b5, b6 = st.tabs(["📊 Global", "🎯 Conversion", "🗂️ Par Objectif", "🏆 Top #3 Campagnes", "📋 Tableau Ads", "👥 Démographie & Géo"])
+    b1, b2, b3, b4, b5, b6 = st.tabs(["📊 Global", "🎯 Conversion", "🗂️ Par Objectif", "🏆 Top #3 Campagnes", "📋 Rapport", "👥 Démographie & Géo"])
 
     with b1:
         st.markdown("""
