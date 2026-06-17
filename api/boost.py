@@ -284,6 +284,14 @@ def _get_skechers_ids() -> list:
 
     except Exception as e:
         print(f"DEBUG boost: _get_skechers_ids scan error: {e}")
+        # Use any IDs already collected before the pagination failure
+        partial = list(campaign_ids) if campaign_ids else []
+        if partial:
+            print(f"DEBUG boost: using {len(partial)} partial IDs from interrupted scan")
+            _supabase_save_ids(partial)
+            _MEM_IDS    = partial
+            _MEM_IDS_AT = time.time()
+            return partial
         # Fallback: return stale Supabase IDs rather than an empty list
         if supabase_ids:
             print(f"DEBUG boost: using stale Supabase IDs as fallback ({len(supabase_ids)} IDs)")
