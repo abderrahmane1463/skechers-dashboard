@@ -821,14 +821,6 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
         ]
 
         _df_ads = pd.DataFrame(ad_rows)
-        st.dataframe(
-            _df_ads,
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="multi-row",
-            column_config=_csv_col_config(),
-        )
 
         def _to_excel(df: pd.DataFrame) -> bytes:
             buf = io.BytesIO()
@@ -836,12 +828,24 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 df.to_excel(writer, index=False, sheet_name="Campagnes")
             return buf.getvalue()
 
-        st.download_button(
-            label="📥 Télécharger en Excel",
-            data=_to_excel(_df_ads),
-            file_name="campagnes_boost.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="dl_ads_excel",
+        _spacer, _dl_col = st.columns([8, 2])
+        with _dl_col:
+            st.download_button(
+                label="📥 Télécharger en Excel",
+                data=_to_excel(_df_ads),
+                file_name="campagnes_boost.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_ads_excel",
+                use_container_width=True,
+            )
+
+        st.dataframe(
+            _df_ads,
+            use_container_width=True,
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="multi-row",
+            column_config=_csv_col_config(),
         )
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
