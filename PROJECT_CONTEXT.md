@@ -243,8 +243,8 @@ Currently ignores: `.env`, `__pycache__/`, `*.pyc`, `*.pyo`, `.streamlit/secrets
 | `/{page-id}/insights` + `page_fan_removes` / `page_daily_unfollows` | Daily follower removes |
 | `/{page-id}/insights` + `page_post_engagements` | Daily engagement |
 | `/{page-id}/insights` + `page_actions_post_reactions_total` | Daily reaction breakdown |
-| `/{page-id}/insights` + `page_posts_impressions` | Daily impressions (replaces deprecated `page_impressions`) |
-| `/{page-id}/insights` + `page_impressions_unique` | Unique reach (period=day/week/month) |
+| `/{page-id}/insights` + `page_media_view` | Daily total media views — replaces `page_posts_impressions` (removed 2026-06-15) |
+| `/{page-id}/insights` + `page_total_media_view_unique` | Unique reach (period=day/week/month) — replaces `page_impressions_unique` (removed 2026-06-15) |
 | `/{page-id}/insights` + `page_views_total` | Page views |
 | `/{page-id}/insights` + `page_messages_new_conversations_unique` | New DM conversations |
 | `/{page-id}/posts` | Post list with inline engagement |
@@ -337,13 +337,14 @@ Data fetched in a single credential refresh via `fetch_all_ga4_data(start, end)`
 ### Facebook
 | Limitation | Workaround applied |
 |-----------|-------------------|
-| `page_impressions` blocked for New Page Experience pages (returns `#100` error) | Use `page_posts_impressions` — confirmed working, returns expected value |
+| `page_impressions_unique` + `page_posts_impressions` removed by Meta 2026-06-15 | Replaced by `page_total_media_view_unique` (reach) and `page_media_view` (impressions). New metrics combine paid+organic; numbers are not comparable to pre-June-15 history. |
+| `post_impressions_unique` + all organic/paid/viral/nonviral post variants removed 2026-06-15 | Replaced by `post_total_media_view_unique` (isolated call + `period=lifetime`). Organic/paid/viral breakdown dropped — no replacement. |
+| `post_total_media_view_unique` returns 0 if batched with other metrics | Must be fetched in its own isolated API call. `post_clicks` and `post_video_views` stay in a separate batch. |
 | `page_impressions_fan` and `page_impressions_paid` deprecated for New Page Experience | Try `page_posts_impressions_fan` / `page_posts_impressions_nonviral`; fail silently |
 | `page_fans_gender_age` blocked for New Page Experience | Demographics uses Marketing API paid reach as proxy |
-| `post_impressions`, `post_impressions_organic` (aggregate) return `#100` for this page type | Request only `_unique` variants: `post_impressions_unique`, `post_impressions_organic_unique`, etc. |
-| One bad metric in a batch call silently kills all other metrics in the same call | Split into separate API calls per metric group (reach metrics + dict metrics) |
+| One bad metric in a batch call silently kills all other metrics in the same call | Split into separate API calls per metric group |
 | Insights API silently returns nothing for windows > ~92 days | `_get_insights_chunked()` splits into ≤88-day chunks |
-| `page_impressions_unique` (deduplicated reach) only has exact API mapping for 1d, 7d, 28-31d windows | For other window sizes (14d, 60d, 90d, quarters), dashboard shows "—" instead of a misleading approximation |
+| `page_total_media_view_unique` (deduplicated reach) only has exact API mapping for 1d, 7d, 28-31d windows | For other window sizes (14d, 60d, 90d, quarters), dashboard shows "—" instead of a misleading approximation |
 | `/conversations` endpoint ignores `since`/`until` parameters | Filter threads client-side by `updated_time` date prefix; stop pagination when oldest thread is before `since` |
 
 ### Boost (Meta Marketing API)

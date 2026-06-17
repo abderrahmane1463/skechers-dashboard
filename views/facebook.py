@@ -324,8 +324,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
   {_kpi("📊", "Taux d'engagement",   _eng_rate_display,   "#facc15")}
 </div>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-  {_kpi("👁️", "Spectateurs",             _reach_display, note=_reach_note)}
-  {_kpi("📢", "Impressions",              f"{total_impressions:,}",          delta=_d(total_impressions,        _prev_impr))}
+  {_kpi("👁️", "Vues uniques médias",      _reach_display, note=_reach_note)}
+  {_kpi("📢", "Vues médias totales",      f"{total_impressions:,}",          delta=_d(total_impressions,        _prev_impr))}
   {_kpi("🤝", "Content Interactions",     f"{total_content_interactions:,}", "#a78bfa")}
   {_kpi("📝", "Publications",             str(len(posts)),                   delta=_d(len(posts), _prev_posts))}
 </div>
@@ -779,9 +779,8 @@ def render_facebook_dashboard(period_label: str, days: int, start_date, end_date
         st.markdown('<div class="section-header">Reach & Page View Fluctuations</div>', unsafe_allow_html=True)
         reach_df      = series_to_df(vis.get("reach", []))
         views_df      = series_to_df(vis.get("page_views", []))
-        # Prefer page_impressions_daily (page_impressions — all placements) for the
-        # chart so it matches the 📢 Impressions KPI which also uses page_impressions.
-        # Fall back to the generic "impressions" key only if the primary is absent.
+        # page_impressions_daily holds the page_media_view daily series (renamed key
+        # kept for backwards compat). Falls back to generic "impressions" key.
         impressions_df = series_to_df(
             vis.get("page_impressions_daily") or vis.get("impressions", [])
         )

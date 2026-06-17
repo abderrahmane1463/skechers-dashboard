@@ -82,8 +82,8 @@ FB_ENGAGEMENT_METRICS = [
 ]
 
 FB_VISIBILITY_METRICS = [
-    "page_impressions",
-    "page_impressions_unique",
+    "page_media_view",               # replaces page_posts_impressions (removed 2026-06-15)
+    "page_total_media_view_unique",  # replaces page_impressions_unique (removed 2026-06-15)
     "page_views_total",
 ]
 
