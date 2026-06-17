@@ -828,15 +828,19 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 df.to_excel(writer, index=False, sheet_name="Campagnes")
             return buf.getvalue()
 
-        _spacer, _dl_col = st.columns([8, 2])
+        import base64 as _b64
+        _xl_b64 = _b64.b64encode(_to_excel(_df_ads)).decode()
+        _spacer, _dl_col = st.columns([7, 3])
         with _dl_col:
-            st.download_button(
-                label="📥 Télécharger en Excel",
-                data=_to_excel(_df_ads),
-                file_name="campagnes_boost.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="dl_ads_excel",
-                use_container_width=True,
+            st.markdown(
+                f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{_xl_b64}" '
+                f'download="campagnes_boost.xlsx" style="'
+                f'display:block;text-align:center;padding:0.45rem 1rem;'
+                f'background:#1c1c1e;color:#ffffff;border:1px solid #2a2a2a;'
+                f'border-radius:8px;font-size:0.84rem;font-weight:500;'
+                f'text-decoration:none;cursor:pointer;'
+                f'">📥 Télécharger en Excel</a>',
+                unsafe_allow_html=True,
             )
 
         st.dataframe(
