@@ -15,6 +15,7 @@ TODO: replace `empty_boost_data()` calls in views/facebook.py with
 
 from __future__ import annotations
 
+import io
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -819,13 +820,28 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             for a in sorted(ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True)
         ]
 
+        _df_ads = pd.DataFrame(ad_rows)
         st.dataframe(
-            pd.DataFrame(ad_rows),
+            _df_ads,
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
             selection_mode="multi-row",
             column_config=_csv_col_config(),
+        )
+
+        def _to_excel(df: pd.DataFrame) -> bytes:
+            buf = io.BytesIO()
+            with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="Campagnes")
+            return buf.getvalue()
+
+        st.download_button(
+            label="📥 Télécharger en Excel",
+            data=_to_excel(_df_ads),
+            file_name="campagnes_boost.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_ads_excel",
         )
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
