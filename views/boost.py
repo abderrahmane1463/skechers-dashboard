@@ -774,17 +774,59 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             "End":                                "—",
         }
 
-    def _render_flat_table(ks: str, mode: str = "all"):
+    # ── Campaign-level row builder (Notoriété & Engagement table) ─────────────
+    def _build_campaign_row(c):
+        spend = c.get("spend", 0.0)
+        return {
+            "Campaign name":                    c.get("name", "—"),
+            "Objective":                        c.get("objective", "—"),
+            "Reach":                            c.get("reach", 0),
+            "Impressions":                      c.get("impressions", 0),
+            "Frequency":                        round(c.get("frequency", 0.0), 2),
+            "Result type":                      c.get("result_type", "—"),
+            "Results":                          c.get("results", 0),
+            "Amount spent (EUR)":               round(spend, 2),
+            "Starts":                           c.get("campaign_start", "—"),
+            "Ends":                             c.get("campaign_end", "—"),
+            "Cost per result":                  round(c.get("cost_per_result", 0.0), 2),
+            "Delivery status":                  c.get("delivery_status", "—"),
+            "Delivery level":                   "campaign",
+            "Link clicks":                      c.get("link_clicks", 0),
+            "CPC (cost per link click)":        round(c.get("cpc_link", 0.0), 2),
+            "CPM (cost per 1,000 impressions)": round(c.get("cpm", 0.0), 2),
+            "CTR (all)":                        round(c.get("ctr", 0.0), 2),
+            "Reporting starts":                 reporting_start,
+            "Reporting ends":                   reporting_end,
+        }
+
+    def _to_excel(df: pd.DataFrame, sheet_name: str = "Campagnes") -> bytes:
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+        return buf.getvalue()
+
+    def _download_button(df: pd.DataFrame, sheet_name: str, file_name: str):
+        import base64 as _b64
+        _xl_b64 = _b64.b64encode(_to_excel(df, sheet_name)).decode()
+        _spacer, _dl_col = st.columns([7, 3])
+        with _dl_col:
+            st.markdown(
+                f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{_xl_b64}" '
+                f'download="{file_name}" style="'
+                f'display:block;text-align:center;padding:0.45rem 1rem;'
+                f'background:#1c1c1e;color:#ffffff;border:1px solid #2a2a2a;'
+                f'border-radius:8px;font-size:0.84rem;font-weight:500;'
+                f'text-decoration:none;cursor:pointer;'
+                f'">📥 Télécharger en Excel</a>',
+                unsafe_allow_html=True,
+            )
+
+    def _render_sales_table(ks: str):
+        """Ad-level table — one row per ad, default filter OUTCOME_SALES."""
         _ads = list(ads)
-        # ── Objective filter ──────────────────────────────────────────────────
         all_objectives = sorted(set(a.get("objective", "—") for a in _ads if a.get("objective", "—") != "—"))
         if all_objectives:
-            if mode == "sales":
-                default_objectives = [o for o in all_objectives if o == "OUTCOME_SALES"]
-            elif mode == "non_sales":
-                default_objectives = [o for o in all_objectives if o != "OUTCOME_SALES"]
-            else:
-                default_objectives = all_objectives
+            default_objectives = [o for o in all_objectives if o == "OUTCOME_SALES"]
             selected_objectives = st.multiselect(
                 "Filtrer par objectif",
                 options=all_objectives,
@@ -799,62 +841,28 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             _build_ad_row(a)
             for a in sorted(_ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True)
         ]
+        _df = pd.DataFrame(ad_rows)
+        _sales_cols = [
+            "Ad name", "Campaign name", "Delivery status", "Delivery level", "Ad set name",
+            "Objective", "Result type", "Results", "Cost per result", "Amount spent (EUR)",
+            "Campaign Budget", "Campaign Budget Type", "Ad Set Budget", "Ad Set Budget Type",
+            "Reach", "Cost per 1,000 Meta Accounts reached",
+            "Impressions", "CPM (cost per 1,000 impressions)", "Frequency",
+            "Clicks (all)", "CPC (all)", "Link clicks", "CPC (cost per link click)",
+            "CTR (all)", "CTR (link click-through rate)",
+            "Outbound clicks", "Cost per outbound click",
+            "Website landing page views", "Cost per landing page view",
+            "Adds to cart", "Website adds to cart", "Cost per add to cart",
+            "Checkouts initiated", "Website checkouts initiated", "Cost per checkout initiated",
+            "Purchases", "Website purchases", "Cost per purchase",
+            "Engagement rate ranking", "Quality ranking", "Conversion rate ranking",
+            "Reporting starts", "Reporting ends",
+        ]
+        _df = _df.reindex(columns=[c for c in _sales_cols if c in _df.columns])
 
-        _df_ads = pd.DataFrame(ad_rows)
-
-        if mode == "sales":
-            _sales_cols = [
-                "Ad name", "Campaign name", "Delivery status", "Delivery level", "Ad set name",
-                "Objective", "Result type", "Results", "Cost per result", "Amount spent (EUR)",
-                "Campaign Budget", "Campaign Budget Type", "Ad Set Budget", "Ad Set Budget Type",
-                "Reach", "Cost per 1,000 Meta Accounts reached",
-                "Impressions", "CPM (cost per 1,000 impressions)", "Frequency",
-                "Clicks (all)", "CPC (all)", "Link clicks", "CPC (cost per link click)",
-                "CTR (all)", "CTR (link click-through rate)",
-                "Outbound clicks", "Cost per outbound click",
-                "Website landing page views", "Cost per landing page view",
-                "Adds to cart", "Website adds to cart", "Cost per add to cart",
-                "Checkouts initiated", "Website checkouts initiated", "Cost per checkout initiated",
-                "Purchases", "Website purchases", "Cost per purchase",
-                "Engagement rate ranking", "Quality ranking", "Conversion rate ranking",
-                "Reporting starts", "Reporting ends",
-            ]
-            _df_ads = _df_ads.reindex(columns=[c for c in _sales_cols if c in _df_ads.columns])
-
-        if mode == "non_sales":
-            _df_ads = _df_ads.rename(columns={"Start": "Starts", "End": "Ends"})
-            _eng_cols = [
-                "Campaign name", "Objective", "Reach", "Impressions", "Frequency",
-                "Result type", "Results", "Amount spent (EUR)", "Starts", "Ends",
-                "Cost per result", "Delivery status", "Delivery level", "Link clicks",
-                "CPC (cost per link click)", "CPM (cost per 1,000 impressions)",
-                "CTR (all)", "Reporting starts", "Reporting ends",
-            ]
-            _df_ads = _df_ads.reindex(columns=[c for c in _eng_cols if c in _df_ads.columns])
-
-        def _to_excel(df: pd.DataFrame) -> bytes:
-            buf = io.BytesIO()
-            with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name="Campagnes")
-            return buf.getvalue()
-
-        import base64 as _b64
-        _xl_b64 = _b64.b64encode(_to_excel(_df_ads)).decode()
-        _spacer, _dl_col = st.columns([7, 3])
-        with _dl_col:
-            st.markdown(
-                f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{_xl_b64}" '
-                f'download="campagnes_boost.xlsx" style="'
-                f'display:block;text-align:center;padding:0.45rem 1rem;'
-                f'background:#1c1c1e;color:#ffffff;border:1px solid #2a2a2a;'
-                f'border-radius:8px;font-size:0.84rem;font-weight:500;'
-                f'text-decoration:none;cursor:pointer;'
-                f'">📥 Télécharger en Excel</a>',
-                unsafe_allow_html=True,
-            )
-
+        _download_button(_df, "Rapport Sales", "rapport_hebdomadaire_sales.xlsx")
         st.dataframe(
-            _df_ads,
+            _df,
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
@@ -863,10 +871,50 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             key=f"ads_table{ks}",
         )
 
+    def _render_engagement_table(ks: str):
+        """Campaign-level table — one row per campaign, default filter excludes OUTCOME_SALES.
+        Built from campaign-level insights so reach/results match Meta Ads Manager."""
+        _camps = list(campaigns)
+        all_objectives = sorted(set(c.get("objective", "—") for c in _camps if c.get("objective", "—") != "—"))
+        if all_objectives:
+            default_objectives = [o for o in all_objectives if o != "OUTCOME_SALES"]
+            selected_objectives = st.multiselect(
+                "Filtrer par objectif",
+                options=all_objectives,
+                default=default_objectives,
+                label_visibility="collapsed",
+                placeholder="Sélectionner un ou plusieurs objectifs…",
+                key=f"obj_filter_table{ks}",
+            )
+            _camps = [c for c in _camps if c.get("objective", "—") in selected_objectives] if selected_objectives else _camps
+
+        camp_rows = [
+            _build_campaign_row(c)
+            for c in sorted(_camps, key=lambda x: x.get("campaign_created", ""), reverse=True)
+        ]
+        _df = pd.DataFrame(camp_rows)
+        _eng_cols = [
+            "Campaign name", "Objective", "Reach", "Impressions", "Frequency",
+            "Result type", "Results", "Amount spent (EUR)", "Starts", "Ends",
+            "Cost per result", "Delivery status", "Delivery level", "Link clicks",
+            "CPC (cost per link click)", "CPM (cost per 1,000 impressions)",
+            "CTR (all)", "Reporting starts", "Reporting ends",
+        ]
+        _df = _df.reindex(columns=[c for c in _eng_cols if c in _df.columns])
+
+        _download_button(_df, "Notoriete Engagement", "rapport_notoriete_engagement.xlsx")
+        st.dataframe(
+            _df,
+            use_container_width=True,
+            hide_index=True,
+            column_config=_csv_col_config(),
+            key=f"camp_table{ks}",
+        )
+
     if ads:
-        _render_flat_table(key_suffix, mode="sales")
+        _render_sales_table(key_suffix)
         _section_header("📊 Rapport Hebdomadaire Notoriété & Engagement")
-        _render_flat_table(f"{key_suffix}_2", mode="non_sales")
+        _render_engagement_table(f"{key_suffix}_2")
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
 

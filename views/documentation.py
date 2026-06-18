@@ -286,7 +286,7 @@ def render_documentation():
     with b5:
         st.markdown("""
 <p style="color:#a1a1aa;font-size:14px;">
-L'onglet <strong>Rapport</strong> affiche <strong>deux tableaux de niveau publicité (ad)</strong> empilés, chacun avec son propre filtre objectif et son propre export Excel. Les données proviennent de <span class="endpoint">/{ad_account}/insights?level=ad</span> ; les lignes sont triées par date de création de campagne (plus récente en premier).
+L'onglet <strong>Rapport</strong> affiche <strong>deux tableaux</strong> empilés, chacun avec son propre filtre objectif et son propre export Excel. Le tableau Sales est au <strong>niveau publicité (ad)</strong> ; le tableau Notoriété &amp; Engagement est au <strong>niveau campagne</strong> (une ligne par campagne, portée/résultats dédupliqués comme dans Meta Ads Manager). Les lignes sont triées par date de création de campagne (plus récente en premier).
 </p>
 <br>
 <p style="color:#fafafa;font-size:15px;font-weight:700;">📋 Rapport Hebdomadaire Sales</p>
@@ -299,7 +299,7 @@ Ad name · Campaign name · Delivery status · Delivery level · Ad set name · 
 <br>
 <p style="color:#fafafa;font-size:15px;font-weight:700;">📊 Rapport Hebdomadaire Notoriété &amp; Engagement</p>
 <p style="color:#a1a1aa;font-size:13px;">
-Filtre objectif <strong>pré-sélectionné sur tous les objectifs SAUF OUTCOME_SALES</strong> par défaut (modifiable). Vue resserrée (19 colonnes) orientée portée / interaction :
+<strong>Niveau campagne</strong> (une ligne par campagne, pas par ad — portée et résultats dédupliqués par Meta, donc identiques à Meta Ads Manager). Filtre objectif <strong>pré-sélectionné sur tous les objectifs SAUF OUTCOME_SALES</strong> par défaut (modifiable). Vue resserrée (19 colonnes) orientée portée / interaction :
 </p>
 <p style="color:#71717a;font-size:12px;font-family:monospace;line-height:1.6;">
 Campaign name · Objective · Reach · Impressions · Frequency · Result type · Results · Amount spent (EUR) · Starts · Ends · Cost per result · Delivery status · Delivery level · Link clicks · CPC (cost per link click) · CPM · CTR (all) · Reporting starts · Reporting ends

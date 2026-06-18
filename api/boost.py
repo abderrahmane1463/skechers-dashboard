@@ -408,7 +408,7 @@ def fetch_boost_insights(
     _camp_meta: dict[str, dict] = {}
     try:
         resp_meta = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
-            "fields": "id,effective_status,daily_budget,lifetime_budget",
+            "fields": "id,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time",
             "limit":  500,
         })
         for c in resp_meta.get("data", []):
@@ -424,6 +424,9 @@ def fetch_boost_insights(
             else:
                 _camp_meta[cid] = {"status": c.get("effective_status", "—"),
                                    "budget": 0.0, "budget_type": "—"}
+            _camp_meta[cid]["created_time"] = c.get("created_time", "")
+            _camp_meta[cid]["start_time"]   = c.get("start_time", "")
+            _camp_meta[cid]["stop_time"]    = c.get("stop_time", "")
     except Exception as e:
         print(f"DEBUG boost: campaign meta fetch error: {e}")
 
@@ -515,6 +518,12 @@ def fetch_boost_insights(
             cost_out_val    = round(spend_val / outbound_val, 4) if outbound_val else 0.0
 
             meta = _camp_meta.get(camp_id, {})
+            _res_type, _res_count = _derive_result(
+                objective, actions, reach_val, link_clicks_val, purchases
+            )
+
+            def _fmt_camp_date(iso: str) -> str:
+                return iso[:10] if iso and len(iso) >= 10 else "—"
 
             campaigns.append({
                 "campaign_id":            camp_id,
@@ -523,6 +532,12 @@ def fetch_boost_insights(
                 "delivery_status":        meta.get("status", "—"),
                 "budget":                 meta.get("budget", 0.0),
                 "budget_type":            meta.get("budget_type", "—"),
+                "result_type":            _res_type,
+                "results":                _res_count,
+                "cost_per_result":        round(spend_val / _res_count, 4) if _res_count else 0.0,
+                "campaign_created":       meta.get("created_time", ""),
+                "campaign_start":         _fmt_camp_date(meta.get("start_time", "")),
+                "campaign_end":           _fmt_camp_date(meta.get("stop_time", "")),
                 "spend":                  spend_val,
                 "conversions":            purchases,
                 "cpa":                    cpa_val if cpa_val else (spend_val / purchases if purchases else 0.0),
