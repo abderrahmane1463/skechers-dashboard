@@ -40,6 +40,8 @@ _IDS_MAX_AGE_H   = 24   # re-scan at most once every 24 hours
 # Module-level memory cache — avoids 3 Supabase round-trips per render
 _MEM_IDS: list | None = None
 _MEM_IDS_AT: float    = 0.0
+_MEM_IDS_FULL: bool   = False   # False when the cached set came from an interrupted scan
+_IDS_PARTIAL_AGE_H    = 1       # retry partial scans after 1 h instead of 24 h
 
 
 def _supabase_load_ids():
@@ -103,6 +105,11 @@ def _supabase_save_ids(ids: list):
 # Meta action types that represent a purchase / conversion.
 # Use only "purchase" (the unified de-duplicated count Meta exposes).
 # "offsite_conversion.fb_pixel_purchase" is the same event and would double-count.
+# Attribution window matching Meta Ads Manager's default (7-day click, 1-day view).
+# Without this the API applies its own default and conversion counts diverge from
+# what the user sees in Ads Manager.
+_ATTRIBUTION_WINDOWS = json.dumps(["7d_click", "1d_view"])
+
 _PURCHASE_TYPES       = {"purchase"}
 _ADD_TO_CART_TYPES    = {"offsite_conversion.fb_pixel_add_to_cart"}
 _CHECKOUT_TYPES       = {"offsite_conversion.fb_pixel_initiate_checkout"}
@@ -152,19 +159,13 @@ def _derive_result(objective: str, actions: list, reach: int,
 
 
 # ─── Internal HTTP layer (no block-guard) ─────────────────────────────────────
-def _get_ads(endpoint: str, params: dict) -> dict:
-    """
-    GET against the Meta Marketing API with retry + backoff.
-    Bypasses _assert_not_blocked() — this is intentional (see module docstring).
-    """
-    url = f"{GRAPH_BASE_URL}/{endpoint.lstrip('/')}"
-    full_params = {**params, "access_token": ADS_ACCESS_TOKEN}
-
+def _request_json(url: str, params: dict | None) -> dict:
+    """GET a fully-formed Graph URL with retry + backoff. Returns parsed JSON."""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            resp = requests.get(url, params=full_params, timeout=REQUEST_TIMEOUT)
+            resp = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
             if resp.status_code not in (200, 400):
-                print(f"DEBUG ads: HTTP {resp.status_code} on {endpoint}: {resp.text[:200]}")
+                print(f"DEBUG ads: HTTP {resp.status_code} on {url[:80]}: {resp.text[:200]}")
             if resp.status_code == 429:
                 time.sleep(RETRY_BACKOFF ** attempt)
                 continue
@@ -175,8 +176,52 @@ def _get_ads(endpoint: str, params: dict) -> dict:
             if attempt == MAX_RETRIES:
                 raise
             time.sleep(RETRY_BACKOFF ** attempt)
-
     return {}
+
+
+def _get_ads(endpoint: str, params: dict) -> dict:
+    """
+    GET against the Meta Marketing API with retry + backoff (single page).
+    Bypasses _assert_not_blocked() — this is intentional (see module docstring).
+    """
+    url = f"{GRAPH_BASE_URL}/{endpoint.lstrip('/')}"
+    return _request_json(url, {**params, "access_token": ADS_ACCESS_TOKEN})
+
+
+def _get_ads_all(endpoint: str, params: dict, max_pages: int = 100,
+                 status: dict | None = None) -> list:
+    """
+    GET against the Meta Marketing API following cursor pagination to the end.
+    Returns the concatenated `data` rows from every page.
+
+    Uses Meta's `paging.next` URL (already encoded with cursor + token) rather
+    than reconstructing the request with an `after` param — the latter
+    intermittently returns HTTP 400 on deep pagination.
+
+    If `status` (a dict) is passed, status["complete"] is set True when every
+    page was fetched, or False when pagination stopped early on an error.
+    """
+    url: str | None = f"{GRAPH_BASE_URL}/{endpoint.lstrip('/')}"
+    page_params: dict | None = {**params, "access_token": ADS_ACCESS_TOKEN}
+    rows: list = []
+    pages = 0
+    complete = True
+    while url and pages < max_pages:
+        try:
+            data = _request_json(url, page_params)
+        except Exception as exc:
+            # Keep the rows already collected rather than discarding the whole
+            # result when a later page fails (rate limit, transient network).
+            print(f"DEBUG ads: pagination stopped at page {pages + 1} on {endpoint}: {exc}")
+            complete = False
+            break
+        rows.extend(data.get("data", []))
+        url = data.get("paging", {}).get("next")  # full URL incl. cursor + token
+        page_params = None                          # next already carries the querystring
+        pages += 1
+    if status is not None:
+        status["complete"] = complete
+    return rows
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -255,11 +300,13 @@ def _get_skechers_ids() -> list:
          On success → saved back to Supabase for the next 24 h.
          On failure (rate limit) → returns stale Supabase IDs as fallback if available.
     """
-    global _MEM_IDS, _MEM_IDS_AT
+    global _MEM_IDS, _MEM_IDS_AT, _MEM_IDS_FULL
 
     # Tier 1 — in-memory (valid for this Python process)
-    if _MEM_IDS is not None and (time.time() - _MEM_IDS_AT) < _IDS_MAX_AGE_H * 3600:
-        print(f"DEBUG boost: {len(_MEM_IDS)} Skechers IDs from memory cache")
+    _mem_ttl = (_IDS_MAX_AGE_H if _MEM_IDS_FULL else _IDS_PARTIAL_AGE_H) * 3600
+    if _MEM_IDS is not None and (time.time() - _MEM_IDS_AT) < _mem_ttl:
+        print(f"DEBUG boost: {len(_MEM_IDS)} Skechers IDs from memory cache"
+              f"{'' if _MEM_IDS_FULL else ' (partial — will retry)'}")
         return _MEM_IDS
 
     # Tier 2 — Supabase
@@ -273,71 +320,65 @@ def _get_skechers_ids() -> list:
                 print(f"DEBUG boost: {len(supabase_ids)} Skechers IDs from Supabase (age {age})")
                 _MEM_IDS    = supabase_ids
                 _MEM_IDS_AT = time.time()
+                _MEM_IDS_FULL = True
                 return supabase_ids
         except Exception:
             pass
 
-    # Tier 3 — live API scan
-    try:
-        campaign_ids: set = set()
-        params = {
-            "fields": "campaign_id,creative{object_story_spec{page_id},object_story_id}",
-            "limit":  500,
-        }
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", params)
+    # Tier 3 — live API scan (full cursor pagination via paging.next)
+    campaign_ids: set = set()
+    _scan_status: dict = {}
+    for ad in _get_ads_all(f"{AD_ACCOUNT_ID}/ads", {
+        "fields": "campaign_id,creative{object_story_spec{page_id},object_story_id}",
+        "limit":  500,
+    }, status=_scan_status):
+        cid = ad.get("campaign_id")
+        if not cid:
+            continue
+        creative = ad.get("creative", {})
 
-        while True:
-            for ad in resp.get("data", []):
-                cid = ad.get("campaign_id")
-                if not cid:
-                    continue
-                creative = ad.get("creative", {})
+        # Primary: object_story_spec.page_id (present on all ad types)
+        page_id = creative.get("object_story_spec", {}).get("page_id", "")
 
-                # Primary: object_story_spec.page_id (present on all ad types)
-                page_id = creative.get("object_story_spec", {}).get("page_id", "")
+        # Fallback: object_story_id is "{page_id}_{post_id}" for boosted posts
+        if not page_id:
+            story_id = creative.get("object_story_id", "")
+            if story_id.startswith(FACEBOOK_PAGE_ID + "_"):
+                page_id = FACEBOOK_PAGE_ID
 
-                # Fallback: object_story_id is "{page_id}_{post_id}" for boosted posts
-                if not page_id:
-                    story_id = creative.get("object_story_id", "")
-                    if story_id.startswith(FACEBOOK_PAGE_ID + "_"):
-                        page_id = FACEBOOK_PAGE_ID
+        if page_id == FACEBOOK_PAGE_ID:
+            campaign_ids.add(cid)
 
-                if page_id == FACEBOOK_PAGE_ID:
-                    campaign_ids.add(cid)
+    complete = _scan_status.get("complete", False)
+    ids = list(campaign_ids)
 
-            after = resp.get("paging", {}).get("cursors", {}).get("after")
-            if not after:
-                break
-            params["after"] = after
-            resp = _get_ads(f"{AD_ACCOUNT_ID}/ads", params)
-
-        ids = list(campaign_ids)
+    if complete and ids:
+        # Full, trustworthy scan — persist for 24 h.
         print(f"DEBUG boost: {len(ids)} Skechers campaign IDs found via page_id scan")
-
-        if ids:
-            _supabase_save_ids(ids)
-            _MEM_IDS    = ids
-            _MEM_IDS_AT = time.time()
-
+        _supabase_save_ids(ids)
+        _MEM_IDS      = ids
+        _MEM_IDS_AT   = time.time()
+        _MEM_IDS_FULL = True
         return ids
 
-    except Exception as e:
-        print(f"DEBUG boost: _get_skechers_ids scan error: {e}")
-        # Use any IDs already collected before the pagination failure
-        partial = list(campaign_ids) if campaign_ids else []
-        if partial:
-            print(f"DEBUG boost: using {len(partial)} partial IDs from interrupted scan")
-            _supabase_save_ids(partial)
-            _MEM_IDS    = partial
-            _MEM_IDS_AT = time.time()
-            return partial
-        # Fallback: return stale Supabase IDs rather than an empty list
-        if supabase_ids:
-            print(f"DEBUG boost: using stale Supabase IDs as fallback ({len(supabase_ids)} IDs)")
-            _MEM_IDS    = supabase_ids
-            _MEM_IDS_AT = time.time()
-            return supabase_ids
-        return []
+    # Scan was interrupted — prefer a complete stale Supabase set over a partial one.
+    if supabase_ids and len(supabase_ids) >= len(ids):
+        print(f"DEBUG boost: scan incomplete — using stale Supabase IDs ({len(supabase_ids)})")
+        _MEM_IDS      = supabase_ids
+        _MEM_IDS_AT   = time.time()
+        _MEM_IDS_FULL = True
+        return supabase_ids
+
+    if ids:
+        # Partial set: use it for this render but DON'T persist to Supabase,
+        # and mark it partial so Tier 1 retries within an hour.
+        print(f"DEBUG boost: using {len(ids)} partial IDs from interrupted scan (not persisted)")
+        _MEM_IDS      = ids
+        _MEM_IDS_AT   = time.time()
+        _MEM_IDS_FULL = False
+        return ids
+
+    return supabase_ids or []
 
 
 # ─── Public fetch function ────────────────────────────────────────────────────
@@ -404,14 +445,15 @@ def fetch_boost_insights(
     # ── 1. Resolve Skechers campaign IDs + status/budget ─────────────────────
     skechers_ids = _get_skechers_ids()
 
-    # Fetch delivery status and budget per campaign
+    # Fetch delivery status and budget per campaign.
+    # /campaigns doesn't support id-based filtering, so fetch all pages
+    # (full pagination prevents the 500-row cap from dropping campaigns).
     _camp_meta: dict[str, dict] = {}
     try:
-        resp_meta = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
+        for c in _get_ads_all(f"{AD_ACCOUNT_ID}/campaigns", {
             "fields": "id,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time",
             "limit":  500,
-        })
-        for c in resp_meta.get("data", []):
+        }):
             cid = c.get("id", "")
             daily    = _safe_float(c.get("daily_budget",    0)) / 100
             lifetime = _safe_float(c.get("lifetime_budget", 0)) / 100
@@ -457,14 +499,15 @@ def fetch_boost_insights(
     # ── 3. Campaign-level insights (Skechers only) ────────────────────────────
     try:
         # Ensure the time_range is strictly passed to prevent lifetime defaults
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+        rows = _get_ads_all(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "campaign",
             "fields":     _FIELDS,
             "filtering":  _FILTERING,
             "time_range": time_range,
+            "action_attribution_windows": _ATTRIBUTION_WINDOWS,
             "limit":      500,
         })
-        rows = resp.get("data", [])
+        print(f"DEBUG boost: campaign insights {len(rows)} rows")
 
         campaigns    = []
         conv_ids:    list[str]        = []   # campaign IDs with conversion objective
@@ -722,15 +765,15 @@ def fetch_adset_ad_insights(
     skechers_set = set(skechers_ids)
 
     # ── 1. Campaign metadata (objective, status, budget) ──────────────────────
-    # Fetch ALL campaigns (no filter — id-based filter not supported here),
-    # then keep only Skechers ones.
+    # /campaigns doesn't support id-based filtering — fetch all pages then keep
+    # only Skechers ones (full pagination prevents the 500-row cap from
+    # dropping campaigns).
     _camp_meta: dict[str, dict] = {}
     try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/campaigns", {
+        for c in _get_ads_all(f"{AD_ACCOUNT_ID}/campaigns", {
             "fields": "id,objective,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time",
             "limit":  500,
-        })
-        for c in resp.get("data", []):
+        }):
             cid = c.get("id", "")
             if cid not in skechers_set:
                 continue
@@ -753,12 +796,11 @@ def fetch_adset_ad_insights(
     # ── 2. Adset metadata (budget) ────────────────────────────────────────────
     _adset_meta: dict[str, dict] = {}
     try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/adsets", {
+        for a in _get_ads_all(f"{AD_ACCOUNT_ID}/adsets", {
             "fields":    "id,campaign_id,daily_budget,lifetime_budget,start_time,end_time",
             "filtering": _CAMP_ID_FILTER,
             "limit":     500,
-        })
-        for a in resp.get("data", []):
+        }):
             aid   = a.get("id", "")
             daily = _safe_float(a.get("daily_budget",    0)) / 100
             life  = _safe_float(a.get("lifetime_budget", 0)) / 100
@@ -902,14 +944,14 @@ def fetch_adset_ad_insights(
     # ── Adset level ───────────────────────────────────────────────────────────
     adsets = []
     try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+        for r in _get_ads_all(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "adset",
             "fields":     _ADSET_FIELDS,
             "filtering":  _FILTERING,
             "time_range": time_range,
+            "action_attribution_windows": _ATTRIBUTION_WINDOWS,
             "limit":      500,
-        })
-        for r in resp.get("data", []):
+        }):
             adsets.append(_parse_adset_row(r))
         print(f"DEBUG adset insights: {len(adsets)} adsets")
     except Exception as e:
@@ -918,14 +960,14 @@ def fetch_adset_ad_insights(
     # ── Ad level ──────────────────────────────────────────────────────────────
     ads = []
     try:
-        resp = _get_ads(f"{AD_ACCOUNT_ID}/insights", {
+        for r in _get_ads_all(f"{AD_ACCOUNT_ID}/insights", {
             "level":      "ad",
             "fields":     _AD_FIELDS,
             "filtering":  _FILTERING,
             "time_range": time_range,
+            "action_attribution_windows": _ATTRIBUTION_WINDOWS,
             "limit":      500,
-        })
-        for r in resp.get("data", []):
+        }):
             ads.append(_parse_ad_row(r))
         print(f"DEBUG ad insights: {len(ads)} ads")
     except Exception as e:
