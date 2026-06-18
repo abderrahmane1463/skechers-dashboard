@@ -829,6 +829,7 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
 
     if ads:
         _render_flat_table(key_suffix)
+        _section_header("📊 Rapport Hebdomadaire Notoriété & Engagement")
         _render_flat_table(f"{key_suffix}_2")
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
