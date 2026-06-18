@@ -802,6 +802,25 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
 
         _df_ads = pd.DataFrame(ad_rows)
 
+        if mode == "sales":
+            _sales_cols = [
+                "Ad name", "Campaign name", "Delivery status", "Delivery level", "Ad set name",
+                "Objective", "Result type", "Results", "Cost per result", "Amount spent (EUR)",
+                "Campaign Budget", "Campaign Budget Type", "Ad Set Budget", "Ad Set Budget Type",
+                "Reach", "Cost per 1,000 Meta Accounts reached",
+                "Impressions", "CPM (cost per 1,000 impressions)", "Frequency",
+                "Clicks (all)", "CPC (all)", "Link clicks", "CPC (cost per link click)",
+                "CTR (all)", "CTR (link click-through rate)",
+                "Outbound clicks", "Cost per outbound click",
+                "Website landing page views", "Cost per landing page view",
+                "Adds to cart", "Website adds to cart", "Cost per add to cart",
+                "Checkouts initiated", "Website checkouts initiated", "Cost per checkout initiated",
+                "Purchases", "Website purchases", "Cost per purchase",
+                "Engagement rate ranking", "Quality ranking", "Conversion rate ranking",
+                "Reporting starts", "Reporting ends",
+            ]
+            _df_ads = _df_ads.reindex(columns=[c for c in _sales_cols if c in _df_ads.columns])
+
         def _to_excel(df: pd.DataFrame) -> bytes:
             buf = io.BytesIO()
             with pd.ExcelWriter(buf, engine="openpyxl") as writer:
