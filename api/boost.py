@@ -107,9 +107,48 @@ _PURCHASE_TYPES       = {"purchase"}
 _ADD_TO_CART_TYPES    = {"offsite_conversion.fb_pixel_add_to_cart"}
 _CHECKOUT_TYPES       = {"offsite_conversion.fb_pixel_initiate_checkout"}
 _LANDING_PAGE_TYPES   = {"landing_page_view"}
+_POST_ENGAGEMENT_TYPES = {"post_engagement"}
+_LINK_CLICK_TYPES      = {"link_click"}
+_VIDEO_VIEW_TYPES      = {"video_view"}
+_LEAD_TYPES            = {"lead", "onsite_conversion.lead_grouped", "leadgen_grouped"}
+_MESSAGING_TYPES       = {
+    "onsite_conversion.messaging_conversation_started_7d",
+    "onsite_conversion.total_messaging_connection",
+}
 
 # Campaign objectives that count as "conversion" campaigns
 _CONV_OBJECTIVES = {"CONVERSIONS", "OUTCOME_SALES"}
+
+
+def _derive_result(objective: str, actions: list, reach: int,
+                   link_clicks: int, conv: int) -> tuple[str, int]:
+    """
+    Map a campaign's objective to its Meta "Results" metric, split into
+    (result_type, result_count). Mirrors what Meta's unified "Results" column
+    shows depending on the campaign's optimization goal.
+    """
+    obj = objective or ""
+    if obj in ("OUTCOME_SALES", "CONVERSIONS"):
+        return ("Purchases", conv)
+    if obj in ("OUTCOME_AWARENESS", "BRAND_AWARENESS", "REACH"):
+        return ("Reach", reach)
+    if obj in ("OUTCOME_ENGAGEMENT", "POST_ENGAGEMENT", "PAGE_LIKES", "EVENT_RESPONSES"):
+        return ("Post engagement", _action_count(actions, _POST_ENGAGEMENT_TYPES))
+    if obj in ("OUTCOME_TRAFFIC", "LINK_CLICKS"):
+        return ("Link clicks", link_clicks or _action_count(actions, _LINK_CLICK_TYPES))
+    if obj in ("OUTCOME_LEADS", "LEAD_GENERATION"):
+        return ("Leads", _action_count(actions, _LEAD_TYPES))
+    if obj == "VIDEO_VIEWS":
+        return ("Video views", _action_count(actions, _VIDEO_VIEW_TYPES))
+    if obj == "MESSAGES":
+        return ("Messaging conversations started", _action_count(actions, _MESSAGING_TYPES))
+    # Unknown objective — fall back to whatever signal exists
+    if conv > 0:
+        return ("Purchases", conv)
+    pe = _action_count(actions, _POST_ENGAGEMENT_TYPES)
+    if pe > 0:
+        return ("Post engagement", pe)
+    return ("—", 0)
 
 
 # ─── Internal HTTP layer (no block-guard) ─────────────────────────────────────
@@ -787,6 +826,9 @@ def fetch_adset_ad_insights(
 
         camp  = _camp_meta.get(camp_id, {})
         adset = _adset_meta.get(adset_id, {})
+        _result_type, _result_count = _derive_result(
+            camp.get("objective", ""), actions, reach, lk, conv
+        )
 
         def _fmt_date(iso: str) -> str:
             """Extract YYYY-MM-DD from an ISO datetime string."""
@@ -808,7 +850,9 @@ def fetch_adset_ad_insights(
             "adset_id":            adset_id,
             "adset_name":          r.get("adset_name", "—"),
             "objective":           camp.get("objective", "—"),
-            "result_type":         "Website purchases" if camp.get("objective", "") in ("OUTCOME_SALES", "CONVERSIONS") else ("Website purchases" if conv > 0 else "—"),
+            "result_type":         _result_type,
+            "results":             _result_count,
+            "cost_per_result":     round(spend / _result_count, 4) if _result_count else 0.0,
             "conversions":         conv,
             "cpa":                 cpa_val if cpa_val else (round(spend / conv, 2) if conv else 0.0),
             "spend":               spend,

@@ -357,6 +357,7 @@ Data fetched in a single credential refresh via `fetch_all_ga4_data(start, end)`
 | Budget = 0 | Adset uses parent campaign's budget |
 | Marketing API CPU-time rate limit (80004 / 2446079) | Caused by repeated full `/ads` pagination scans — fixed via 3-tier ID caching (§7.2). If it recurs, check `scratch/check_rate_limit.py` and wait for `estimated_time_to_regain_access` |
 | Boost tab shows zeros intermittently | Root cause: intermittent DNS/connection failures on `graph.facebook.com` caused `_get_skechers_ids()` to fail mid-pagination and discard all IDs collected from page 1. Fixed in `7f10ad2`: exception handler now returns any partial IDs already collected, saves them to Supabase, and caches in memory — so a single-page failure no longer produces an empty list. |
+| "Result type" / "Results" columns | The unified Meta "Results" metric is split into two columns. `api/boost.py:_derive_result()` maps each campaign objective to its result kind: Sales→Purchases, Awareness/Reach→Reach, Engagement→Post engagement, Traffic→Link clicks, Leads→Leads, Video→Video views, Messages→Messaging conversations. `result_type`, `results`, and `cost_per_result` are set per ad row. Requires a Refresh to repopulate cached rows that predate this. |
 
 ---
 
