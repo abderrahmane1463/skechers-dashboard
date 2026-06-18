@@ -35,6 +35,9 @@ AD_ACCOUNT_ID = BLOCKED_AD_ACCOUNTS[0]   # "act_765947885726761"
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 _SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 _IDS_CACHE_KEY   = "skechers_campaign_ids"
+# metric_cache.period_start/period_end are SQL `date` columns, so the static
+# IDs row must use a real date sentinel (the literal "static" raises 22007).
+_IDS_PERIOD      = "2000-01-01"
 _IDS_MAX_AGE_H   = 24   # re-scan at most once every 24 hours
 
 # Module-level memory cache — avoids 3 Supabase round-trips per render
@@ -58,8 +61,8 @@ def _supabase_load_ids():
             },
             params={
                 "metric_key":   f"eq.{_IDS_CACHE_KEY}",
-                "period_start": "eq.static",
-                "period_end":   "eq.static",
+                "period_start": f"eq.{_IDS_PERIOD}",
+                "period_end":   f"eq.{_IDS_PERIOD}",
                 "order":        "fetched_at.desc",
                 "limit":        "1",
                 "select":       "data,fetched_at",
@@ -81,8 +84,8 @@ def _supabase_save_ids(ids: list):
     try:
         payload = {
             "metric_key":   _IDS_CACHE_KEY,
-            "period_start": "static",
-            "period_end":   "static",
+            "period_start": _IDS_PERIOD,
+            "period_end":   _IDS_PERIOD,
             "data":         ids,
             "fetched_at":   datetime.now(timezone.utc).isoformat(),
         }
@@ -92,13 +95,16 @@ def _supabase_save_ids(ids: list):
             "Content-Type":  "application/json",
             "Prefer":        "resolution=merge-duplicates,return=minimal",
         }
-        requests.post(
+        resp = requests.post(
             f"{_SUPABASE_URL}/rest/v1/metric_cache",
             headers=headers,
             json=payload,
             timeout=10,
         )
-        print(f"DEBUG boost: saved {len(ids)} Skechers campaign IDs to Supabase")
+        if resp.status_code >= 300:
+            print(f"DEBUG boost: _supabase_save_ids failed HTTP {resp.status_code}: {resp.text[:200]}")
+        else:
+            print(f"DEBUG boost: saved {len(ids)} Skechers campaign IDs to Supabase")
     except Exception as e:
         print(f"DEBUG boost: _supabase_save_ids error: {e}")
 
