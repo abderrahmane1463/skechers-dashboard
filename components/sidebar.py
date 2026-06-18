@@ -138,6 +138,13 @@ def render_sidebar(log_refresh_fn):
             # Hard-delete Supabase rows so next load re-fetches from Meta API
             db.delete_period(ck_start, ck_end)
             st.cache_data.clear()
+            # Also drop the module-level Skechers ID cache — st.cache_data.clear()
+            # does not touch module globals, so a stale/partial set would persist.
+            try:
+                from api.boost import reset_ids_cache
+                reset_ids_cache()
+            except Exception:
+                pass
             log_refresh_fn(platform, period_label, "🔄 Manual Refresh Triggered")
             st.rerun()
 

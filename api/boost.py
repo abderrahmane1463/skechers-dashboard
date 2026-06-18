@@ -292,6 +292,16 @@ def _safe_int(val, default=0) -> int:
 
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
+def reset_ids_cache():
+    """Clear the in-memory Skechers campaign-ID cache.
+    Called by the Refresh button so a stale/partial in-memory set can't survive
+    a manual refresh (st.cache_data.clear() does not touch module globals)."""
+    global _MEM_IDS, _MEM_IDS_AT, _MEM_IDS_FULL
+    _MEM_IDS = None
+    _MEM_IDS_AT = 0.0
+    _MEM_IDS_FULL = False
+
+
 def _get_skechers_ids() -> list:
     """
     Return all campaign IDs whose ads run on the Skechers Facebook page.
