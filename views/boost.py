@@ -774,15 +774,21 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             "End":                                "—",
         }
 
-    def _render_flat_table(ks: str):
+    def _render_flat_table(ks: str, mode: str = "all"):
         _ads = list(ads)
         # ── Objective filter ──────────────────────────────────────────────────
         all_objectives = sorted(set(a.get("objective", "—") for a in _ads if a.get("objective", "—") != "—"))
         if all_objectives:
+            if mode == "sales":
+                default_objectives = [o for o in all_objectives if o == "OUTCOME_SALES"]
+            elif mode == "non_sales":
+                default_objectives = [o for o in all_objectives if o != "OUTCOME_SALES"]
+            else:
+                default_objectives = all_objectives
             selected_objectives = st.multiselect(
                 "Filtrer par objectif",
                 options=all_objectives,
-                default=all_objectives,
+                default=default_objectives,
                 label_visibility="collapsed",
                 placeholder="Sélectionner un ou plusieurs objectifs…",
                 key=f"obj_filter_table{ks}",
@@ -828,9 +834,9 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
         )
 
     if ads:
-        _render_flat_table(key_suffix)
+        _render_flat_table(key_suffix, mode="sales")
         _section_header("📊 Rapport Hebdomadaire Notoriété & Engagement")
-        _render_flat_table(f"{key_suffix}_2")
+        _render_flat_table(f"{key_suffix}_2", mode="non_sales")
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
 
