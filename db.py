@@ -230,9 +230,13 @@ def get_boost_insights(days, start=None, end=None):
     cached = load("boost_insights", ck_start, ck_end)
     if cached is not None:
         totals = cached.get("totals", {})
-        if totals.get("campaigns_count", 0) > 0 or totals.get("spend", 0.0) > 0:
+        camps  = cached.get("campaigns", [])
+        # Stale schema: campaign rows saved before result_type/campaign dates existed.
+        # Treat as a cache miss so the new fields populate without a manual refresh.
+        schema_ok = (not camps) or ("result_type" in camps[0])
+        if schema_ok and (totals.get("campaigns_count", 0) > 0 or totals.get("spend", 0.0) > 0):
             return cached
-        # Cached entry is empty — treat as cache miss and re-fetch
+        # Cached entry is empty or pre-dates current schema — treat as cache miss and re-fetch
     data = fetch_boost_insights(days, start, end)
     # Only persist to Supabase if we got real data
     totals = data.get("totals", {})
