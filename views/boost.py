@@ -575,7 +575,7 @@ def _render_insights_panel(totals: dict, conv: dict):
     st.markdown(rows_html, unsafe_allow_html=True)
 
 
-def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = None):
+def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = None, key_suffix: str = ""):
     """All campaigns as expandable rows — each expands to show adsets, each adset expands to show ads."""
     _section_header("📋 Rapport Hebdomadaire Sales")
 
@@ -784,7 +784,7 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 default=all_objectives,
                 label_visibility="collapsed",
                 placeholder="Sélectionner un ou plusieurs objectifs…",
-                key="obj_filter_table",
+                key=f"obj_filter_table{key_suffix}",
             )
             ads = [a for a in ads if a.get("objective", "—") in selected_objectives] if selected_objectives else ads
 
@@ -1140,6 +1140,7 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
 
     with t5:
         _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data)
+        _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data, key_suffix="_2")
 
     with t6:
         _render_demographics(demo)
