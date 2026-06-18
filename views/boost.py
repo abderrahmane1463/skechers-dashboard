@@ -774,9 +774,10 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             "End":                                "—",
         }
 
-    if ads:
+    def _render_flat_table(ks: str):
+        _ads = list(ads)
         # ── Objective filter ──────────────────────────────────────────────────
-        all_objectives = sorted(set(a.get("objective", "—") for a in ads if a.get("objective", "—") != "—"))
+        all_objectives = sorted(set(a.get("objective", "—") for a in _ads if a.get("objective", "—") != "—"))
         if all_objectives:
             selected_objectives = st.multiselect(
                 "Filtrer par objectif",
@@ -784,13 +785,13 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
                 default=all_objectives,
                 label_visibility="collapsed",
                 placeholder="Sélectionner un ou plusieurs objectifs…",
-                key=f"obj_filter_table{key_suffix}",
+                key=f"obj_filter_table{ks}",
             )
-            ads = [a for a in ads if a.get("objective", "—") in selected_objectives] if selected_objectives else ads
+            _ads = [a for a in _ads if a.get("objective", "—") in selected_objectives] if selected_objectives else _ads
 
         ad_rows = [
             _build_ad_row(a)
-            for a in sorted(ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True)
+            for a in sorted(_ads, key=lambda x: (x.get("campaign_created", ""), x.get("campaign_name", "")), reverse=True)
         ]
 
         _df_ads = pd.DataFrame(ad_rows)
@@ -823,7 +824,12 @@ def _render_campaigns_table(campaigns: list[dict], adset_ad_data: dict | None = 
             on_select="rerun",
             selection_mode="multi-row",
             column_config=_csv_col_config(),
+            key=f"ads_table{ks}",
         )
+
+    if ads:
+        _render_flat_table(key_suffix)
+        _render_flat_table(f"{key_suffix}_2")
     else:
         _no_data_banner("Aucune donnée ads disponible — les données adset/ads se chargent séparément.")
 
@@ -1140,7 +1146,6 @@ def render_boost_tab(data: dict | None = None, demo: dict | None = None,
 
     with t5:
         _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data)
-        _render_campaigns_table(campaigns, adset_ad_data=adset_ad_data, key_suffix="_2")
 
     with t6:
         _render_demographics(demo)
